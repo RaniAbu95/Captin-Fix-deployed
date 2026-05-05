@@ -43,6 +43,47 @@ def submit():
 
 
 
+@app.route('/health')
+def health():
+    import traceback
+    results = {}
+
+    # Check Chrome
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.chrome.service import Service
+        from webdriver_manager.chrome import ChromeDriverManager
+        opts = Options()
+        opts.add_argument("--headless=new")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
+        opts.add_argument("--disable-gpu")
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
+        driver.get("https://www.google.com")
+        results["chrome"] = f"OK — title: {driver.title}"
+        driver.quit()
+    except Exception:
+        results["chrome"] = traceback.format_exc()
+
+    # Check OpenAI key
+    from config import OPENAI_API_KEY
+    results["openai_key"] = "present" if OPENAI_API_KEY else "MISSING"
+
+    # Check output dir
+    try:
+        os.makedirs("output", exist_ok=True)
+        test_path = os.path.join("output", "_health_check.txt")
+        with open(test_path, "w") as f:
+            f.write("ok")
+        os.remove(test_path)
+        results["output_dir"] = "writable"
+    except Exception as e:
+        results["output_dir"] = str(e)
+
+    return jsonify(results)
+
+
 @app.route('/run-test', methods=['POST'])
 def run_test():
     from executor import generate_test_files, run_test_file
