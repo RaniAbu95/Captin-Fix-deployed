@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+properties.env
+*.png
+*.jpg
+output/
+tests/
+screen/
+Results.json
+.idea/
+*.iml
+.venv/
+venv/
+.DS_Store

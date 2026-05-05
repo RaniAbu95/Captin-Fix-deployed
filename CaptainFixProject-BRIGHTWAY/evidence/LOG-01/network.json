@@ -1,0 +1,252 @@
+[
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameStartedNavigating\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"loaderId\":\"87136307CCA22089DAADB66B252158CA\",\"navigationType\":\"differentDocument\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707025
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameStartedLoading\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707025
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\",\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasUserGesture\":false,\"initiator\":{\"type\":\"other\"},\"loaderId\":\"87136307CCA22089DAADB66B252158CA\",\"redirectHasExtraInfo\":false,\"request\":{\"headers\":{\"sec-ch-ua\":\"\\\"Google Chrome\\\";v=\\\"141\\\", \\\"Not?A_Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"141\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\"},\"initialPriority\":\"VeryHigh\",\"isSameSite\":true,\"method\":\"GET\",\"mixedContentType\":\"none\",\"referrerPolicy\":\"strict-origin-when-cross-origin\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"requestId\":\"87136307CCA22089DAADB66B252158CA\",\"timestamp\":4736785.219198,\"type\":\"Document\",\"wallTime\":1760016707.026331}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707026
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasExtraInfo\":false,\"loaderId\":\"87136307CCA22089DAADB66B252158CA\",\"requestId\":\"87136307CCA22089DAADB66B252158CA\",\"response\":{\"alternateProtocolUsage\":\"alternativeJobWonWithoutRace\",\"charset\":\"\",\"connectionId\":0,\"connectionReused\":false,\"encodedDataLength\":-1,\"fromDiskCache\":false,\"fromPrefetchCache\":false,\"fromServiceWorker\":false,\"headers\":{\"Content-Type\":\"text/html\",\"Last-Modified\":\"Wed, 08 Oct 2025 19:09:35 GMT\"},\"isIpProtectionUsed\":false,\"mimeType\":\"text/html\",\"protocol\":\"file\",\"remoteIPAddress\":\"\",\"remotePort\":0,\"securityState\":\"secure\",\"status\":200,\"statusText\":\"OK\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"timestamp\":4736785.224091,\"type\":\"Document\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707031
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameNavigated\",\"params\":{\"frame\":{\"adFrameStatus\":{\"adFrameType\":\"none\"},\"crossOriginIsolatedContextType\":\"NotIsolated\",\"domainAndRegistry\":\"\",\"gatedAPIFeatures\":[],\"id\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"loaderId\":\"87136307CCA22089DAADB66B252158CA\",\"mimeType\":\"text/html\",\"secureContextType\":\"Secure\",\"securityOrigin\":\"file://\",\"securityOriginDetails\":{\"isLocalhost\":false},\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"type\":\"Navigation\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707035
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.policyUpdated\",\"params\":{}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707042
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.dataReceived\",\"params\":{\"dataLength\":5270,\"encodedDataLength\":0,\"requestId\":\"87136307CCA22089DAADB66B252158CA\",\"timestamp\":4736785.239629}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707054
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\",\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasUserGesture\":false,\"initiator\":{\"columnNumber\":45,\"lineNumber\":6,\"type\":\"parser\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"loaderId\":\"87136307CCA22089DAADB66B252158CA\",\"redirectHasExtraInfo\":false,\"request\":{\"headers\":{\"Referer\":\"\",\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36\"},\"initialPriority\":\"VeryHigh\",\"isSameSite\":true,\"method\":\"GET\",\"mixedContentType\":\"none\",\"referrerPolicy\":\"strict-origin-when-cross-origin\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/styles.css\"},\"requestId\":\"37212.2\",\"timestamp\":4736785.241218,\"type\":\"Stylesheet\",\"wallTime\":1760016707.048447}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707054
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\",\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasUserGesture\":false,\"initiator\":{\"columnNumber\":25,\"lineNumber\":125,\"type\":\"parser\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"loaderId\":\"87136307CCA22089DAADB66B252158CA\",\"redirectHasExtraInfo\":false,\"request\":{\"headers\":{\"Referer\":\"\",\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36\"},\"initialPriority\":\"High\",\"isSameSite\":true,\"method\":\"GET\",\"mixedContentType\":\"none\",\"referrerPolicy\":\"strict-origin-when-cross-origin\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/app.js\"},\"requestId\":\"37212.3\",\"timestamp\":4736785.242421,\"type\":\"Script\",\"wallTime\":1760016707.0496}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707055
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasExtraInfo\":false,\"loaderId\":\"87136307CCA22089DAADB66B252158CA\",\"requestId\":\"37212.2\",\"response\":{\"alternateProtocolUsage\":\"alternativeJobWonWithoutRace\",\"charset\":\"\",\"connectionId\":0,\"connectionReused\":false,\"encodedDataLength\":-1,\"fromDiskCache\":false,\"fromPrefetchCache\":false,\"fromServiceWorker\":false,\"headers\":{\"Content-Type\":\"text/css\",\"Last-Modified\":\"Wed, 08 Oct 2025 18:59:47 GMT\"},\"isIpProtectionUsed\":false,\"mimeType\":\"text/css\",\"protocol\":\"file\",\"securityState\":\"secure\",\"status\":200,\"statusText\":\"OK\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/styles.css\"},\"timestamp\":4736785.250626,\"type\":\"Stylesheet\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707064
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.dataReceived\",\"params\":{\"dataLength\":8887,\"encodedDataLength\":0,\"requestId\":\"37212.2\",\"timestamp\":4736785.250692}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707064
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.loadingFinished\",\"params\":{\"encodedDataLength\":8887,\"requestId\":\"37212.2\",\"timestamp\":4736785.248365}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707064
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.loadingFinished\",\"params\":{\"encodedDataLength\":5270,\"requestId\":\"87136307CCA22089DAADB66B252158CA\",\"timestamp\":4736785.222538}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707064
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasExtraInfo\":false,\"loaderId\":\"87136307CCA22089DAADB66B252158CA\",\"requestId\":\"37212.3\",\"response\":{\"alternateProtocolUsage\":\"alternativeJobWonWithoutRace\",\"charset\":\"\",\"connectionId\":0,\"connectionReused\":false,\"encodedDataLength\":-1,\"fromDiskCache\":false,\"fromPrefetchCache\":false,\"fromServiceWorker\":false,\"headers\":{\"Content-Type\":\"text/javascript\",\"Last-Modified\":\"Wed, 08 Oct 2025 18:59:22 GMT\"},\"isIpProtectionUsed\":false,\"mimeType\":\"text/javascript\",\"protocol\":\"file\",\"securityState\":\"secure\",\"status\":200,\"statusText\":\"OK\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/app.js\"},\"timestamp\":4736785.254959,\"type\":\"Script\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707064
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.dataReceived\",\"params\":{\"dataLength\":16991,\"encodedDataLength\":0,\"requestId\":\"37212.3\",\"timestamp\":4736785.255047}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707065
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.loadingFinished\",\"params\":{\"encodedDataLength\":16991,\"requestId\":\"37212.3\",\"timestamp\":4736785.251292}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707065
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.domContentEventFired\",\"params\":{\"timestamp\":4736785.259775}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707097
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.loadEventFired\",\"params\":{\"timestamp\":4736785.26431}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707097
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameStoppedLoading\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707102
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameResized\",\"params\":{}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707102
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameResized\",\"params\":{}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016707117
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameStartedNavigating\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"navigationType\":\"differentDocument\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727419
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameStartedLoading\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727420
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\",\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasUserGesture\":false,\"initiator\":{\"type\":\"other\"},\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"redirectHasExtraInfo\":false,\"request\":{\"headers\":{\"sec-ch-ua\":\"\\\"Google Chrome\\\";v=\\\"141\\\", \\\"Not?A_Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"141\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\"},\"initialPriority\":\"VeryHigh\",\"isSameSite\":true,\"method\":\"GET\",\"mixedContentType\":\"none\",\"referrerPolicy\":\"strict-origin-when-cross-origin\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"requestId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"timestamp\":4736805.613544,\"type\":\"Document\",\"wallTime\":1760016727.420664}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727420
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasExtraInfo\":false,\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"requestId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"response\":{\"alternateProtocolUsage\":\"alternativeJobWonWithoutRace\",\"charset\":\"\",\"connectionId\":0,\"connectionReused\":false,\"encodedDataLength\":-1,\"fromDiskCache\":false,\"fromPrefetchCache\":false,\"fromServiceWorker\":false,\"headers\":{\"Content-Type\":\"text/html\",\"Last-Modified\":\"Wed, 08 Oct 2025 19:09:35 GMT\"},\"isIpProtectionUsed\":false,\"mimeType\":\"text/html\",\"protocol\":\"file\",\"remoteIPAddress\":\"\",\"remotePort\":0,\"securityState\":\"secure\",\"status\":200,\"statusText\":\"OK\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"timestamp\":4736805.618769,\"type\":\"Document\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727426
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameNavigated\",\"params\":{\"frame\":{\"adFrameStatus\":{\"adFrameType\":\"none\"},\"crossOriginIsolatedContextType\":\"NotIsolated\",\"domainAndRegistry\":\"\",\"gatedAPIFeatures\":[],\"id\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"mimeType\":\"text/html\",\"secureContextType\":\"Secure\",\"securityOrigin\":\"file://\",\"securityOriginDetails\":{\"isLocalhost\":false},\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"type\":\"Navigation\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727429
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.policyUpdated\",\"params\":{}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727431
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.dataReceived\",\"params\":{\"dataLength\":5270,\"encodedDataLength\":0,\"requestId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"timestamp\":4736805.625297}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727435
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\",\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasUserGesture\":false,\"initiator\":{\"columnNumber\":45,\"lineNumber\":6,\"type\":\"parser\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"redirectHasExtraInfo\":false,\"request\":{\"headers\":{\"Referer\":\"\",\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36\"},\"initialPriority\":\"VeryHigh\",\"isSameSite\":true,\"method\":\"GET\",\"mixedContentType\":\"none\",\"referrerPolicy\":\"strict-origin-when-cross-origin\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/styles.css\"},\"requestId\":\"37212.7\",\"timestamp\":4736805.625576,\"type\":\"Stylesheet\",\"wallTime\":1760016727.432726}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727435
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\",\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasUserGesture\":false,\"initiator\":{\"columnNumber\":25,\"lineNumber\":125,\"type\":\"parser\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"},\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"redirectHasExtraInfo\":false,\"request\":{\"headers\":{\"Referer\":\"\",\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36\"},\"initialPriority\":\"High\",\"isSameSite\":true,\"method\":\"GET\",\"mixedContentType\":\"none\",\"referrerPolicy\":\"strict-origin-when-cross-origin\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/app.js\"},\"requestId\":\"37212.8\",\"timestamp\":4736805.625743,\"type\":\"Script\",\"wallTime\":1760016727.43288}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727435
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.loadingFinished\",\"params\":{\"encodedDataLength\":5270,\"requestId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"timestamp\":4736805.615533}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727435
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasExtraInfo\":false,\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"requestId\":\"37212.7\",\"response\":{\"alternateProtocolUsage\":\"alternativeJobWonWithoutRace\",\"charset\":\"\",\"connectionId\":0,\"connectionReused\":false,\"encodedDataLength\":-1,\"fromDiskCache\":false,\"fromPrefetchCache\":false,\"fromServiceWorker\":false,\"headers\":{\"Content-Type\":\"text/css\",\"Last-Modified\":\"Wed, 08 Oct 2025 18:59:47 GMT\"},\"isIpProtectionUsed\":false,\"mimeType\":\"text/css\",\"protocol\":\"file\",\"securityState\":\"secure\",\"status\":200,\"statusText\":\"OK\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/styles.css\"},\"timestamp\":4736805.628533,\"type\":\"Stylesheet\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727436
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.dataReceived\",\"params\":{\"dataLength\":8887,\"encodedDataLength\":0,\"requestId\":\"37212.7\",\"timestamp\":4736805.628562}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727436
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.loadingFinished\",\"params\":{\"encodedDataLength\":8887,\"requestId\":\"37212.7\",\"timestamp\":4736805.628904}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727436
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasExtraInfo\":false,\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"requestId\":\"37212.8\",\"response\":{\"alternateProtocolUsage\":\"alternativeJobWonWithoutRace\",\"charset\":\"\",\"connectionId\":0,\"connectionReused\":false,\"encodedDataLength\":-1,\"fromDiskCache\":false,\"fromPrefetchCache\":false,\"fromServiceWorker\":false,\"headers\":{\"Content-Type\":\"text/javascript\",\"Last-Modified\":\"Wed, 08 Oct 2025 18:59:22 GMT\"},\"isIpProtectionUsed\":false,\"mimeType\":\"text/javascript\",\"protocol\":\"file\",\"securityState\":\"secure\",\"status\":200,\"statusText\":\"OK\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/app.js\"},\"timestamp\":4736805.629672,\"type\":\"Script\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727437
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.dataReceived\",\"params\":{\"dataLength\":16991,\"encodedDataLength\":0,\"requestId\":\"37212.8\",\"timestamp\":4736805.629711}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727437
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.loadingFinished\",\"params\":{\"encodedDataLength\":16991,\"requestId\":\"37212.8\",\"timestamp\":4736805.628988}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727437
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.domContentEventFired\",\"params\":{\"timestamp\":4736805.631812}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727441
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.loadEventFired\",\"params\":{\"timestamp\":4736805.633001}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727441
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.frameStoppedLoading\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727442
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\",\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasUserGesture\":true,\"initiator\":{\"stack\":{\"callFrames\":[{\"columnNumber\":4,\"functionName\":\"handleLogin\",\"lineNumber\":124,\"scriptId\":\"7\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/app.js\"},{\"columnNumber\":9,\"functionName\":\"eval\",\"lineNumber\":10,\"scriptId\":\"27\",\"url\":\"\"},{\"columnNumber\":29,\"functionName\":\"executeScript\",\"lineNumber\":417,\"scriptId\":\"26\",\"url\":\"\"},{\"columnNumber\":23,\"functionName\":\"apply.element-6066-11e4-a52e-4f735466cecf\",\"lineNumber\":422,\"scriptId\":\"26\",\"url\":\"\"},{\"columnNumber\":21,\"functionName\":\"callFunction\",\"lineNumber\":385,\"scriptId\":\"26\",\"url\":\"\"},{\"columnNumber\":22,\"functionName\":\"\",\"lineNumber\":399,\"scriptId\":\"26\",\"url\":\"\"},{\"columnNumber\":2,\"functionName\":\"\",\"lineNumber\":400,\"scriptId\":\"26\",\"url\":\"\"}]},\"type\":\"script\"},\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"redirectHasExtraInfo\":false,\"request\":{\"hasPostData\":true,\"headers\":{\"Content-Type\":\"application/json\",\"Referer\":\"\",\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36\",\"sec-ch-ua\":\"\\\"Google Chrome\\\";v=\\\"141\\\", \\\"Not?A_Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"141\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\"},\"initialPriority\":\"High\",\"isSameSite\":false,\"method\":\"POST\",\"mixedContentType\":\"none\",\"postData\":\"{\\\"username\\\":\\\"emilys\\\",\\\"password\\\":\\\"\\\"}\",\"postDataEntries\":[{\"bytes\":\"eyJ1c2VybmFtZSI6ImVtaWx5cyIsInBhc3N3b3JkIjoiIn0=\"}],\"referrerPolicy\":\"strict-origin-when-cross-origin\",\"url\":\"https://dummyjson.com/auth/login\"},\"requestId\":\"37212.11\",\"timestamp\":4736805.74904,\"type\":\"Fetch\",\"wallTime\":1760016727.556331}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727558
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"https://dummyjson.com/auth/login\",\"hasUserGesture\":false,\"initiator\":{\"requestId\":\"37212.11\",\"type\":\"preflight\",\"url\":\"https://dummyjson.com/auth/login\"},\"loaderId\":\"\",\"redirectHasExtraInfo\":false,\"request\":{\"headers\":{\"Accept\":\"*/*\",\"Access-Control-Request-Headers\":\"content-type\",\"Access-Control-Request-Method\":\"POST\",\"Origin\":\"null\",\"Sec-Fetch-Mode\":\"cors\",\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36\"},\"initialPriority\":\"High\",\"method\":\"OPTIONS\",\"referrerPolicy\":\"strict-origin-when-cross-origin\",\"url\":\"https://dummyjson.com/auth/login\"},\"requestId\":\"57DE47C2CD07BBDB8A830406CBE4B87C\",\"timestamp\":4736805.752632,\"type\":\"Other\",\"wallTime\":1760016727.559773}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727560
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSentExtraInfo\",\"params\":{\"associatedCookies\":[],\"clientSecurityState\":{\"initiatorIPAddressSpace\":\"Loopback\",\"initiatorIsSecureContext\":true,\"privateNetworkRequestPolicy\":\"PermissionBlock\"},\"connectTiming\":{\"requestTime\":4736805.749877},\"headers\":{\":authority\":\"dummyjson.com\",\":method\":\"OPTIONS\",\":path\":\"/auth/login\",\":scheme\":\"https\",\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"access-control-request-headers\":\"content-type\",\"access-control-request-method\":\"POST\",\"origin\":\"null\",\"priority\":\"u=1, i\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"cross-site\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36\"},\"requestId\":\"57DE47C2CD07BBDB8A830406CBE4B87C\",\"siteHasCookieInOtherPartition\":false}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727582
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceivedExtraInfo\",\"params\":{\"blockedCookies\":[],\"cookiePartitionKey\":{\"hasCrossSiteAncestor\":true,\"topLevelSite\":\"file://\"},\"cookiePartitionKeyOpaque\":false,\"exemptedCookies\":[],\"headers\":{\"access-control-allow-headers\":\"content-type\",\"access-control-allow-methods\":\"GET,HEAD,PUT,PATCH,POST,DELETE\",\"access-control-allow-origin\":\"*\",\"cf-cache-status\":\"DYNAMIC\",\"cf-ray\":\"98be3e05084d48df-TLV\",\"date\":\"Thu, 09 Oct 2025 13:32:07 GMT\",\"nel\":\"{\\\"report_to\\\":\\\"cf-nel\\\",\\\"success_fraction\\\":0.0,\\\"max_age\\\":604800}\",\"report-to\":\"{\\\"group\\\":\\\"cf-nel\\\",\\\"max_age\\\":604800,\\\"endpoints\\\":[{\\\"url\\\":\\\"https://a.nel.cloudflare.com/report/v4?s=JaNbUc4KVJUXYZDr9QGPFWacs3UYGq7MWDVklOMhTN5DZFS2wVlYFK6aSMLe8DCTfkJ1klmnZI67fMPIkrml9o3yoRITkquZrq86\\\"}]}\",\"server\":\"cloudflare\",\"strict-transport-security\":\"max-age=15552000; includeSubDomains\",\"vary\":\"Access-Control-Request-Headers\",\"x-content-type-options\":\"nosniff\",\"x-dns-prefetch-control\":\"off\",\"x-download-options\":\"noopen\",\"x-frame-options\":\"SAMEORIGIN\",\"x-ratelimit-limit\":\"100\",\"x-ratelimit-remaining\":\"99\",\"x-ratelimit-reset\":\"1760016731\",\"x-xss-protection\":\"1; mode=block\"},\"requestId\":\"57DE47C2CD07BBDB8A830406CBE4B87C\",\"resourceIPAddressSpace\":\"Public\",\"statusCode\":204}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727750
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"hasExtraInfo\":true,\"loaderId\":\"\",\"requestId\":\"57DE47C2CD07BBDB8A830406CBE4B87C\",\"response\":{\"alternateProtocolUsage\":\"unspecifiedReason\",\"charset\":\"\",\"connectionId\":233,\"connectionReused\":false,\"encodedDataLength\":633,\"fromDiskCache\":false,\"fromPrefetchCache\":false,\"fromServiceWorker\":false,\"headers\":{\"access-control-allow-headers\":\"content-type\",\"access-control-allow-methods\":\"GET,HEAD,PUT,PATCH,POST,DELETE\",\"access-control-allow-origin\":\"*\",\"cf-cache-status\":\"DYNAMIC\",\"cf-ray\":\"98be3e05084d48df-TLV\",\"date\":\"Thu, 09 Oct 2025 13:32:07 GMT\",\"nel\":\"{\\\"report_to\\\":\\\"cf-nel\\\",\\\"success_fraction\\\":0.0,\\\"max_age\\\":604800}\",\"report-to\":\"{\\\"group\\\":\\\"cf-nel\\\",\\\"max_age\\\":604800,\\\"endpoints\\\":[{\\\"url\\\":\\\"https://a.nel.cloudflare.com/report/v4?s=JaNbUc4KVJUXYZDr9QGPFWacs3UYGq7MWDVklOMhTN5DZFS2wVlYFK6aSMLe8DCTfkJ1klmnZI67fMPIkrml9o3yoRITkquZrq86\\\"}]}\",\"server\":\"cloudflare\",\"strict-transport-security\":\"max-age=15552000; includeSubDomains\",\"vary\":\"Access-Control-Request-Headers\",\"x-content-type-options\":\"nosniff\",\"x-dns-prefetch-control\":\"off\",\"x-download-options\":\"noopen\",\"x-frame-options\":\"SAMEORIGIN\",\"x-ratelimit-limit\":\"100\",\"x-ratelimit-remaining\":\"99\",\"x-ratelimit-reset\":\"1760016731\",\"x-xss-protection\":\"1; mode=block\"},\"isIpProtectionUsed\":false,\"mimeType\":\"\",\"protocol\":\"h2\",\"remoteIPAddress\":\"104.21.61.23\",\"remotePort\":443,\"responseTime\":1.760016727717982e+12,\"securityDetails\":{\"certificateId\":0,\"certificateTransparencyCompliance\":\"compliant\",\"cipher\":\"AES_128_GCM\",\"encryptedClientHello\":true,\"issuer\":\"WE1\",\"keyExchange\":\"\",\"keyExchangeGroup\":\"X25519MLKEM768\",\"protocol\":\"TLS 1.3\",\"sanList\":[\"dummyjson.com\",\"*.dummyjson.com\"],\"serverSignatureAlgorithm\":1027,\"signedCertificateTimestampList\":[{\"hashAlgorithm\":\"SHA-256\",\"logDescription\":\"Google 'Xenon2025h2' log\",\"logId\":\"DDDCCA3495D7E11605E79532FAC79FF83D1C50DFDB003A1412760A2CACBBC82A\",\"origin\":\"Embedded in certificate\",\"signatureAlgorithm\":\"ECDSA\",\"signatureData\":\"3045022100C1934B97B21FC8F4A6915AC5FC77F8BF6D77FBE775557CFDC649F50F356C37BC022073467DD4883B30919C6F4F4F25000FD9A63D0BC3EC035C849904535BD05FE6E9\",\"status\":\"Verified\",\"timestamp\":1.755511087909e+12},{\"hashAlgorithm\":\"SHA-256\",\"logDescription\":\"Let's Encrypt 'Oak2025h2'\",\"logId\":\"0DE1F2302BD30DC140621209EA552EFC47747CB1D7E930EF0E421EB47E4EAA34\",\"origin\":\"Embedded in certificate\",\"signatureAlgorithm\":\"ECDSA\",\"signatureData\":\"3046022100BCDE14A521951FFA7E6979231962B91DC517508253E7EBEC13F11B3F6792564D022100A4A6D62D364690E16861E28B878032A14387B499B2C595EC3BD98E496C41312A\",\"status\":\"Verified\",\"timestamp\":1.755511088876e+12}],\"subjectName\":\"dummyjson.com\",\"validFrom\":1755507486,\"validTo\":1763286950},\"securityState\":\"secure\",\"status\":204,\"statusText\":\"\",\"timing\":{\"connectEnd\":24.73,\"connectStart\":6.942,\"dnsEnd\":6.592,\"dnsStart\":0.977,\"proxyEnd\":-1,\"proxyStart\":-1,\"pushEnd\":0,\"pushStart\":0,\"receiveHeadersEnd\":161.173,\"receiveHeadersStart\":160.973,\"requestTime\":4736805.749877,\"sendEnd\":25.217,\"sendStart\":25.045,\"sslEnd\":24.711,\"sslStart\":12.871,\"workerFetchStart\":-1,\"workerReady\":-1,\"workerRespondWithSettled\":-1,\"workerStart\":-1},\"url\":\"https://dummyjson.com/auth/login\"},\"timestamp\":4736805.942645,\"type\":\"Preflight\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727750
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.requestWillBeSentExtraInfo\",\"params\":{\"associatedCookies\":[],\"clientSecurityState\":{\"initiatorIPAddressSpace\":\"Loopback\",\"initiatorIsSecureContext\":true,\"privateNetworkRequestPolicy\":\"PermissionBlock\"},\"connectTiming\":{\"requestTime\":4736805.911686},\"headers\":{\":authority\":\"dummyjson.com\",\":method\":\"POST\",\":path\":\"/auth/login\",\":scheme\":\"https\",\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"content-length\":\"35\",\"content-type\":\"application/json\",\"origin\":\"null\",\"priority\":\"u=1, i\",\"sec-ch-ua\":\"\\\"Google Chrome\\\";v=\\\"141\\\", \\\"Not?A_Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"141\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"cross-site\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36\"},\"requestId\":\"37212.11\",\"siteHasCookieInOtherPartition\":false}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727750
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.loadingFinished\",\"params\":{\"encodedDataLength\":0,\"requestId\":\"57DE47C2CD07BBDB8A830406CBE4B87C\",\"timestamp\":4736805.911591}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727750
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceivedExtraInfo\",\"params\":{\"blockedCookies\":[],\"cookiePartitionKey\":{\"hasCrossSiteAncestor\":true,\"topLevelSite\":\"file://\"},\"cookiePartitionKeyOpaque\":false,\"exemptedCookies\":[],\"headers\":{\"access-control-allow-origin\":\"*\",\"cf-cache-status\":\"DYNAMIC\",\"cf-ray\":\"98be3e05e9cf48df-TLV\",\"content-length\":\"44\",\"content-type\":\"application/json; charset=utf-8\",\"date\":\"Thu, 09 Oct 2025 13:32:08 GMT\",\"etag\":\"W/\\\"2c-JAq5V8MKfWmWXvKJFTg6rvXRjdU\\\"\",\"nel\":\"{\\\"report_to\\\":\\\"cf-nel\\\",\\\"success_fraction\\\":0.0,\\\"max_age\\\":604800}\",\"report-to\":\"{\\\"group\\\":\\\"cf-nel\\\",\\\"max_age\\\":604800,\\\"endpoints\\\":[{\\\"url\\\":\\\"https://a.nel.cloudflare.com/report/v4?s=bY3P4gfx3%2Be9TFsurPIXK7Duo0tLDlmEFQ0rat%2FqKVKzJmCgGM4ehoVREZphbt3v9ohx0T0psSB5VLhcqsZ5%2Fs%2BIPpPe8VRAIaGf\\\"}]}\",\"server\":\"cloudflare\",\"strict-transport-security\":\"max-age=15552000; includeSubDomains\",\"vary\":\"Accept-Encoding\",\"x-content-type-options\":\"nosniff\",\"x-dns-prefetch-control\":\"off\",\"x-download-options\":\"noopen\",\"x-frame-options\":\"SAMEORIGIN\",\"x-powered-by\":\"Cats on Keyboards\",\"x-ratelimit-limit\":\"100\",\"x-ratelimit-remaining\":\"99\",\"x-ratelimit-reset\":\"1760016729\",\"x-xss-protection\":\"1; mode=block\"},\"requestId\":\"37212.11\",\"resourceIPAddressSpace\":\"Public\",\"statusCode\":400}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727875
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasExtraInfo\":true,\"loaderId\":\"177D2C97C9A5873496A13CDB8E1BE33E\",\"requestId\":\"37212.11\",\"response\":{\"alternateProtocolUsage\":\"unspecifiedReason\",\"charset\":\"utf-8\",\"connectionId\":233,\"connectionReused\":true,\"encodedDataLength\":346,\"fromDiskCache\":false,\"fromPrefetchCache\":false,\"fromServiceWorker\":false,\"headers\":{\"access-control-allow-origin\":\"*\",\"cf-cache-status\":\"DYNAMIC\",\"cf-ray\":\"98be3e05e9cf48df-TLV\",\"content-length\":\"44\",\"content-type\":\"application/json; charset=utf-8\",\"date\":\"Thu, 09 Oct 2025 13:32:08 GMT\",\"etag\":\"W/\\\"2c-JAq5V8MKfWmWXvKJFTg6rvXRjdU\\\"\",\"nel\":\"{\\\"report_to\\\":\\\"cf-nel\\\",\\\"success_fraction\\\":0.0,\\\"max_age\\\":604800}\",\"report-to\":\"{\\\"group\\\":\\\"cf-nel\\\",\\\"max_age\\\":604800,\\\"endpoints\\\":[{\\\"url\\\":\\\"https://a.nel.cloudflare.com/report/v4?s=bY3P4gfx3%2Be9TFsurPIXK7Duo0tLDlmEFQ0rat%2FqKVKzJmCgGM4ehoVREZphbt3v9ohx0T0psSB5VLhcqsZ5%2Fs%2BIPpPe8VRAIaGf\\\"}]}\",\"server\":\"cloudflare\",\"strict-transport-security\":\"max-age=15552000; includeSubDomains\",\"vary\":\"Accept-Encoding\",\"x-content-type-options\":\"nosniff\",\"x-dns-prefetch-control\":\"off\",\"x-download-options\":\"noopen\",\"x-frame-options\":\"SAMEORIGIN\",\"x-powered-by\":\"Cats on Keyboards\",\"x-ratelimit-limit\":\"100\",\"x-ratelimit-remaining\":\"99\",\"x-ratelimit-reset\":\"1760016729\",\"x-xss-protection\":\"1; mode=block\"},\"isIpProtectionUsed\":false,\"mimeType\":\"application/json\",\"protocol\":\"h2\",\"remoteIPAddress\":\"104.21.61.23\",\"remotePort\":443,\"responseTime\":1.760016727858831e+12,\"securityDetails\":{\"certificateId\":0,\"certificateTransparencyCompliance\":\"compliant\",\"cipher\":\"AES_128_GCM\",\"encryptedClientHello\":true,\"issuer\":\"WE1\",\"keyExchange\":\"\",\"keyExchangeGroup\":\"X25519MLKEM768\",\"protocol\":\"TLS 1.3\",\"sanList\":[\"dummyjson.com\",\"*.dummyjson.com\"],\"serverSignatureAlgorithm\":1027,\"signedCertificateTimestampList\":[{\"hashAlgorithm\":\"SHA-256\",\"logDescription\":\"Google 'Xenon2025h2' log\",\"logId\":\"DDDCCA3495D7E11605E79532FAC79FF83D1C50DFDB003A1412760A2CACBBC82A\",\"origin\":\"Embedded in certificate\",\"signatureAlgorithm\":\"ECDSA\",\"signatureData\":\"3045022100C1934B97B21FC8F4A6915AC5FC77F8BF6D77FBE775557CFDC649F50F356C37BC022073467DD4883B30919C6F4F4F25000FD9A63D0BC3EC035C849904535BD05FE6E9\",\"status\":\"Verified\",\"timestamp\":1.755511087909e+12},{\"hashAlgorithm\":\"SHA-256\",\"logDescription\":\"Let's Encrypt 'Oak2025h2'\",\"logId\":\"0DE1F2302BD30DC140621209EA552EFC47747CB1D7E930EF0E421EB47E4EAA34\",\"origin\":\"Embedded in certificate\",\"signatureAlgorithm\":\"ECDSA\",\"signatureData\":\"3046022100BCDE14A521951FFA7E6979231962B91DC517508253E7EBEC13F11B3F6792564D022100A4A6D62D364690E16861E28B878032A14387B499B2C595EC3BD98E496C41312A\",\"status\":\"Verified\",\"timestamp\":1.755511088876e+12}],\"subjectName\":\"dummyjson.com\",\"validFrom\":1755507486,\"validTo\":1763286950},\"securityState\":\"secure\",\"status\":400,\"statusText\":\"\",\"timing\":{\"connectEnd\":-1,\"connectStart\":-1,\"dnsEnd\":-1,\"dnsStart\":-1,\"proxyEnd\":-1,\"proxyStart\":-1,\"pushEnd\":0,\"pushStart\":0,\"receiveHeadersEnd\":140.486,\"receiveHeadersStart\":140.01,\"requestTime\":4736805.911686,\"sendEnd\":0.656,\"sendStart\":0.275,\"sslEnd\":-1,\"sslStart\":-1,\"workerFetchStart\":-1,\"workerReady\":-1,\"workerRespondWithSettled\":-1,\"workerStart\":-1},\"url\":\"https://dummyjson.com/auth/login\"},\"timestamp\":4736806.053827,\"type\":\"Fetch\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727875
+  },
+  {
+    "level": "INFO",
+    "message": "{\"message\":{\"method\":\"Page.javascriptDialogOpening\",\"params\":{\"defaultPrompt\":\"\",\"frameId\":\"09B0C498CEDF3F3F1D595A20F1648CB8\",\"hasBrowserHandler\":true,\"message\":\"Login failed. Please try again.\",\"type\":\"alert\",\"url\":\"file:///C:/Users/Herba/OneDrive/%D8%B3%D8%B7%D8%AD%20%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8/e-com/index.html\"}},\"webview\":\"09B0C498CEDF3F3F1D595A20F1648CB8\"}",
+    "timestamp": 1760016727875
+  }
+]

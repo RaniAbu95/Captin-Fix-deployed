@@ -1,0 +1,2 @@
+DEBUG - http://localhost:8000/ - [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o
+SEVERE - http://localhost:8000/favicon.ico - Failed to load resource: the server responded with a status of 404 (File not found)

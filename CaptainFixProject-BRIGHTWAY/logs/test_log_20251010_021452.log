@@ -1,0 +1,255 @@
+INFO:root:Test: User Login Test
+INFO:root:User successfully redirected to the shop page.
+INFO:root:End of Test
+INFO:root:===================================
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Test: User Login and Navigate to Cart
+ERROR:root:Error handling alert: Message: 
+
+INFO:root:Test completed successfully.
+INFO:root:========================================
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Test: User Login and Navigation to Shop Page
+ERROR:root:No alert appeared after login or alert text was incorrect.
+ERROR:root:Test failed: Alert did not appear or text was incorrect.
+INFO:root:End of test.
+INFO:root:===================================
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Test: User Login Test
+ERROR:root:Login verification failed: Expected username 'emilys', but got ''
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Login Test - Empty Username
+INFO:root:Error message displayed for empty username as expected.
+INFO:root:End of test.
+INFO:root:===================================
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Login Test for Empty Password
+ERROR:root:Failed to enter username: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0xf7fea3+66515]
+	GetHandleVerifier [0x0xf7fee4+66580]
+	(No symbol) [0x0xd6dc48]
+	(No symbol) [0x0xdb8704]
+	(No symbol) [0x0xdb8aab]
+	(No symbol) [0x0xdff482]
+	(No symbol) [0x0xddb214]
+	(No symbol) [0x0xdfcba7]
+	(No symbol) [0x0xddafc6]
+	(No symbol) [0x0xdac2ca]
+	(No symbol) [0x0xdad154]
+	GetHandleVerifier [0x0x11d73d3+2521347]
+	GetHandleVerifier [0x0x11d2353+2500739]
+	GetHandleVerifier [0x0xfa7cf4+229924]
+	GetHandleVerifier [0x0xf98258+165768]
+	GetHandleVerifier [0x0xf9ed0d+193085]
+	GetHandleVerifier [0x0xf881b8+100072]
+	GetHandleVerifier [0x0xf88350+100480]
+	GetHandleVerifier [0x0xf7260a+11066]
+	BaseThreadInitThunk [0x0x75c37ba9+25]
+	RtlInitializeExceptionChain [0x0x779bc3ab+107]
+	RtlClearBits [0x0x779bc32f+191]
+
+ERROR:root:Failed to locate password field: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0xf7fea3+66515]
+	GetHandleVerifier [0x0xf7fee4+66580]
+	(No symbol) [0x0xd6dc48]
+	(No symbol) [0x0xdb8704]
+	(No symbol) [0x0xdb8aab]
+	(No symbol) [0x0xdff482]
+	(No symbol) [0x0xddb214]
+	(No symbol) [0x0xdfcba7]
+	(No symbol) [0x0xddafc6]
+	(No symbol) [0x0xdac2ca]
+	(No symbol) [0x0xdad154]
+	GetHandleVerifier [0x0x11d73d3+2521347]
+	GetHandleVerifier [0x0x11d2353+2500739]
+	GetHandleVerifier [0x0xfa7cf4+229924]
+	GetHandleVerifier [0x0xf98258+165768]
+	GetHandleVerifier [0x0xf9ed0d+193085]
+	GetHandleVerifier [0x0xf881b8+100072]
+	GetHandleVerifier [0x0xf88350+100480]
+	GetHandleVerifier [0x0xf7260a+11066]
+	BaseThreadInitThunk [0x0x75c37ba9+25]
+	RtlInitializeExceptionChain [0x0x779bc3ab+107]
+	RtlClearBits [0x0x779bc32f+191]
+
+ERROR:root:Failed to click login button: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0xf7fea3+66515]
+	GetHandleVerifier [0x0xf7fee4+66580]
+	(No symbol) [0x0xd6dc48]
+	(No symbol) [0x0xdb8704]
+	(No symbol) [0x0xdb8aab]
+	(No symbol) [0x0xdff482]
+	(No symbol) [0x0xddb214]
+	(No symbol) [0x0xdfcba7]
+	(No symbol) [0x0xddafc6]
+	(No symbol) [0x0xdac2ca]
+	(No symbol) [0x0xdad154]
+	GetHandleVerifier [0x0x11d73d3+2521347]
+	GetHandleVerifier [0x0x11d2353+2500739]
+	GetHandleVerifier [0x0xfa7cf4+229924]
+	GetHandleVerifier [0x0xf98258+165768]
+	GetHandleVerifier [0x0xf9ed0d+193085]
+	GetHandleVerifier [0x0xf881b8+100072]
+	GetHandleVerifier [0x0xf88350+100480]
+	GetHandleVerifier [0x0xf7260a+11066]
+	BaseThreadInitThunk [0x0x75c37ba9+25]
+	RtlInitializeExceptionChain [0x0x779bc3ab+107]
+	RtlClearBits [0x0x779bc32f+191]
+
+ERROR:root:Error message verification failed: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0xf7fea3+66515]
+	GetHandleVerifier [0x0xf7fee4+66580]
+	(No symbol) [0x0xd6dc48]
+	(No symbol) [0x0xdb8704]
+	(No symbol) [0x0xdb8aab]
+	(No symbol) [0x0xdff482]
+	(No symbol) [0x0xddb214]
+	(No symbol) [0x0xdfcba7]
+	(No symbol) [0x0xddafc6]
+	(No symbol) [0x0xdac2ca]
+	(No symbol) [0x0xdad154]
+	GetHandleVerifier [0x0x11d73d3+2521347]
+	GetHandleVerifier [0x0x11d2353+2500739]
+	GetHandleVerifier [0x0xfa7cf4+229924]
+	GetHandleVerifier [0x0xf98258+165768]
+	GetHandleVerifier [0x0xf9ed0d+193085]
+	GetHandleVerifier [0x0xf881b8+100072]
+	GetHandleVerifier [0x0xf88350+100480]
+	GetHandleVerifier [0x0xf7260a+11066]
+	BaseThreadInitThunk [0x0x75c37ba9+25]
+	RtlInitializeExceptionChain [0x0x779bc3ab+107]
+	RtlClearBits [0x0x779bc32f+191]
+
+INFO:root:End of test
+INFO:root:========================================
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Test: Login and Search Functionality
+ERROR:root:Error handling alert: Message: 
+
+ERROR:root:Error verifying search results: 
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Test: Add Product to Cart
+ERROR:root:Error handling alert: Message: 
+
+ERROR:root:Error adding product to cart: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0xf7fea3+66515]
+	GetHandleVerifier [0x0xf7fee4+66580]
+	(No symbol) [0x0xd6dc48]
+	(No symbol) [0x0xdb8704]
+	(No symbol) [0x0xdb8aab]
+	(No symbol) [0x0xdff482]
+	(No symbol) [0x0xddb214]
+	(No symbol) [0x0xdfcba7]
+	(No symbol) [0x0xddafc6]
+	(No symbol) [0x0xdac2ca]
+	(No symbol) [0x0xdad154]
+	GetHandleVerifier [0x0x11d73d3+2521347]
+	GetHandleVerifier [0x0x11d2353+2500739]
+	GetHandleVerifier [0x0xfa7cf4+229924]
+	GetHandleVerifier [0x0xf98258+165768]
+	GetHandleVerifier [0x0xf9ed0d+193085]
+	GetHandleVerifier [0x0xf881b8+100072]
+	GetHandleVerifier [0x0xf88350+100480]
+	GetHandleVerifier [0x0xf7260a+11066]
+	BaseThreadInitThunk [0x0x75c37ba9+25]
+	RtlInitializeExceptionChain [0x0x779bc3ab+107]
+	RtlClearBits [0x0x779bc32f+191]
+
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Login Test
+ERROR:root:Error verifying user name: Expected user name 'emilys', but got ''
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Test: Login and Check Cart Total
+ERROR:root:An error occurred: Message: 
+
+INFO:root:End of Test
+INFO:root:===================================
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Login Test with Invalid Credentials
+INFO:root:Error message displayed for invalid credentials.
+INFO:root:========================================
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Test: Login Functionality
+ERROR:root:Test failed: User should be logged in without duplicate attempts.
+INFO:root:End of Test
+INFO:root:===================================
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Test: Login and Search Products
+ERROR:root:Error handling alert: Message: 
+
+ERROR:root:Error selecting category: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//option[@value='category1']"}
+  (Session info: chrome=141.0.7390.55); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#nosuchelementexception
+Stacktrace:
+	GetHandleVerifier [0x0xf7fea3+66515]
+	GetHandleVerifier [0x0xf7fee4+66580]
+	(No symbol) [0x0xd6dc48]
+	(No symbol) [0x0xdb8704]
+	(No symbol) [0x0xdb8aab]
+	(No symbol) [0x0xdadc71]
+	(No symbol) [0x0xddb214]
+	(No symbol) [0x0xdadb74]
+	(No symbol) [0x0xddb384]
+	(No symbol) [0x0xdfcba7]
+	(No symbol) [0x0xddafc6]
+	(No symbol) [0x0xdac2ca]
+	(No symbol) [0x0xdad154]
+	GetHandleVerifier [0x0x11d73d3+2521347]
+	GetHandleVerifier [0x0x11d2353+2500739]
+	GetHandleVerifier [0x0xfa7cf4+229924]
+	GetHandleVerifier [0x0xf98258+165768]
+	GetHandleVerifier [0x0xf9ed0d+193085]
+	GetHandleVerifier [0x0xf881b8+100072]
+	GetHandleVerifier [0x0xf88350+100480]
+	GetHandleVerifier [0x0xf7260a+11066]
+	BaseThreadInitThunk [0x0x75c37ba9+25]
+	RtlInitializeExceptionChain [0x0x779bc3ab+107]
+	RtlClearBits [0x0x779bc32f+191]
+
+INFO:WDM:====== WebDriver manager ======
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Get LATEST chromedriver version for google-chrome
+INFO:WDM:Driver [C:\Users\Herba\.wdm\drivers\chromedriver\win64\141.0.7390.76\chromedriver-win32/chromedriver.exe] found in cache
+INFO:root:Test: User Login and Checkout Process
+INFO:root:End of test.
+INFO:root:===================================

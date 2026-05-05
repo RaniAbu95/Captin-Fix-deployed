@@ -1,0 +1,13 @@
+flask
+gunicorn
+selenium
+webdriver-manager
+langchain
+langchain-openai
+langchain-community
+langchain-core
+pydantic
+pandas
+requests
+python-dotenv
+openpyxl
