@@ -75,8 +75,16 @@ def generate():
     data = request.get_json()
     url = data.get("url", "").strip()
     analysis = data.get("analysis", "").strip()
+    num_cases = max(1, int(data.get("num_cases", 5)))
     if not url or not analysis:
         return jsonify({"error": "URL and analysis are required"}), 400
+
+    # Distribute test cases: SMOKE gets extras first, then NAVIGATION, FORM gets base
+    base = num_cases // 3
+    remainder = num_cases % 3
+    smoke_count = base + (1 if remainder > 0 else 0)
+    nav_count = base + (1 if remainder > 1 else 0)
+    form_count = base
 
     try:
         client = openai_client()
@@ -87,16 +95,25 @@ def generate():
                 {"role": "system", "content": "Return ONLY raw Python code. No explanations. No markdown. No code blocks."},
                 {"role": "system", "content": "Configure Chrome with these options: --headless=new, --no-sandbox, --disable-dev-shm-usage, --disable-gpu"},
                 {"role": "system", "content": f"Use the URL: {url}"},
-                {"role": "system", "content": f"Handle the following actions: {analysis}"},
-                {"role": "user", "content": "Produce a Python Selenium script that tests each action and prints a result for each one."}
+                {"role": "system", "content": f"Page elements available: {analysis}"},
+                {"role": "user", "content": f"""Write a Python Selenium script with exactly {num_cases} test cases split across 3 suites:
+- SMOKE: {smoke_count} test case(s) — basic page load and key element visibility
+- NAVIGATION: {nav_count} test case(s) — clicking links and navigating pages
+- FORM: {form_count} test case(s) — filling and submitting forms/inputs
+
+For each test case print: [SUITE] Test N: <description> ... PASS or FAIL
+Use a try/except per test so one failure does not stop the rest."""}
             ],
-            max_tokens=1500
+            max_tokens=2000
         )
         code = response.choices[0].message.content
         if code.startswith("```"):
             lines = code.split("\n")
             code = "\n".join(l for l in lines if not l.startswith("```"))
-        return jsonify({"code": code.strip()})
+        return jsonify({
+            "code": code.strip(),
+            "distribution": {"SMOKE": smoke_count, "NAVIGATION": nav_count, "FORM": form_count}
+        })
     except Exception as e:
         return jsonify({"error": f"OpenAI error: {e}"}), 500
 

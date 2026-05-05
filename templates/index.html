@@ -34,7 +34,14 @@
         .code-block { background: #1e2433; color: #abb2bf; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; margin-bottom: 1rem; }
         .output-block { background: #0d1117; color: #58a6ff; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 350px; overflow-y: auto; }
         .error-box { background: #fde8e8; color: #c0392b; padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.9rem; }
-        .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+        .num-input { width: 80px; padding: 0.75rem; border: 2px solid #dde3ea; border-radius: 8px; font-size: 1rem; text-align: center; }
+        .num-input:focus { outline: none; border-color: #2ecc71; }
+        .distribution { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .badge { padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+        .badge-smoke { background: #fef3cd; color: #856404; }
+        .badge-nav { background: #d1ecf1; color: #0c5460; }
+        .badge-form { background: #d4edda; color: #155724; }
     </style>
 </head>
 <body>
@@ -63,7 +70,11 @@
         <div id="analysis-result" class="analysis-text hidden"></div>
         <div id="analysis-error" class="error-box hidden"></div>
         <br>
-        <button class="btn btn-green hidden" id="generate-btn" onclick="generate()">Generate Test Code</button>
+        <div class="btn-row" id="generate-row" style="display:none">
+            <label style="font-size:0.9rem;color:#555;font-weight:600;">Test cases:</label>
+            <input type="number" id="num-cases" class="num-input" value="5" min="1" max="30">
+            <button class="btn btn-green" id="generate-btn" onclick="generate()">Generate Test Code</button>
+        </div>
     </div>
 
     <!-- Step 3 -->
@@ -71,6 +82,7 @@
         <div class="step-label">Step 3</div>
         <h2>Generated Selenium Code</h2>
         <div id="code-loading" class="hidden"><span class="spinner"></span> Generating code...</div>
+        <div id="distribution-badges" class="distribution hidden"></div>
         <pre id="code-result" class="code-block hidden"></pre>
         <div id="code-error" class="error-box hidden"></div>
         <div class="btn-row">
@@ -114,7 +126,7 @@
         show('analysis-loading');
         hide('analysis-result');
         hide('analysis-error');
-        hide('generate-btn');
+        document.getElementById('generate-row').style.display = 'none';
         hide('code-card');
         hide('output-card');
 
@@ -134,7 +146,7 @@
                 currentAnalysis = data.analysis;
                 setText('analysis-result', data.analysis);
                 show('analysis-result');
-                show('generate-btn');
+                document.getElementById('generate-row').style.display = 'flex';
             }
         } catch (e) {
             hide('analysis-loading');
@@ -148,11 +160,13 @@
 
     async function generate() {
         const btn = document.getElementById('generate-btn');
+        const numCases = parseInt(document.getElementById('num-cases').value) || 5;
         btn.disabled = true;
         btn.textContent = 'Generating...';
 
         show('code-card');
         show('code-loading');
+        hide('distribution-badges');
         hide('code-result');
         hide('code-error');
         hide('run-btn');
@@ -163,7 +177,7 @@
             const res = await fetch('/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: currentUrl, analysis: currentAnalysis })
+                body: JSON.stringify({ url: currentUrl, analysis: currentAnalysis, num_cases: numCases })
             });
             const data = await res.json();
             hide('code-loading');
@@ -173,6 +187,14 @@
                 show('code-error');
             } else {
                 currentCode = data.code;
+                if (data.distribution) {
+                    const d = data.distribution;
+                    document.getElementById('distribution-badges').innerHTML =
+                        `<span class="badge badge-smoke">SMOKE: ${d.SMOKE}</span>` +
+                        `<span class="badge badge-nav">NAVIGATION: ${d.NAVIGATION}</span>` +
+                        `<span class="badge badge-form">FORM: ${d.FORM}</span>`;
+                    show('distribution-badges');
+                }
                 setText('code-result', data.code);
                 show('code-result');
                 show('run-btn');
