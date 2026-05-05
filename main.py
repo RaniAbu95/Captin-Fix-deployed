@@ -41,6 +41,31 @@ def submit():
         return redirect(url_for('index'))
 
 
+def run_test(url):
+    print("RUN TEST STARTED")
+
+    try:
+        import os
+        print("chromium exists:", os.path.exists("/usr/bin/chromium"))
+
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+
+        options = Options()
+        options.binary_location = "/usr/bin/chromium"
+
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=options)
+
+        driver.get(url)
+        print("TITLE:", driver.title)
+
+    except Exception as e:
+        print("❌ SELENIUM ERROR:", str(e))
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5002))
     app.run(host='0.0.0.0', port=port, debug=False)
