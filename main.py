@@ -43,7 +43,7 @@ def submit():
 
 
 
-@app.route('/health')
+@app.route('/health', methods=['GET', 'POST'])
 def health():
     import traceback
     results = {}
