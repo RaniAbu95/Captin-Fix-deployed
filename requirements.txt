@@ -12,3 +12,4 @@ langchain-openai
 langchain-community
 langchain-core
 openpyxl
+httpx<0.28.0

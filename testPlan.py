@@ -9,15 +9,8 @@ import time
 
 #from Page_sourse import page_source, llm_suggestions
 
-load_dotenv(dotenv_path="properties.env")  # טוען את הקובץ .env
+load_dotenv(dotenv_path="properties.env")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-llm =ChatOpenAI(
-    model_name='gpt-3.5-turbo',
-    temperature=0.1,
-    max_tokens=500,
-    api_key=OPENAI_API_KEY
-)
 
 #create function to anaylayz the page using selenium
 # def analyz_html_with_llm(html:str)->str:
