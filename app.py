@@ -70,8 +70,8 @@ Return a numbered list grouped by element type. Write in English."""}
         return jsonify({"error": f"OpenAI error: {e}"}), 500
 
 
-@app.route("/generate", methods=["POST"])
-def generate():
+@app.route("/plan", methods=["POST"])
+def plan():
     data = request.get_json()
     url = data.get("url", "").strip()
     analysis = data.get("analysis", "").strip()
@@ -79,7 +79,6 @@ def generate():
     if not url or not analysis:
         return jsonify({"error": "URL and analysis are required"}), 400
 
-    # Distribute test cases: SMOKE gets extras first, then NAVIGATION, FORM gets base
     base = num_cases // 3
     remainder = num_cases % 3
     smoke_count = base + (1 if remainder > 0 else 0)
@@ -91,29 +90,81 @@ def generate():
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
+                {"role": "system", "content": "You are an experienced QA engineer creating structured test plans. Return only valid JSON, no markdown."},
+                {"role": "user", "content": f"""Given these page elements:
+{analysis}
+
+Generate a test plan for: {url}
+
+Return a JSON object in exactly this format:
+{{
+  "suites": {{
+    "SMOKE": [
+      {{"id": "S1", "description": "...", "steps": ["step1", "step2"], "expected": "..."}}
+    ],
+    "NAVIGATION": [...],
+    "FORM": [...]
+  }}
+}}
+
+Rules:
+- SMOKE: exactly {smoke_count} test case(s) — page load and key element checks
+- NAVIGATION: exactly {nav_count} test case(s) — link clicks and page transitions
+- FORM: exactly {form_count} test case(s) — input filling and form submission
+- Only include elements that actually exist on the page
+- Steps must be clear and actionable"""}
+            ],
+            max_tokens=1500
+        )
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = "\n".join(l for l in raw.split("\n") if not l.startswith("```"))
+
+        import json
+        parsed = json.loads(raw)
+        return jsonify({
+            "plan": parsed,
+            "distribution": {"SMOKE": smoke_count, "NAVIGATION": nav_count, "FORM": form_count}
+        })
+    except Exception as e:
+        return jsonify({"error": f"Failed to generate plan: {e}"}), 500
+
+
+@app.route("/generate", methods=["POST"])
+def generate():
+    data = request.get_json()
+    url = data.get("url", "").strip()
+    plan_data = data.get("plan", {})
+    if not url or not plan_data:
+        return jsonify({"error": "URL and test plan are required"}), 400
+
+    import json
+    plan_str = json.dumps(plan_data, indent=2)
+
+    try:
+        client = openai_client()
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
                 {"role": "system", "content": "You are an experienced QA engineer writing Selenium Python automation."},
                 {"role": "system", "content": "Return ONLY raw Python code. No explanations. No markdown. No code blocks."},
-                {"role": "system", "content": "Configure Chrome with these options: --headless=new, --no-sandbox, --disable-dev-shm-usage, --disable-gpu"},
-                {"role": "system", "content": f"Use the URL: {url}"},
-                {"role": "system", "content": f"Page elements available: {analysis}"},
-                {"role": "user", "content": f"""Write a Python Selenium script with exactly {num_cases} test cases split across 3 suites:
-- SMOKE: {smoke_count} test case(s) — basic page load and key element visibility
-- NAVIGATION: {nav_count} test case(s) — clicking links and navigating pages
-- FORM: {form_count} test case(s) — filling and submitting forms/inputs
+                {"role": "system", "content": "Configure Chrome with: --headless=new, --no-sandbox, --disable-dev-shm-usage, --disable-gpu"},
+                {"role": "user", "content": f"""Implement this test plan as a Python Selenium script for URL: {url}
 
-For each test case print: [SUITE] Test N: <description> ... PASS or FAIL
-Use a try/except per test so one failure does not stop the rest."""}
+Test plan:
+{plan_str}
+
+For each test case:
+- Print [SUITE_NAME] TC-<id>: <description> ... PASS or FAIL
+- Wrap each in try/except so failures do not stop the rest
+- Follow the steps and expected results from the plan exactly"""}
             ],
             max_tokens=2000
         )
         code = response.choices[0].message.content
         if code.startswith("```"):
-            lines = code.split("\n")
-            code = "\n".join(l for l in lines if not l.startswith("```"))
-        return jsonify({
-            "code": code.strip(),
-            "distribution": {"SMOKE": smoke_count, "NAVIGATION": nav_count, "FORM": form_count}
-        })
+            code = "\n".join(l for l in code.split("\n") if not l.startswith("```"))
+        return jsonify({"code": code.strip()})
     except Exception as e:
         return jsonify({"error": f"OpenAI error: {e}"}), 500
 

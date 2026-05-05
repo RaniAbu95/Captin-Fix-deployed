@@ -7,7 +7,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; color: #333; }
-        .container { max-width: 820px; margin: 0 auto; padding: 2rem 1rem; }
+        .container { max-width: 860px; margin: 0 auto; padding: 2rem 1rem; }
         header { text-align: center; margin-bottom: 2rem; }
         header h1 { font-size: 2.2rem; color: #2c3e50; }
         header p { color: #7f8c8d; margin-top: 0.4rem; }
@@ -17,31 +17,42 @@
         .input-row { display: flex; gap: 0.5rem; }
         input[type="text"] { flex: 1; padding: 0.75rem 1rem; border: 2px solid #dde3ea; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; }
         input[type="text"]:focus { outline: none; border-color: #3498db; }
+        input[type="number"] { width: 80px; padding: 0.75rem; border: 2px solid #dde3ea; border-radius: 8px; font-size: 1rem; text-align: center; }
+        input[type="number"]:focus { outline: none; border-color: #2ecc71; }
         .hint { font-size: 0.8rem; color: #95a5a6; margin-top: 0.5rem; }
         .hint a { color: #3498db; text-decoration: none; }
         .hint a:hover { text-decoration: underline; }
         .btn { padding: 0.75rem 1.4rem; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s, opacity 0.2s; }
-        .btn:hover:not(:disabled) { background: #2980b9; }
+        .btn:hover:not(:disabled) { filter: brightness(0.9); }
         .btn:disabled { opacity: 0.55; cursor: not-allowed; }
         .btn-green { background: #2ecc71; }
-        .btn-green:hover:not(:disabled) { background: #27ae60; }
+        .btn-purple { background: #9b59b6; }
         .btn-orange { background: #e67e22; }
-        .btn-orange:hover:not(:disabled) { background: #d35400; }
+        .btn-grey { background: #95a5a6; }
+        .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
         .hidden { display: none; }
         .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #3498db; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .analysis-text { white-space: pre-wrap; line-height: 1.7; color: #444; }
-        .code-block { background: #1e2433; color: #abb2bf; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; margin-bottom: 1rem; }
-        .output-block { background: #0d1117; color: #58a6ff; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 350px; overflow-y: auto; }
         .error-box { background: #fde8e8; color: #c0392b; padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.9rem; }
-        .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
-        .num-input { width: 80px; padding: 0.75rem; border: 2px solid #dde3ea; border-radius: 8px; font-size: 1rem; text-align: center; }
-        .num-input:focus { outline: none; border-color: #2ecc71; }
-        .distribution { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
-        .badge { padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
-        .badge-smoke { background: #fef3cd; color: #856404; }
-        .badge-nav { background: #d1ecf1; color: #0c5460; }
-        .badge-form { background: #d4edda; color: #155724; }
+        .code-block { background: #1e2433; color: #abb2bf; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow-y: auto; margin-bottom: 1rem; }
+        .output-block { background: #0d1117; color: #58a6ff; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 350px; overflow-y: auto; }
+
+        /* Test Plan styles */
+        .suite-section { margin-bottom: 1.2rem; }
+        .suite-header { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 1rem; border-radius: 8px 8px 0 0; font-weight: 700; font-size: 0.9rem; }
+        .suite-smoke .suite-header { background: #fef3cd; color: #856404; }
+        .suite-nav   .suite-header { background: #d1ecf1; color: #0c5460; }
+        .suite-form  .suite-header { background: #d4edda; color: #155724; }
+        .suite-count { font-weight: 400; font-size: 0.8rem; opacity: 0.8; }
+        .tc-list { border: 1px solid #e9ecef; border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; }
+        .tc-item { padding: 0.9rem 1rem; border-bottom: 1px solid #f0f0f0; }
+        .tc-item:last-child { border-bottom: none; }
+        .tc-id { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 0.25rem; }
+        .tc-desc { font-weight: 600; color: #2c3e50; margin-bottom: 0.4rem; }
+        .tc-steps { font-size: 0.85rem; color: #555; padding-left: 1rem; margin-bottom: 0.3rem; }
+        .tc-steps li { margin-bottom: 0.15rem; }
+        .tc-expected { font-size: 0.82rem; color: #27ae60; font-style: italic; }
     </style>
 </head>
 <body>
@@ -51,7 +62,7 @@
         <p>AI-powered Selenium test generator — enter any URL to analyze and generate tests</p>
     </header>
 
-    <!-- Step 1 -->
+    <!-- Step 1: URL -->
     <div class="card">
         <div class="step-label">Step 1</div>
         <h2>Enter a URL to analyze</h2>
@@ -62,38 +73,48 @@
         <p class="hint">Try the built-in demo page: <a href="#" onclick="useDemoUrl()">ActionChains Practice Lab</a></p>
     </div>
 
-    <!-- Step 2 -->
+    <!-- Step 2: Analysis -->
     <div class="card hidden" id="analysis-card">
         <div class="step-label">Step 2</div>
         <h2>Page Analysis</h2>
         <div id="analysis-loading" class="hidden"><span class="spinner"></span> Loading page and analyzing elements...</div>
         <div id="analysis-result" class="analysis-text hidden"></div>
         <div id="analysis-error" class="error-box hidden"></div>
-        <br>
-        <div class="btn-row" id="generate-row" style="display:none">
+        <div class="btn-row hidden" id="plan-row">
             <label style="font-size:0.9rem;color:#555;font-weight:600;">Test cases:</label>
-            <input type="number" id="num-cases" class="num-input" value="5" min="1" max="30">
-            <button class="btn btn-green" id="generate-btn" onclick="generate()">Generate Test Code</button>
+            <input type="number" id="num-cases" value="5" min="1" max="30">
+            <button class="btn btn-green" id="plan-btn" onclick="createPlan()">Create Test Plan</button>
         </div>
     </div>
 
-    <!-- Step 3 -->
-    <div class="card hidden" id="code-card">
+    <!-- Step 3: Test Plan -->
+    <div class="card hidden" id="plan-card">
         <div class="step-label">Step 3</div>
+        <h2>Test Plan</h2>
+        <div id="plan-loading" class="hidden"><span class="spinner"></span> Generating test plan...</div>
+        <div id="plan-result" class="hidden"></div>
+        <div id="plan-error" class="error-box hidden"></div>
+        <div class="btn-row hidden" id="generate-row">
+            <button class="btn btn-purple" id="generate-btn" onclick="generateCode()">Generate Selenium Code</button>
+        </div>
+    </div>
+
+    <!-- Step 4: Selenium Code -->
+    <div class="card hidden" id="code-card">
+        <div class="step-label">Step 4</div>
         <h2>Generated Selenium Code</h2>
         <div id="code-loading" class="hidden"><span class="spinner"></span> Generating code...</div>
-        <div id="distribution-badges" class="distribution hidden"></div>
         <pre id="code-result" class="code-block hidden"></pre>
         <div id="code-error" class="error-box hidden"></div>
         <div class="btn-row">
             <button class="btn btn-orange hidden" id="run-btn" onclick="runTests()">Run Tests on Server</button>
-            <button class="btn hidden" id="copy-btn" onclick="copyCode()" style="background:#95a5a6">Copy Code</button>
+            <button class="btn btn-grey hidden" id="copy-btn" onclick="copyCode()">Copy Code</button>
         </div>
     </div>
 
-    <!-- Step 4 -->
+    <!-- Step 5: Output -->
     <div class="card hidden" id="output-card">
-        <div class="step-label">Step 4</div>
+        <div class="step-label">Step 5</div>
         <h2>Test Output</h2>
         <div id="run-loading" class="hidden"><span class="spinner"></span> Running tests (up to 60s)...</div>
         <pre id="run-result" class="output-block hidden"></pre>
@@ -104,6 +125,7 @@
 <script>
     let currentUrl = '';
     let currentAnalysis = '';
+    let currentPlan = null;
     let currentCode = '';
 
     function useDemoUrl() {
@@ -113,6 +135,32 @@
     function show(id) { document.getElementById(id).classList.remove('hidden'); }
     function hide(id) { document.getElementById(id).classList.add('hidden'); }
     function setText(id, text) { document.getElementById(id).textContent = text; }
+
+    function renderPlan(plan) {
+        const suites = plan.suites || {};
+        const icons = { SMOKE: '🔥', NAVIGATION: '🧭', FORM: '📝' };
+        const cls   = { SMOKE: 'suite-smoke', NAVIGATION: 'suite-nav', FORM: 'suite-form' };
+        let html = '';
+        for (const [suite, cases] of Object.entries(suites)) {
+            if (!cases || cases.length === 0) continue;
+            const icon = icons[suite] || '🧪';
+            const klass = cls[suite] || '';
+            html += `<div class="suite-section ${klass}">
+                <div class="suite-header">${icon} ${suite} <span class="suite-count">(${cases.length} test case${cases.length > 1 ? 's' : ''})</span></div>
+                <div class="tc-list">`;
+            cases.forEach(tc => {
+                const steps = (tc.steps || []).map(s => `<li>${s}</li>`).join('');
+                html += `<div class="tc-item">
+                    <div class="tc-id">TC-${tc.id || '?'}</div>
+                    <div class="tc-desc">${tc.description || ''}</div>
+                    ${steps ? `<ol class="tc-steps">${steps}</ol>` : ''}
+                    ${tc.expected ? `<div class="tc-expected">Expected: ${tc.expected}</div>` : ''}
+                </div>`;
+            });
+            html += `</div></div>`;
+        }
+        return html;
+    }
 
     async function analyze() {
         currentUrl = document.getElementById('url-input').value.trim();
@@ -126,7 +174,8 @@
         show('analysis-loading');
         hide('analysis-result');
         hide('analysis-error');
-        document.getElementById('generate-row').style.display = 'none';
+        hide('plan-row');
+        hide('plan-card');
         hide('code-card');
         hide('output-card');
 
@@ -138,7 +187,6 @@
             });
             const data = await res.json();
             hide('analysis-loading');
-
             if (data.error) {
                 setText('analysis-error', 'Error: ' + data.error);
                 show('analysis-error');
@@ -146,27 +194,65 @@
                 currentAnalysis = data.analysis;
                 setText('analysis-result', data.analysis);
                 show('analysis-result');
-                document.getElementById('generate-row').style.display = 'flex';
+                show('plan-row');
             }
         } catch (e) {
             hide('analysis-loading');
             setText('analysis-error', 'Network error: ' + e.message);
             show('analysis-error');
         }
-
         btn.disabled = false;
         btn.textContent = 'Analyze';
     }
 
-    async function generate() {
-        const btn = document.getElementById('generate-btn');
+    async function createPlan() {
         const numCases = parseInt(document.getElementById('num-cases').value) || 5;
+        const btn = document.getElementById('plan-btn');
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        show('plan-card');
+        show('plan-loading');
+        document.getElementById('plan-result').innerHTML = '';
+        hide('plan-result');
+        hide('plan-error');
+        hide('generate-row');
+        hide('code-card');
+        hide('output-card');
+
+        try {
+            const res = await fetch('/plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: currentUrl, analysis: currentAnalysis, num_cases: numCases })
+            });
+            const data = await res.json();
+            hide('plan-loading');
+            if (data.error) {
+                setText('plan-error', 'Error: ' + data.error);
+                show('plan-error');
+            } else {
+                currentPlan = data.plan;
+                document.getElementById('plan-result').innerHTML = renderPlan(data.plan);
+                show('plan-result');
+                show('generate-row');
+            }
+        } catch (e) {
+            hide('plan-loading');
+            setText('plan-error', 'Network error: ' + e.message);
+            show('plan-error');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Create Test Plan';
+    }
+
+    async function generateCode() {
+        const btn = document.getElementById('generate-btn');
         btn.disabled = true;
         btn.textContent = 'Generating...';
 
         show('code-card');
         show('code-loading');
-        hide('distribution-badges');
         hide('code-result');
         hide('code-error');
         hide('run-btn');
@@ -177,24 +263,15 @@
             const res = await fetch('/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: currentUrl, analysis: currentAnalysis, num_cases: numCases })
+                body: JSON.stringify({ url: currentUrl, plan: currentPlan })
             });
             const data = await res.json();
             hide('code-loading');
-
             if (data.error) {
                 setText('code-error', 'Error: ' + data.error);
                 show('code-error');
             } else {
                 currentCode = data.code;
-                if (data.distribution) {
-                    const d = data.distribution;
-                    document.getElementById('distribution-badges').innerHTML =
-                        `<span class="badge badge-smoke">SMOKE: ${d.SMOKE}</span>` +
-                        `<span class="badge badge-nav">NAVIGATION: ${d.NAVIGATION}</span>` +
-                        `<span class="badge badge-form">FORM: ${d.FORM}</span>`;
-                    show('distribution-badges');
-                }
                 setText('code-result', data.code);
                 show('code-result');
                 show('run-btn');
@@ -205,9 +282,8 @@
             setText('code-error', 'Network error: ' + e.message);
             show('code-error');
         }
-
         btn.disabled = false;
-        btn.textContent = 'Generate Test Code';
+        btn.textContent = 'Generate Selenium Code';
     }
 
     async function runTests() {
@@ -228,7 +304,6 @@
             });
             const data = await res.json();
             hide('run-loading');
-
             if (data.error) {
                 setText('run-error', 'Error: ' + data.error);
                 show('run-error');
@@ -241,7 +316,6 @@
             setText('run-error', 'Network error: ' + e.message);
             show('run-error');
         }
-
         btn.disabled = false;
         btn.textContent = 'Run Tests on Server';
     }
