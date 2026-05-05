@@ -42,7 +42,7 @@ class TestPlan(BaseModel):
 # -----------------------------
 # Website Sampler using Selenium with user parameters
 # -----------------------------
-def sample_links(url: str, num_tests: int = 5, depth: int = 1) -> List[str]:
+def sample_links(url: str, num_tests: int, depth: int) -> List[str]:
     options = Options()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
@@ -98,7 +98,7 @@ def extract_full_html(url: str) -> str:
     return html
 
 
-def generate_testplan(url: str, links: List[str]) -> TestPlan:
+def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     # Extract the full HTML from the page
     page_html = extract_full_html(url)
 
@@ -109,20 +109,21 @@ def generate_testplan(url: str, links: List[str]) -> TestPlan:
     )
 
     template = ChatPromptTemplate.from_template("""
-        You are an expert QA engineer.  
-        Here is the FULL HTML of the target website:  
+        You are an expert QA engineer.
+        Here is the FULL HTML of the target website:
         {page_html}
 
         Generate a structured test plan in JSON with:
         - Suites: Smoke, Navigation, Forms
         - Each test case must include: id, suite, steps, expected, priority.
+        - Generate a total of exactly {num_tests} test cases distributed across the suites.
         - Only use elements that are actually present in the HTML.
         - Do NOT invent links, forms, or buttons that are not in the HTML.
         - Make steps clear and actionable (like clicking buttons, filling inputs).
         Return only valid JSON.
     """)
 
-    prompt = template.format_messages(page_html=page_html)
+    prompt = template.format_messages(page_html=page_html, num_tests=num_tests)
     response = llm.invoke(prompt)
     plan_json = response.content.strip()
     print("LLM Output:", plan_json)
@@ -206,7 +207,7 @@ import os
 import requests
 from urllib.parse import urlparse, unquote
 
-def run_planner(target: str, num_tests: int = 5, depth: int = 1, email: str = "", pm: str = "jira"):
+def run_planner(target: str, num_tests: int, depth: int, email: str = "", pm: str = ""):
     process_target_data(target)
 
     parsed = urlparse(target)
@@ -237,7 +238,7 @@ def run_planner(target: str, num_tests: int = 5, depth: int = 1, email: str = ""
 
     links = sample_links(target, num_tests=num_tests, depth=depth)
 
-    plan = generate_testplan(target, links)
+    plan = generate_testplan(target, links, num_tests)
     save_testplan(plan)
 
     print(f"✅ Test Plan generated successfully for {target}!")
