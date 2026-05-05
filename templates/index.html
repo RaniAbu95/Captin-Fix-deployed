@@ -1,74 +1,242 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Captain Fix — Input Form</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  </head>
-  <body class="bg-light">
-    <div class="container py-5">
-      <h1 class="mb-4 text-center">🚀 Captain Fix — Input Form</h1>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captain Fix</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; color: #333; }
+        .container { max-width: 820px; margin: 0 auto; padding: 2rem 1rem; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2.2rem; color: #2c3e50; }
+        header p { color: #7f8c8d; margin-top: 0.4rem; }
+        .card { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        .step-label { font-size: 0.75rem; font-weight: 700; color: #3498db; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.4rem; }
+        .card h2 { font-size: 1.1rem; color: #2c3e50; margin-bottom: 1rem; }
+        .input-row { display: flex; gap: 0.5rem; }
+        input[type="text"] { flex: 1; padding: 0.75rem 1rem; border: 2px solid #dde3ea; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; }
+        input[type="text"]:focus { outline: none; border-color: #3498db; }
+        .hint { font-size: 0.8rem; color: #95a5a6; margin-top: 0.5rem; }
+        .hint a { color: #3498db; text-decoration: none; }
+        .hint a:hover { text-decoration: underline; }
+        .btn { padding: 0.75rem 1.4rem; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s, opacity 0.2s; }
+        .btn:hover:not(:disabled) { background: #2980b9; }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .btn-green { background: #2ecc71; }
+        .btn-green:hover:not(:disabled) { background: #27ae60; }
+        .btn-orange { background: #e67e22; }
+        .btn-orange:hover:not(:disabled) { background: #d35400; }
+        .hidden { display: none; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #3498db; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .analysis-text { white-space: pre-wrap; line-height: 1.7; color: #444; }
+        .code-block { background: #1e2433; color: #abb2bf; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; margin-bottom: 1rem; }
+        .output-block { background: #0d1117; color: #58a6ff; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 350px; overflow-y: auto; }
+        .error-box { background: #fde8e8; color: #c0392b; padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.9rem; }
+        .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Captain Fix</h1>
+        <p>AI-powered Selenium test generator — enter any URL to analyze and generate tests</p>
+    </header>
 
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, msg in messages %}
-            <div class="alert alert-{{ 'success' if category=='success' else 'danger' }} alert-dismissible fade show" role="alert">
-              {{ msg }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-
-      <form action="{{ url_for('submit') }}" method="post" class="card p-4 shadow-sm bg-white">
-        <div class="mb-3">
-          <label for="target" class="form-label">🌐 Target Website URL</label>
-          <input type="url" class="form-control" id="target" name="target" placeholder="https://example.com" required>
+    <!-- Step 1 -->
+    <div class="card">
+        <div class="step-label">Step 1</div>
+        <h2>Enter a URL to analyze</h2>
+        <div class="input-row">
+            <input type="text" id="url-input" placeholder="https://example.com" />
+            <button class="btn" id="analyze-btn" onclick="analyze()">Analyze</button>
         </div>
-
-        <div class="row">
-          <div class="col-md-4 mb-3">
-            <label for="depth" class="form-label">📏 Crawl Depth</label>
-            <input type="number" class="form-control" id="depth" name="depth" min="1" max="10" value="2">
-          </div>
-          <div class="col-md-4 mb-3">
-            <label for="num_cases" class="form-label">🔢 Number of Test Cases</label>
-            <input type="number" class="form-control" id="num_cases" name="num_cases" min="1" max="200" value="10">
-          </div>
-          <div class="col-md-4 mb-3">
-            <label for="pm_tool" class="form-label">🛠 Project Management Tool</label>
-            <select class="form-select" id="pm_tool" name="pm_tool">
-              <option value="jira">Jira</option>
-              <option value="trello">Trello</option>
-              <option value="none" selected>None</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="mb-3">
-          <label for="email" class="form-label">📧 Email Address</label>
-          <input type="email" class="form-control" id="email" name="email" placeholder="user@domain.com" required>
-        </div>
-
-        <div class="d-flex justify-content-end">
-          <button type="submit" class="btn btn-primary" id="submitBtn">
-            <span id="btnText">🚀 Generate Test Plan</span>
-            <span id="btnSpinner" class="d-none">
-              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-              Analyzing website... this may take a minute
-            </span>
-          </button>
-        </div>
-      </form>
+        <p class="hint">Try the built-in demo page: <a href="#" onclick="useDemoUrl()">ActionChains Practice Lab</a></p>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-      document.querySelector('form').addEventListener('submit', function() {
-        document.getElementById('btnText').classList.add('d-none');
-        document.getElementById('btnSpinner').classList.remove('d-none');
-        document.getElementById('submitBtn').disabled = true;
-      });
-    </script>
-  </body>
+
+    <!-- Step 2 -->
+    <div class="card hidden" id="analysis-card">
+        <div class="step-label">Step 2</div>
+        <h2>Page Analysis</h2>
+        <div id="analysis-loading" class="hidden"><span class="spinner"></span> Loading page and analyzing elements...</div>
+        <div id="analysis-result" class="analysis-text hidden"></div>
+        <div id="analysis-error" class="error-box hidden"></div>
+        <br>
+        <button class="btn btn-green hidden" id="generate-btn" onclick="generate()">Generate Test Code</button>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="card hidden" id="code-card">
+        <div class="step-label">Step 3</div>
+        <h2>Generated Selenium Code</h2>
+        <div id="code-loading" class="hidden"><span class="spinner"></span> Generating code...</div>
+        <pre id="code-result" class="code-block hidden"></pre>
+        <div id="code-error" class="error-box hidden"></div>
+        <div class="btn-row">
+            <button class="btn btn-orange hidden" id="run-btn" onclick="runTests()">Run Tests on Server</button>
+            <button class="btn hidden" id="copy-btn" onclick="copyCode()" style="background:#95a5a6">Copy Code</button>
+        </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="card hidden" id="output-card">
+        <div class="step-label">Step 4</div>
+        <h2>Test Output</h2>
+        <div id="run-loading" class="hidden"><span class="spinner"></span> Running tests (up to 60s)...</div>
+        <pre id="run-result" class="output-block hidden"></pre>
+        <div id="run-error" class="error-box hidden"></div>
+    </div>
+</div>
+
+<script>
+    let currentUrl = '';
+    let currentAnalysis = '';
+    let currentCode = '';
+
+    function useDemoUrl() {
+        document.getElementById('url-input').value = window.location.origin + '/demo';
+    }
+
+    function show(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hide(id) { document.getElementById(id).classList.add('hidden'); }
+    function setText(id, text) { document.getElementById(id).textContent = text; }
+
+    async function analyze() {
+        currentUrl = document.getElementById('url-input').value.trim();
+        if (!currentUrl) { alert('Please enter a URL'); return; }
+
+        const btn = document.getElementById('analyze-btn');
+        btn.disabled = true;
+        btn.textContent = 'Analyzing...';
+
+        show('analysis-card');
+        show('analysis-loading');
+        hide('analysis-result');
+        hide('analysis-error');
+        hide('generate-btn');
+        hide('code-card');
+        hide('output-card');
+
+        try {
+            const res = await fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: currentUrl })
+            });
+            const data = await res.json();
+            hide('analysis-loading');
+
+            if (data.error) {
+                setText('analysis-error', 'Error: ' + data.error);
+                show('analysis-error');
+            } else {
+                currentAnalysis = data.analysis;
+                setText('analysis-result', data.analysis);
+                show('analysis-result');
+                show('generate-btn');
+            }
+        } catch (e) {
+            hide('analysis-loading');
+            setText('analysis-error', 'Network error: ' + e.message);
+            show('analysis-error');
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Analyze';
+    }
+
+    async function generate() {
+        const btn = document.getElementById('generate-btn');
+        btn.disabled = true;
+        btn.textContent = 'Generating...';
+
+        show('code-card');
+        show('code-loading');
+        hide('code-result');
+        hide('code-error');
+        hide('run-btn');
+        hide('copy-btn');
+        hide('output-card');
+
+        try {
+            const res = await fetch('/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: currentUrl, analysis: currentAnalysis })
+            });
+            const data = await res.json();
+            hide('code-loading');
+
+            if (data.error) {
+                setText('code-error', 'Error: ' + data.error);
+                show('code-error');
+            } else {
+                currentCode = data.code;
+                setText('code-result', data.code);
+                show('code-result');
+                show('run-btn');
+                show('copy-btn');
+            }
+        } catch (e) {
+            hide('code-loading');
+            setText('code-error', 'Network error: ' + e.message);
+            show('code-error');
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Generate Test Code';
+    }
+
+    async function runTests() {
+        const btn = document.getElementById('run-btn');
+        btn.disabled = true;
+        btn.textContent = 'Running...';
+
+        show('output-card');
+        show('run-loading');
+        hide('run-result');
+        hide('run-error');
+
+        try {
+            const res = await fetch('/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: currentCode })
+            });
+            const data = await res.json();
+            hide('run-loading');
+
+            if (data.error) {
+                setText('run-error', 'Error: ' + data.error);
+                show('run-error');
+            } else {
+                setText('run-result', data.output);
+                show('run-result');
+            }
+        } catch (e) {
+            hide('run-loading');
+            setText('run-error', 'Network error: ' + e.message);
+            show('run-error');
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Run Tests on Server';
+    }
+
+    function copyCode() {
+        navigator.clipboard.writeText(currentCode).then(() => {
+            const btn = document.getElementById('copy-btn');
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy Code', 2000);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('url-input').addEventListener('keypress', e => {
+            if (e.key === 'Enter') analyze();
+        });
+    });
+</script>
+</body>
 </html>
