@@ -59,7 +59,7 @@ def sample_links(url: str, num_tests: int, depth: int) -> List[str]:
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     visited = set()
     to_visit = [(url, 0)]
     links = []
@@ -98,8 +98,7 @@ def extract_full_html(url: str) -> str:
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
-    #driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     driver.get(url)
     time.sleep(2)
 
@@ -235,23 +234,18 @@ def run_planner(target: str, num_tests: int, depth: int, email: str = "", pm: st
             local_path = local_path[1:]  # Remove leading slash on Windows
 
         if not os.path.exists(local_path):
-            print(f"❌ Local file not accessible: {local_path}")
-            return
-        print(f"📄 Local file validated: {local_path}")
+            raise ValueError(f"Local file not accessible: {local_path}")
+        print(f"Local file validated: {local_path}")
     elif parsed.scheme in ("http", "https"):
         try:
-            headers = {
-                "User-Agent": "Mozilla/5.0"
-            }
+            headers = {"User-Agent": "Mozilla/5.0"}
             resp = requests.get(target, headers=headers, timeout=10)
             resp.raise_for_status()
-            print(f"🌐 Website validated: {target}")
+            print(f"Website validated: {target}")
         except Exception as e:
-            print(f"❌ Site not accessible: {e}")
-            return
+            raise ValueError(f"Site not accessible: {e}") from e
     else:
-        print(f"⚠️ Unsupported URL scheme: {parsed.scheme}")
-        return
+        raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
 
     links = sample_links(target, num_tests=num_tests, depth=depth)
 

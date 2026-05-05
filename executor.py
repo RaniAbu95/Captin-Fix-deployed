@@ -194,7 +194,7 @@ def run_test_file(case_id, file_path):
         _opts.add_argument("--no-sandbox")
         _opts.add_argument("--disable-dev-shm-usage")
         _opts.add_argument("--disable-gpu")
-        driver = webdriver.Chrome(options=_opts)
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=_opts)
         # Run the test file dynamically
         with open(file_path, "r", encoding="utf-8") as f:
             code = f.read()
