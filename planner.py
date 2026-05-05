@@ -60,13 +60,6 @@ def sample_links(url: str, num_tests: int, depth: int) -> List[str]:
     options.add_argument("--disable-gpu")
 
     driver = webdriver.Chrome(options=options)
-
-    driver.get(url)
-    print("Page title:", driver.title)
-
-    service = Service(ChromeDriverManager().install())
-    #driver = webdriver.Chrome(service=service, options=options)
-    driver = webdriver.Chrome(options=options)
     visited = set()
     to_visit = [(url, 0)]
     links = []
@@ -101,7 +94,7 @@ def sample_links(url: str, num_tests: int, depth: int) -> List[str]:
 def extract_full_html(url: str) -> str:
     """Extract the entire HTML of the given page."""
     options = Options()
-    options.add_argument('--headless')
+    options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
@@ -156,17 +149,24 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
 
     cases = []
 
-    # Support both {"testPlan": {...}} and {"suites": {...}}
-    if "testPlan" in parsed:
-        suites_dict = parsed["testPlan"].get("suites", {})
-    else:
-        suites_dict = parsed.get("suites", {})
-
-    for suite_name, suite_cases in suites_dict.items():
-        for c in suite_cases:
+    # Handle flat {"cases": [...]} or {"testPlan": {"cases": [...]}}
+    raw = parsed.get("testPlan", parsed)
+    flat_cases = raw.get("cases") if isinstance(raw, dict) else None
+    if flat_cases and isinstance(flat_cases, list):
+        for c in flat_cases:
             cases.append(TestCase(**c))
+        suites_list = list(dict.fromkeys(c.suite for c in cases))
+    else:
+        # Support {"suites": {suite_name: [cases]}}
+        suites_dict = raw.get("suites", {}) if isinstance(raw, dict) else {}
+        if isinstance(suites_dict, dict):
+            for suite_name, suite_cases in suites_dict.items():
+                for c in suite_cases:
+                    cases.append(TestCase(**c))
+            suites_list = list(suites_dict.keys())
+        else:
+            suites_list = suites_dict  # it's already a list of names
 
-    suites_list = list(suites_dict.keys())
     return TestPlan(website=url, suites=suites_list, cases=cases)
 
 
