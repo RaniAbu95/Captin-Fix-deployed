@@ -1,6 +1,6 @@
 import os
 import json
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from planner import run_planner
 
 app = Flask(__name__)
@@ -41,6 +41,31 @@ def submit():
         return redirect(url_for('index'))
 
 
+
+
+@app.route('/run-test', methods=['POST'])
+def run_test():
+    from executor import generate_test_files, run_test_file
+    data = request.get_json()
+    case = data.get('case')
+    website = data.get('website', '')
+    if not case or not website:
+        return jsonify({"error": "case and website are required"}), 400
+
+    plan = {"cases": [case], "website": website}
+    try:
+        test_files = generate_test_files(plan)
+        if not test_files:
+            return jsonify({"error": "Failed to generate test file"}), 500
+
+        case_id, file_path = test_files[0]
+        with open(file_path, 'r', encoding='utf-8') as f:
+            code = f.read()
+
+        result = run_test_file(case_id, file_path)
+        return jsonify({"code": code, "result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':

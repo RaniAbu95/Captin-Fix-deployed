@@ -19,14 +19,7 @@ OUTPUT_DIR = "tests"
 RESULTS_JSON = "Results.json"
 SCREENSHOT_DIR = "./screen/screenshots"
 
-# -----------------------------
-# 1. Setup LangChain AI
-# -----------------------------
-llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    temperature=0,
-    api_key=OPENAI_API_KEY
-)
+# llm is initialised inside generate_selenium_code() to avoid import-time errors
 
 # prompt_template = ChatPromptTemplate.from_template("""
 # You are an expert QA engineer.
@@ -123,6 +116,11 @@ def extract_full_html(url: str) -> str:
     return html
 
 def generate_selenium_code(step_text, expected_text, website):
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0,
+        api_key=OPENAI_API_KEY
+    )
     page_html = extract_full_html(website)
     messages = prompt_template.format_messages(
         step=step_text,
@@ -191,8 +189,12 @@ def run_test_file(case_id, file_path):
     result = {"id": case_id, "status": "Pass", "error": None, "screenshot": None}
 
     try:
-        # Create a shared driver for screenshots
-        driver = webdriver.Chrome()
+        _opts = Options()
+        _opts.add_argument("--headless=new")
+        _opts.add_argument("--no-sandbox")
+        _opts.add_argument("--disable-dev-shm-usage")
+        _opts.add_argument("--disable-gpu")
+        driver = webdriver.Chrome(options=_opts)
         # Run the test file dynamically
         with open(file_path, "r", encoding="utf-8") as f:
             code = f.read()
