@@ -7,91 +7,103 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; color: #333; }
-        .container { max-width: 860px; margin: 0 auto; padding: 2rem 1rem; }
+        .container { max-width: 880px; margin: 0 auto; padding: 2rem 1rem; }
         header { text-align: center; margin-bottom: 2rem; }
         header h1 { font-size: 2.2rem; color: #2c3e50; }
         header p { color: #7f8c8d; margin-top: 0.4rem; }
+
         .card { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
         .step-label { font-size: 0.75rem; font-weight: 700; color: #3498db; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.4rem; }
         .card h2 { font-size: 1.1rem; color: #2c3e50; margin-bottom: 1rem; }
+
         .input-row { display: flex; gap: 0.5rem; }
         input[type="text"] { flex: 1; padding: 0.75rem 1rem; border: 2px solid #dde3ea; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; }
         input[type="text"]:focus { outline: none; border-color: #3498db; }
         input[type="number"] { width: 80px; padding: 0.75rem; border: 2px solid #dde3ea; border-radius: 8px; font-size: 1rem; text-align: center; }
         input[type="number"]:focus { outline: none; border-color: #2ecc71; }
+
         .hint { font-size: 0.8rem; color: #95a5a6; margin-top: 0.5rem; }
         .hint a { color: #3498db; text-decoration: none; }
         .hint a:hover { text-decoration: underline; }
-        .btn { padding: 0.75rem 1.4rem; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s, opacity 0.2s; }
-        .btn:hover:not(:disabled) { filter: brightness(0.9); }
-        .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-        .btn-green { background: #2ecc71; }
+
+        .btn { padding: 0.7rem 1.3rem; color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: filter 0.15s, opacity 0.15s; }
+        .btn:hover:not(:disabled) { filter: brightness(0.88); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-blue   { background: #3498db; }
+        .btn-green  { background: #2ecc71; }
         .btn-purple { background: #9b59b6; }
         .btn-orange { background: #e67e22; }
-        .btn-grey { background: #95a5a6; }
-        .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
-        .hidden { display: none; }
-        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #3498db; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .analysis-text { white-space: pre-wrap; line-height: 1.7; color: #444; }
-        .error-box { background: #fde8e8; color: #c0392b; padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.9rem; }
-        .code-block { background: #1e2433; color: #abb2bf; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow-y: auto; margin-bottom: 1rem; }
-        .output-block { background: #0d1117; color: #58a6ff; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 350px; overflow-y: auto; }
+        .btn-grey   { background: #95a5a6; }
+        .btn-sm { padding: 0.45rem 1rem; font-size: 0.82rem; }
 
-        /* Test Plan styles */
+        .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
+
+        .hidden { display: none; }
+        .spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid #dde3ea; border-top-color: #3498db; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-msg { color: #7f8c8d; font-size: 0.9rem; }
+        .error-box { background: #fde8e8; color: #c0392b; padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.9rem; }
+        .output-block { background: #0d1117; color: #58a6ff; padding: 0.8rem 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.83rem; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin-top: 0.75rem; }
+
+        /* ── Test Plan ── */
         .suite-section { margin-bottom: 1.2rem; }
-        .suite-header { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 1rem; border-radius: 8px 8px 0 0; font-weight: 700; font-size: 0.9rem; }
+        .suite-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 1rem; border-radius: 8px 8px 0 0; font-weight: 700; font-size: 0.88rem; }
         .suite-smoke .suite-header { background: #fef3cd; color: #856404; }
         .suite-nav   .suite-header { background: #d1ecf1; color: #0c5460; }
         .suite-form  .suite-header { background: #d4edda; color: #155724; }
-        .suite-count { font-weight: 400; font-size: 0.8rem; opacity: 0.8; }
+        .suite-count { font-weight: 400; font-size: 0.78rem; opacity: 0.75; }
         .tc-list { border: 1px solid #e9ecef; border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; }
-        .tc-item { padding: 0.9rem 1rem; border-bottom: 1px solid #f0f0f0; }
-        .tc-item:last-child { border-bottom: none; }
-        .tc-id { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 0.25rem; }
-        .tc-desc { font-weight: 600; color: #2c3e50; margin-bottom: 0.4rem; }
-        .tc-steps { font-size: 0.85rem; color: #555; padding-left: 1rem; margin-bottom: 0.3rem; }
-        .tc-steps li { margin-bottom: 0.15rem; }
-        .tc-expected { font-size: 0.82rem; color: #27ae60; font-style: italic; }
+        .tc-plan-item { padding: 0.8rem 1rem; border-bottom: 1px solid #f3f3f3; }
+        .tc-plan-item:last-child { border-bottom: none; }
+        .tc-id   { font-size: 0.72rem; font-weight: 700; color: #aaa; text-transform: uppercase; margin-bottom: 0.2rem; }
+        .tc-desc { font-weight: 600; color: #2c3e50; margin-bottom: 0.35rem; }
+        .tc-steps { font-size: 0.83rem; color: #555; padding-left: 1.1rem; margin-bottom: 0.25rem; }
+        .tc-steps li { margin-bottom: 0.1rem; }
+        .tc-expected { font-size: 0.8rem; color: #27ae60; font-style: italic; }
+
+        /* ── Individual test case cards ── */
+        .tc-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 1rem; overflow: hidden; }
+        .tc-card-header { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+        .suite-badge { padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+        .badge-smoke { background: #fef3cd; color: #856404; }
+        .badge-nav   { background: #d1ecf1; color: #0c5460; }
+        .badge-form  { background: #d4edda; color: #155724; }
+        .tc-card-id   { font-size: 0.75rem; color: #888; font-weight: 700; }
+        .tc-card-desc { font-weight: 600; color: #2c3e50; font-size: 0.9rem; flex: 1; }
+        .tc-card-body { padding: 0.8rem 1rem; }
+        details summary { cursor: pointer; font-size: 0.82rem; color: #3498db; user-select: none; margin-bottom: 0.5rem; }
+        details summary:hover { text-decoration: underline; }
+        .code-block { background: #1e2433; color: #abb2bf; padding: 0.8rem 1rem; border-radius: 7px; font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow-y: auto; margin-bottom: 0.7rem; }
+        .tc-run-output { margin-top: 0; }
     </style>
 </head>
 <body>
 <div class="container">
     <header>
         <h1>Captain Fix</h1>
-        <p>AI-powered Selenium test generator — enter any URL to analyze and generate tests</p>
+        <p>AI-powered Selenium test generator</p>
     </header>
 
-    <!-- Step 1: URL -->
+    <!-- Step 1 -->
     <div class="card">
         <div class="step-label">Step 1</div>
         <h2>Enter a URL to analyze</h2>
         <div class="input-row">
             <input type="text" id="url-input" placeholder="https://example.com" />
-            <button class="btn" id="analyze-btn" onclick="analyze()">Analyze</button>
         </div>
-        <p class="hint">Try the built-in demo page: <a href="#" onclick="useDemoUrl()">ActionChains Practice Lab</a></p>
-    </div>
-
-    <!-- Step 2: Analysis -->
-    <div class="card hidden" id="analysis-card">
-        <div class="step-label">Step 2</div>
-        <h2>Page Analysis</h2>
-        <div id="analysis-loading" class="hidden"><span class="spinner"></span> Loading page and analyzing elements...</div>
-        <div id="analysis-result" class="analysis-text hidden"></div>
-        <div id="analysis-error" class="error-box hidden"></div>
-        <div class="btn-row hidden" id="plan-row">
+        <div class="btn-row">
             <label style="font-size:0.9rem;color:#555;font-weight:600;">Test cases:</label>
             <input type="number" id="num-cases" value="5" min="1" max="30">
-            <button class="btn btn-green" id="plan-btn" onclick="createPlan()">Create Test Plan</button>
+            <button class="btn btn-blue" id="plan-btn" onclick="createPlan()">Create Test Plan</button>
         </div>
+        <p class="hint" style="margin-top:0.6rem">Try the built-in demo: <a href="#" onclick="useDemoUrl()">ActionChains Practice Lab</a></p>
     </div>
 
-    <!-- Step 3: Test Plan -->
+    <!-- Step 2: Test Plan -->
     <div class="card hidden" id="plan-card">
-        <div class="step-label">Step 3</div>
+        <div class="step-label">Step 2</div>
         <h2>Test Plan</h2>
-        <div id="plan-loading" class="hidden"><span class="spinner"></span> Generating test plan...</div>
+        <div id="plan-loading" class="hidden loading-msg"><span class="spinner"></span> <span id="plan-loading-msg">Analyzing page...</span></div>
         <div id="plan-result" class="hidden"></div>
         <div id="plan-error" class="error-box hidden"></div>
         <div class="btn-row hidden" id="generate-row">
@@ -99,26 +111,13 @@
         </div>
     </div>
 
-    <!-- Step 4: Selenium Code -->
+    <!-- Step 3: Individual Test Cases -->
     <div class="card hidden" id="code-card">
-        <div class="step-label">Step 4</div>
-        <h2>Generated Selenium Code</h2>
-        <div id="code-loading" class="hidden"><span class="spinner"></span> Generating code...</div>
-        <pre id="code-result" class="code-block hidden"></pre>
+        <div class="step-label">Step 3</div>
+        <h2>Generated Test Cases</h2>
+        <div id="code-loading" class="hidden loading-msg"><span class="spinner"></span> Generating individual test scripts...</div>
         <div id="code-error" class="error-box hidden"></div>
-        <div class="btn-row">
-            <button class="btn btn-orange hidden" id="run-btn" onclick="runTests()">Run Tests on Server</button>
-            <button class="btn btn-grey hidden" id="copy-btn" onclick="copyCode()">Copy Code</button>
-        </div>
-    </div>
-
-    <!-- Step 5: Output -->
-    <div class="card hidden" id="output-card">
-        <div class="step-label">Step 5</div>
-        <h2>Test Output</h2>
-        <div id="run-loading" class="hidden"><span class="spinner"></span> Running tests (up to 60s)...</div>
-        <pre id="run-result" class="output-block hidden"></pre>
-        <div id="run-error" class="error-box hidden"></div>
+        <div id="tc-list"></div>
     </div>
 </div>
 
@@ -126,7 +125,7 @@
     let currentUrl = '';
     let currentAnalysis = '';
     let currentPlan = null;
-    let currentCode = '';
+    let currentTestCases = [];
 
     function useDemoUrl() {
         document.getElementById('url-input').value = window.location.origin + '/demo';
@@ -136,21 +135,25 @@
     function hide(id) { document.getElementById(id).classList.add('hidden'); }
     function setText(id, text) { document.getElementById(id).textContent = text; }
 
+    const suiteIcons = { SMOKE: '🔥', NAVIGATION: '🧭', FORM: '📝' };
+    const suiteClass = { SMOKE: 'suite-smoke', NAVIGATION: 'suite-nav', FORM: 'suite-form' };
+    const badgeClass = { SMOKE: 'badge-smoke', NAVIGATION: 'badge-nav', FORM: 'badge-form' };
+
     function renderPlan(plan) {
         const suites = plan.suites || {};
-        const icons = { SMOKE: '🔥', NAVIGATION: '🧭', FORM: '📝' };
-        const cls   = { SMOKE: 'suite-smoke', NAVIGATION: 'suite-nav', FORM: 'suite-form' };
         let html = '';
         for (const [suite, cases] of Object.entries(suites)) {
             if (!cases || cases.length === 0) continue;
-            const icon = icons[suite] || '🧪';
-            const klass = cls[suite] || '';
+            const icon  = suiteIcons[suite]  || '🧪';
+            const klass = suiteClass[suite] || '';
             html += `<div class="suite-section ${klass}">
-                <div class="suite-header">${icon} ${suite} <span class="suite-count">(${cases.length} test case${cases.length > 1 ? 's' : ''})</span></div>
+                <div class="suite-header">${icon} ${suite}
+                    <span class="suite-count">(${cases.length} test case${cases.length > 1 ? 's' : ''})</span>
+                </div>
                 <div class="tc-list">`;
             cases.forEach(tc => {
                 const steps = (tc.steps || []).map(s => `<li>${s}</li>`).join('');
-                html += `<div class="tc-item">
+                html += `<div class="tc-plan-item">
                     <div class="tc-id">TC-${tc.id || '?'}</div>
                     <div class="tc-desc">${tc.description || ''}</div>
                     ${steps ? `<ol class="tc-steps">${steps}</ol>` : ''}
@@ -162,23 +165,58 @@
         return html;
     }
 
-    async function analyze() {
+    function renderTestCases(testCases) {
+        const list = document.getElementById('tc-list');
+        list.innerHTML = '';
+        testCases.forEach((tc, idx) => {
+            const badge = badgeClass[tc.suite] || 'badge-smoke';
+            const card = document.createElement('div');
+            card.className = 'tc-card';
+            card.id = `tc-card-${idx}`;
+            card.innerHTML = `
+                <div class="tc-card-header">
+                    <span class="suite-badge ${badge}">${tc.suite}</span>
+                    <span class="tc-card-id">TC-${tc.id}</span>
+                    <span class="tc-card-desc">${tc.description}</span>
+                </div>
+                <div class="tc-card-body">
+                    <details>
+                        <summary>View Code</summary>
+                        <pre class="code-block" id="tc-code-${idx}">${escHtml(tc.code || '')}</pre>
+                    </details>
+                    <div class="btn-row" style="margin-top:0.5rem">
+                        <button class="btn btn-orange btn-sm" onclick="runSingle(${idx})">▶ Run Test</button>
+                        <button class="btn btn-grey btn-sm"   onclick="copySingle(${idx})">Copy Code</button>
+                    </div>
+                    <div id="tc-output-${idx}" class="tc-run-output hidden"></div>
+                </div>`;
+            list.appendChild(card);
+        });
+    }
+
+    function escHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function createPlan() {
         currentUrl = document.getElementById('url-input').value.trim();
         if (!currentUrl) { alert('Please enter a URL'); return; }
+        const numCases = parseInt(document.getElementById('num-cases').value) || 5;
 
-        const btn = document.getElementById('analyze-btn');
+        const btn = document.getElementById('plan-btn');
         btn.disabled = true;
-        btn.textContent = 'Analyzing...';
+        btn.textContent = 'Working...';
 
-        show('analysis-card');
-        show('analysis-loading');
-        hide('analysis-result');
-        hide('analysis-error');
-        hide('plan-row');
-        hide('plan-card');
+        show('plan-card');
+        show('plan-loading');
+        setText('plan-loading-msg', 'Analyzing page...');
+        document.getElementById('plan-result').innerHTML = '';
+        hide('plan-result');
+        hide('plan-error');
+        hide('generate-row');
         hide('code-card');
-        hide('output-card');
 
+        // Phase 1: analyze (silent)
         try {
             const res = await fetch('/analyze', {
                 method: 'POST',
@@ -186,40 +224,24 @@
                 body: JSON.stringify({ url: currentUrl })
             });
             const data = await res.json();
-            hide('analysis-loading');
             if (data.error) {
-                setText('analysis-error', 'Error: ' + data.error);
-                show('analysis-error');
-            } else {
-                currentAnalysis = data.analysis;
-                setText('analysis-result', data.analysis);
-                show('analysis-result');
-                show('plan-row');
+                hide('plan-loading');
+                setText('plan-error', 'Error: ' + data.error);
+                show('plan-error');
+                btn.disabled = false; btn.textContent = 'Create Test Plan';
+                return;
             }
+            currentAnalysis = data.analysis;
         } catch (e) {
-            hide('analysis-loading');
-            setText('analysis-error', 'Network error: ' + e.message);
-            show('analysis-error');
+            hide('plan-loading');
+            setText('plan-error', 'Network error: ' + e.message);
+            show('plan-error');
+            btn.disabled = false; btn.textContent = 'Create Test Plan';
+            return;
         }
-        btn.disabled = false;
-        btn.textContent = 'Analyze';
-    }
 
-    async function createPlan() {
-        const numCases = parseInt(document.getElementById('num-cases').value) || 5;
-        const btn = document.getElementById('plan-btn');
-        btn.disabled = true;
-        btn.textContent = 'Creating...';
-
-        show('plan-card');
-        show('plan-loading');
-        document.getElementById('plan-result').innerHTML = '';
-        hide('plan-result');
-        hide('plan-error');
-        hide('generate-row');
-        hide('code-card');
-        hide('output-card');
-
+        // Phase 2: build plan
+        setText('plan-loading-msg', 'Creating test plan...');
         try {
             const res = await fetch('/plan', {
                 method: 'POST',
@@ -242,6 +264,7 @@
             setText('plan-error', 'Network error: ' + e.message);
             show('plan-error');
         }
+
         btn.disabled = false;
         btn.textContent = 'Create Test Plan';
     }
@@ -253,11 +276,8 @@
 
         show('code-card');
         show('code-loading');
-        hide('code-result');
         hide('code-error');
-        hide('run-btn');
-        hide('copy-btn');
-        hide('output-card');
+        document.getElementById('tc-list').innerHTML = '';
 
         try {
             const res = await fetch('/generate', {
@@ -271,58 +291,49 @@
                 setText('code-error', 'Error: ' + data.error);
                 show('code-error');
             } else {
-                currentCode = data.code;
-                setText('code-result', data.code);
-                show('code-result');
-                show('run-btn');
-                show('copy-btn');
+                currentTestCases = data.test_cases;
+                renderTestCases(data.test_cases);
             }
         } catch (e) {
             hide('code-loading');
             setText('code-error', 'Network error: ' + e.message);
             show('code-error');
         }
+
         btn.disabled = false;
         btn.textContent = 'Generate Selenium Code';
     }
 
-    async function runTests() {
-        const btn = document.getElementById('run-btn');
+    async function runSingle(idx) {
+        const tc   = currentTestCases[idx];
+        const btn  = document.querySelector(`#tc-card-${idx} .btn-orange`);
+        const outEl = document.getElementById(`tc-output-${idx}`);
+
         btn.disabled = true;
         btn.textContent = 'Running...';
-
-        show('output-card');
-        show('run-loading');
-        hide('run-result');
-        hide('run-error');
+        outEl.className = 'output-block tc-run-output';
+        outEl.textContent = 'Running...';
 
         try {
             const res = await fetch('/run', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: currentCode })
+                body: JSON.stringify({ code: tc.code })
             });
             const data = await res.json();
-            hide('run-loading');
-            if (data.error) {
-                setText('run-error', 'Error: ' + data.error);
-                show('run-error');
-            } else {
-                setText('run-result', data.output);
-                show('run-result');
-            }
+            outEl.textContent = data.error ? 'Error: ' + data.error : (data.output || 'No output.');
         } catch (e) {
-            hide('run-loading');
-            setText('run-error', 'Network error: ' + e.message);
-            show('run-error');
+            outEl.textContent = 'Network error: ' + e.message;
         }
+
         btn.disabled = false;
-        btn.textContent = 'Run Tests on Server';
+        btn.textContent = '▶ Run Test';
     }
 
-    function copyCode() {
-        navigator.clipboard.writeText(currentCode).then(() => {
-            const btn = document.getElementById('copy-btn');
+    function copySingle(idx) {
+        const tc  = currentTestCases[idx];
+        const btn = document.querySelector(`#tc-card-${idx} .btn-grey`);
+        navigator.clipboard.writeText(tc.code || '').then(() => {
             btn.textContent = 'Copied!';
             setTimeout(() => btn.textContent = 'Copy Code', 2000);
         });
@@ -330,7 +341,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('url-input').addEventListener('keypress', e => {
-            if (e.key === 'Enter') analyze();
+            if (e.key === 'Enter') createPlan();
         });
     });
 </script>

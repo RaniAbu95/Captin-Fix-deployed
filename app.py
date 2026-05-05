@@ -132,39 +132,55 @@ Rules:
 
 @app.route("/generate", methods=["POST"])
 def generate():
+    import json as _json
     data = request.get_json()
     url = data.get("url", "").strip()
     plan_data = data.get("plan", {})
     if not url or not plan_data:
         return jsonify({"error": "URL and test plan are required"}), 400
 
-    import json
-    plan_str = json.dumps(plan_data, indent=2)
+    all_cases = []
+    for suite_name, cases in plan_data.get("suites", {}).items():
+        for case in (cases or []):
+            all_cases.append({**case, "suite": suite_name})
+
+    if not all_cases:
+        return jsonify({"error": "No test cases found in plan"}), 400
+
+    plan_str = _json.dumps(plan_data, indent=2)
 
     try:
         client = openai_client()
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
-                {"role": "system", "content": "You are an experienced QA engineer writing Selenium Python automation."},
-                {"role": "system", "content": "Return ONLY raw Python code. No explanations. No markdown. No code blocks."},
-                {"role": "system", "content": "Configure Chrome with: --headless=new, --no-sandbox, --disable-dev-shm-usage, --disable-gpu"},
-                {"role": "user", "content": f"""Implement this test plan as a Python Selenium script for URL: {url}
+                {"role": "system", "content": "You are an experienced QA engineer. Return only valid JSON, no markdown, no extra text."},
+                {"role": "user", "content": f"""For each test case in this plan write a standalone Python Selenium script.
 
-Test plan:
+URL: {url}
+Plan:
 {plan_str}
 
-For each test case:
-- Print [SUITE_NAME] TC-<id>: <description> ... PASS or FAIL
-- Wrap each in try/except so failures do not stop the rest
-- Follow the steps and expected results from the plan exactly"""}
+Return a JSON array where each element has:
+- "id": test case id (string)
+- "suite": suite name (SMOKE / NAVIGATION / FORM)
+- "description": test case description
+- "code": complete standalone Python script that:
+    * Imports selenium and sets up headless Chrome (--headless=new, --no-sandbox, --disable-dev-shm-usage, --disable-gpu)
+    * Navigates to the URL
+    * Performs the test steps from the plan
+    * Prints exactly one line: [SUITE] TC-<id>: <description> ... PASS   or   FAIL: <reason>
+    * Always calls driver.quit()
+
+Return only the JSON array."""}
             ],
-            max_tokens=2000
+            max_tokens=4000
         )
-        code = response.choices[0].message.content
-        if code.startswith("```"):
-            code = "\n".join(l for l in code.split("\n") if not l.startswith("```"))
-        return jsonify({"code": code.strip()})
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = "\n".join(l for l in raw.split("\n") if not l.startswith("```"))
+        test_cases = _json.loads(raw)
+        return jsonify({"test_cases": test_cases})
     except Exception as e:
         return jsonify({"error": f"OpenAI error: {e}"}), 500
 
