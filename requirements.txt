@@ -2,3 +2,13 @@ flask==3.0.3
 gunicorn==22.0.0
 selenium==4.23.1
 openai==1.40.0
+pandas
+requests
+pydantic
+python-dotenv
+webdriver-manager
+langchain
+langchain-openai
+langchain-community
+langchain-core
+openpyxl
