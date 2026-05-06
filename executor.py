@@ -19,6 +19,23 @@ OUTPUT_DIR = "tests"
 RESULTS_JSON = "Results.json"
 SCREENSHOT_DIR = "./screen/screenshots"
 
+_html_cache = {}
+
+def _chrome_options():
+    opts = Options()
+    opts.add_argument("--headless=new")
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--disable-gpu")
+    opts.add_argument("--disable-extensions")
+    opts.add_argument("--disable-plugins")
+    opts.add_argument("--disable-background-networking")
+    opts.add_argument("--disable-sync")
+    opts.add_argument("--no-first-run")
+    opts.add_argument("--mute-audio")
+    opts.add_argument("--disable-default-apps")
+    return opts
+
 # llm is initialised inside generate_selenium_code() to avoid import-time errors
 
 # prompt_template = ChatPromptTemplate.from_template("""
@@ -128,19 +145,14 @@ Expected result: {expected}
 #     response = llm.invoke(messages)
 #     return response.content.strip()
 def extract_full_html(url: str) -> str:
-    """Extract the entire HTML of the given page."""
-    options = Options()
-    options.add_argument('--headless=new')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
+    if url in _html_cache:
+        return _html_cache[url]
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=_chrome_options())
     driver.get(url)
     time.sleep(2)
-
     html = driver.page_source
     driver.quit()
+    _html_cache[url] = html
     return html
 
 def generate_selenium_code(step_text, expected_text, website, page_html):
@@ -228,12 +240,7 @@ def run_test_file(case_id, file_path):
     result = {"id": case_id, "status": "Pass", "error": None, "screenshot": None}
 
     try:
-        _opts = Options()
-        _opts.add_argument("--headless=new")
-        _opts.add_argument("--no-sandbox")
-        _opts.add_argument("--disable-dev-shm-usage")
-        _opts.add_argument("--disable-gpu")
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=_opts)
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=_chrome_options())
         # Run the test file dynamically
         with open(file_path, "r", encoding="utf-8") as f:
             code = f.read()
