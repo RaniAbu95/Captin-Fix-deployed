@@ -267,7 +267,7 @@ def run_test_file(case_id, file_path):
                 break
             except Exception:
                 if attempt < 2:
-                    time.sleep(3)
+                    time.sleep(5)
                 else:
                     raise
         try:
@@ -284,6 +284,7 @@ def run_test_file(case_id, file_path):
                 driver.quit()
             except Exception:
                 pass
+            time.sleep(3)  # let Chrome fully exit before subprocess ends
     """)
 
     result = {"id": case_id, "status": "Pass", "error": None, "screenshot": None}
@@ -292,6 +293,7 @@ def run_test_file(case_id, file_path):
             [sys.executable, "-c", runner],
             capture_output=True, text=True, timeout=120
         )
+        time.sleep(2)  # ensure Chrome OS cleanup finishes before the next test
         combined = proc.stdout + "\n" + proc.stderr
         for line in combined.splitlines():
             if line.startswith("RESULT:Pass"):
