@@ -102,7 +102,7 @@ Expected result: {expected}
 def extract_full_html(url: str) -> str:
     """Extract the entire HTML of the given page."""
     options = Options()
-    options.add_argument('--headless')
+    options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
@@ -115,13 +115,12 @@ def extract_full_html(url: str) -> str:
     driver.quit()
     return html
 
-def generate_selenium_code(step_text, expected_text, website):
+def generate_selenium_code(step_text, expected_text, website, page_html):
     llm = ChatOpenAI(
         model="gpt-4o-mini",
         temperature=0,
         api_key=OPENAI_API_KEY
     )
-    page_html = extract_full_html(website)
     messages = prompt_template.format_messages(
         step=step_text,
         expected=expected_text,
@@ -162,6 +161,9 @@ def generate_test_files(plan):
     test_files = []
     website = plan.get("website", "")
 
+    # Fetch HTML once — reused for every step of every case
+    page_html = extract_full_html(website)
+
     for case in plan["cases"]:
         case_id = case["id"]
         steps = case.get("steps", [])
@@ -169,7 +171,7 @@ def generate_test_files(plan):
         all_code = []
 
         for step in steps:
-            code = generate_selenium_code(step, expected, website)
+            code = generate_selenium_code(step, expected, website, page_html)
             all_code.append(code)
 
         file_path = os.path.join(OUTPUT_DIR, f"{case_id}.py")
@@ -177,7 +179,6 @@ def generate_test_files(plan):
             f.write("\n\n".join(all_code))
 
         test_files.append((case_id, file_path))
-        print(f"✅ Generated test file: {file_path}")
 
     return test_files
 
