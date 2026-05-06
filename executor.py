@@ -55,6 +55,7 @@ SCREENSHOT_DIR = "./screen/screenshots"
 # Expected result: {expected}
 # """)
 
+# Per-step prompt (kept for reference, no longer used in generate_test_files)
 prompt_template = ChatPromptTemplate.from_template("""
 You are an expert QA engineer.
 
@@ -65,11 +66,11 @@ Rules:
     driver.get("{website}")
   before interacting with the page.
 
-- You are also given the full HTML of the page. You MUST extract and use the **exact attributes** from the HTML (id, name, placeholder, value, visible text, class if unique). 
+- You are also given the full HTML of the page. You MUST extract and use the **exact attributes** from the HTML (id, name, placeholder, value, visible text, class if unique).
 - Do NOT invent or assume element IDs or names. Only use selectors that actually appear in the HTML.
 - Priority for locators: ID > Name > Placeholder/Text > CSS Selector > XPath.
 - If no clean locator exists, construct an XPath using visible text or hierarchy from the given HTML.
-- Only use locators that appear exactly in the provided HTML. 
+- Only use locators that appear exactly in the provided HTML.
 - For Hebrew or non‑Latin text, match the exact visible text from the HTML, preserving spaces, punctuation, and case.
 - When navigating to a file:/// URL, assume Chrome is launched with options to allow local file access and disable web security.
 - Never call driver.quit(), driver.close(), or end the browser session in any way.
@@ -89,6 +90,33 @@ Website URL: {website}
 Full HTML: {html}
 
 Step: {step}
+Expected result: {expected}
+""")
+
+full_case_prompt = ChatPromptTemplate.from_template("""
+You are an expert QA engineer.
+
+Generate a single complete Python Selenium script for ALL steps of this test case using the provided `driver`.
+
+Rules:
+- Start with all necessary imports (selenium, WebDriverWait, By, EC, time).
+- Call driver.get("{website}") exactly ONCE at the very beginning.
+- Execute each step in order as a logical sequence — do NOT repeat driver.get() or imports.
+- You are given the full HTML of the page. Use ONLY exact attributes from the HTML (id, name, placeholder, visible text, class if unique).
+- Priority for locators: ID > Name > Placeholder/Text > CSS Selector > XPath.
+- For Hebrew or non-Latin text, match the exact visible text from the HTML.
+- Use WebDriverWait for all element interactions.
+- Never call driver.quit() or driver.close().
+- Output only raw Python code — no markdown, no backticks, no explanations.
+- Capture a screenshot on failure but do not terminate the driver.
+
+Website URL: {website}
+
+Full HTML: {html}
+
+Steps:
+{steps}
+
 Expected result: {expected}
 """)
 
@@ -161,22 +189,32 @@ def generate_test_files(plan):
     test_files = []
     website = plan.get("website", "")
 
-    # Fetch HTML once — reused for every step of every case
     page_html = extract_full_html(website)
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
 
     for case in plan["cases"]:
         case_id = case["id"]
         steps = case.get("steps", [])
         expected = case.get("expected", "")
-        all_code = []
 
-        for step in steps:
-            code = generate_selenium_code(step, expected, website, page_html)
-            all_code.append(code)
+        steps_text = "\n".join(f"{i+1}. {s}" for i, s in enumerate(steps))
+        messages = full_case_prompt.format_messages(
+            website=website,
+            html=page_html,
+            steps=steps_text,
+            expected=expected,
+        )
+        response = llm.invoke(messages)
+        code = response.content.strip()
+        if code.startswith("```"):
+            code = code.split("```")[1]
+            if code.startswith("python"):
+                code = code[6:]
+            code = code.strip()
 
         file_path = os.path.join(OUTPUT_DIR, f"{case_id}.py")
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write("\n\n".join(all_code))
+            f.write(code)
 
         test_files.append((case_id, file_path))
 
