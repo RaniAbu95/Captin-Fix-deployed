@@ -236,33 +236,72 @@ def generate_test_files(plan):
 # 3. Run generated Selenium tests
 # -----------------------------
 def run_test_file(case_id, file_path):
-    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+    import subprocess, sys, textwrap
+
+    # Build a self-contained runner script so Chrome runs in its own process,
+    # completely isolated from the gunicorn worker (avoids "Chrome instance exited").
+    runner = textwrap.dedent(f"""
+        import sys
+        from selenium import webdriver
+        from selenium.webdriver.chrome.service import Service
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        from webdriver_manager.chrome import ChromeDriverManager
+        import time
+
+        opts = Options()
+        for arg in [
+            "--headless=new", "--no-sandbox", "--disable-dev-shm-usage",
+            "--disable-gpu", "--disable-extensions", "--no-first-run",
+            "--mute-audio", "--disable-default-apps",
+        ]:
+            opts.add_argument(arg)
+
+        driver = webdriver.Chrome(
+            service=Service(ChromeDriverManager().install()), options=opts
+        )
+        try:
+            code = open({repr(file_path)}).read()
+            exec(code, {{
+                "driver": driver, "By": By,
+                "WebDriverWait": WebDriverWait, "EC": EC, "time": time,
+            }})
+            print("RESULT:Pass")
+        except Exception as e:
+            print(f"RESULT:Fail:{{e}}")
+        finally:
+            try:
+                driver.quit()
+            except Exception:
+                pass
+    """)
+
     result = {"id": case_id, "status": "Pass", "error": None, "screenshot": None}
-
     try:
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=_chrome_options())
-        # Run the test file dynamically
-        with open(file_path, "r", encoding="utf-8") as f:
-            code = f.read()
-        exec(code, {"driver": driver, "By": By})
-
+        proc = subprocess.run(
+            [sys.executable, "-c", runner],
+            capture_output=True, text=True, timeout=120
+        )
+        combined = proc.stdout + "\n" + proc.stderr
+        for line in combined.splitlines():
+            if line.startswith("RESULT:Pass"):
+                result["status"] = "Pass"
+                break
+            if line.startswith("RESULT:Fail:"):
+                result["status"] = "Fail"
+                result["error"] = line[len("RESULT:Fail:"):]
+                break
+        else:
+            result["status"] = "Fail"
+            result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
+    except subprocess.TimeoutExpired:
+        result["status"] = "Fail"
+        result["error"] = "Test timed out after 120 seconds"
     except Exception as e:
         result["status"] = "Fail"
         result["error"] = str(e)
-
-        # Screenshot on failure
-        try:
-            screenshot_path = os.path.join(SCREENSHOT_DIR, f"{case_id}.png")
-            driver.save_screenshot(screenshot_path)
-            result["screenshot"] = screenshot_path
-        except:
-            pass
-
-    finally:
-        try:
-            driver.quit()
-        except:
-            pass
 
     return result
 
