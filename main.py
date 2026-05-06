@@ -84,6 +84,18 @@ def health():
     return jsonify(results)
 
 
+@app.route('/download/<filename>')
+def download(filename):
+    from flask import send_file, abort
+    allowed = {'plan.json': 'output/plan.json', 'Plan.xlsx': 'output/Plan.xlsx'}
+    if filename not in allowed:
+        abort(404)
+    path = os.path.join(os.getcwd(), allowed[filename])
+    if not os.path.exists(path):
+        abort(404)
+    return send_file(path, as_attachment=True)
+
+
 @app.route('/generate-code', methods=['POST'])
 def generate_code():
     from executor import generate_test_files
