@@ -89,8 +89,13 @@
                 {% endfor %}
               </ol>
 
-              <div class="d-flex gap-2 mb-2">
-                <button class="btn btn-sm btn-warning"
+              <div class="d-flex gap-2 mb-2 flex-wrap">
+                <button class="btn btn-sm btn-primary" id="view-btn-{{ loop.index }}"
+                        onclick="viewCode({{ loop.index }}, {{ case | tojson }}, {{ target | tojson }})">
+                  <span id="view-btn-text-{{ loop.index }}">👁 View Code</span>
+                  <span id="view-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+                <button class="btn btn-sm btn-warning" id="run-btn-{{ loop.index }}"
                         onclick="runTest({{ loop.index }}, {{ case | tojson }}, {{ target | tojson }})">
                   <span id="run-btn-text-{{ loop.index }}">▶ Run Test</span>
                   <span id="run-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
@@ -123,17 +128,51 @@
     <script>
       const generatedCode = {};
 
-      async function runTest(idx, caseData, website) {
-        const btnText     = document.getElementById(`run-btn-text-${idx}`);
-        const spinner     = document.getElementById(`run-spinner-${idx}`);
-        const resultDiv   = document.getElementById(`result-${idx}`);
-        const codeWrapper = document.getElementById(`code-wrapper-${idx}`);
-        const codeEl      = document.getElementById(`code-${idx}`);
-        const copyBtn     = document.getElementById(`copy-btn-${idx}`);
+      function showCode(idx, code) {
+        generatedCode[idx] = code;
+        document.getElementById(`code-${idx}`).textContent = code;
+        document.getElementById(`code-wrapper-${idx}`).classList.remove('d-none');
+        document.getElementById(`copy-btn-${idx}`).disabled = false;
+      }
+
+      async function viewCode(idx, caseData, website) {
+        const btnText  = document.getElementById(`view-btn-text-${idx}`);
+        const spinner  = document.getElementById(`view-spinner-${idx}`);
+        const resultDiv = document.getElementById(`result-${idx}`);
 
         btnText.classList.add('d-none');
         spinner.classList.remove('d-none');
-        resultDiv.innerHTML = '<div class="result-output result-err">Generating code and running test… this may take a minute.</div>';
+        resultDiv.innerHTML = '<div class="result-output result-err">Generating code… this may take ~15 seconds.</div>';
+
+        try {
+          const res = await fetch('/generate-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ case: caseData, website: website })
+          });
+          const data = await res.json();
+          if (data.error) {
+            resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
+          } else {
+            resultDiv.innerHTML = '';
+            showCode(idx, data.code);
+          }
+        } catch (e) {
+          resultDiv.innerHTML = `<div class="result-output result-err">Network error: ${e.message}</div>`;
+        }
+
+        btnText.classList.remove('d-none');
+        spinner.classList.add('d-none');
+      }
+
+      async function runTest(idx, caseData, website) {
+        const btnText   = document.getElementById(`run-btn-text-${idx}`);
+        const spinner   = document.getElementById(`run-spinner-${idx}`);
+        const resultDiv = document.getElementById(`result-${idx}`);
+
+        btnText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+        resultDiv.innerHTML = '<div class="result-output result-err">Running test… this may take a minute.</div>';
 
         try {
           const res = await fetch('/run-test', {
@@ -142,22 +181,15 @@
             body: JSON.stringify({ case: caseData, website: website })
           });
           const data = await res.json();
-
           if (data.error) {
             resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
           } else {
-            const r   = data.result;
-            const cls = r.status === 'Pass' ? 'result-pass' : 'result-fail';
+            const r    = data.result;
+            const cls  = r.status === 'Pass' ? 'result-pass' : 'result-fail';
             const icon = r.status === 'Pass' ? '✅' : '❌';
             resultDiv.innerHTML =
               `<div class="result-output ${cls}">${icon} ${r.status}${r.error ? ': ' + r.error : ''}</div>`;
-
-            if (data.code) {
-              generatedCode[idx] = data.code;
-              codeEl.textContent = data.code;
-              codeWrapper.classList.remove('d-none');
-              copyBtn.disabled = false;
-            }
+            if (data.code) showCode(idx, data.code);
           }
         } catch (e) {
           resultDiv.innerHTML = `<div class="result-output result-err">Network error: ${e.message}</div>`;

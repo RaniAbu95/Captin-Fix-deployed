@@ -84,6 +84,27 @@ def health():
     return jsonify(results)
 
 
+@app.route('/generate-code', methods=['POST'])
+def generate_code():
+    from executor import generate_test_files
+    data = request.get_json()
+    case = data.get('case')
+    website = data.get('website', '')
+    if not case or not website:
+        return jsonify({"error": "case and website are required"}), 400
+    plan = {"cases": [case], "website": website}
+    try:
+        test_files = generate_test_files(plan)
+        if not test_files:
+            return jsonify({"error": "Failed to generate code"}), 500
+        case_id, file_path = test_files[0]
+        with open(file_path, 'r', encoding='utf-8') as f:
+            code = f.read()
+        return jsonify({"code": code})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/run-test', methods=['POST'])
 def run_test():
     from executor import generate_test_files, run_test_file
