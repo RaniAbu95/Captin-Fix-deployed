@@ -224,38 +224,25 @@ import requests
 from urllib.parse import urlparse, unquote
 
 def run_planner(target: str, num_tests: int, depth: int, email: str = "", pm: str = ""):
-    process_target_data(target)
-
     parsed = urlparse(target)
     if parsed.scheme == "file":
-        # Decode URL-encoded characters and fix Windows path
         local_path = unquote(parsed.path)
         if os.name == "nt" and local_path.startswith("/"):
-            local_path = local_path[1:]  # Remove leading slash on Windows
-
+            local_path = local_path[1:]
         if not os.path.exists(local_path):
             raise ValueError(f"Local file not accessible: {local_path}")
-        print(f"Local file validated: {local_path}")
     elif parsed.scheme in ("http", "https"):
         try:
-            headers = {"User-Agent": "Mozilla/5.0"}
-            resp = requests.get(target, headers=headers, timeout=10)
+            resp = requests.get(target, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
             resp.raise_for_status()
-            print(f"Website validated: {target}")
         except Exception as e:
             raise ValueError(f"Site not accessible: {e}") from e
     else:
         raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
 
-    links = sample_links(target, num_tests=num_tests, depth=depth)
-
-    plan = generate_testplan(target, links, num_tests)
+    plan = generate_testplan(target, [], num_tests)
     save_testplan(plan)
-
-    print(f"✅ Test Plan generated successfully for {target}!")
-    if email:
-        print(f"📧 Results will be sent to: {email}")
-    print(f"📋 Project Management tool selected: {pm}")
+    print(f"Test Plan generated for {target}")
 
 
 
