@@ -91,12 +91,12 @@
 
               <div class="d-flex gap-2 mb-2 flex-wrap">
                 <button class="btn btn-sm btn-primary" id="view-btn-{{ loop.index }}"
-                        onclick="viewCode({{ loop.index }}, {{ case | tojson }}, {{ target | tojson }})">
+                        onclick="viewCode({{ loop.index }})">
                   <span id="view-btn-text-{{ loop.index }}">👁 View Code</span>
                   <span id="view-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
                 </button>
                 <button class="btn btn-sm btn-warning" id="run-btn-{{ loop.index }}"
-                        onclick="runTest({{ loop.index }}, {{ case | tojson }}, {{ target | tojson }})">
+                        onclick="runTest({{ loop.index }})">
                   <span id="run-btn-text-{{ loop.index }}">▶ Run Test</span>
                   <span id="run-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
                 </button>
@@ -126,6 +126,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+      // Case data stored safely here — no inline onclick quoting issues
+      const CASES = {{ plan.cases | tojson }};
+      const TARGET = {{ target | tojson }};
       const generatedCode = {};
 
       function showCode(idx, code) {
@@ -135,7 +138,8 @@
         document.getElementById(`copy-btn-${idx}`).disabled = false;
       }
 
-      async function viewCode(idx, caseData, website) {
+      async function viewCode(idx) {
+        const caseData = CASES[idx - 1];
         const btnText  = document.getElementById(`view-btn-text-${idx}`);
         const spinner  = document.getElementById(`view-spinner-${idx}`);
         const resultDiv = document.getElementById(`result-${idx}`);
@@ -148,7 +152,7 @@
           const res = await fetch('/generate-code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ case: caseData, website: website })
+            body: JSON.stringify({ case: caseData, website: TARGET })
           });
           const data = await res.json();
           if (data.error) {
@@ -165,7 +169,8 @@
         spinner.classList.add('d-none');
       }
 
-      async function runTest(idx, caseData, website) {
+      async function runTest(idx) {
+        const caseData  = CASES[idx - 1];
         const btnText   = document.getElementById(`run-btn-text-${idx}`);
         const spinner   = document.getElementById(`run-spinner-${idx}`);
         const resultDiv = document.getElementById(`result-${idx}`);
@@ -178,7 +183,7 @@
           const res = await fetch('/run-test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ case: caseData, website: website })
+            body: JSON.stringify({ case: caseData, website: TARGET })
           });
           const data = await res.json();
           if (data.error) {
