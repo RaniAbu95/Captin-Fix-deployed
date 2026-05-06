@@ -166,6 +166,46 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         else:
             suites_list = suites_dict  # it's already a list of names
 
+    # Fill in any missing cases with a follow-up LLM call
+    if len(cases) < num_tests:
+        missing = num_tests - len(cases)
+        existing_ids = [c.id for c in cases]
+        fill_template = ChatPromptTemplate.from_template("""
+            You are an expert QA engineer.
+            Here is the FULL HTML of the target website:
+            {page_html}
+
+            A test plan already has these test case IDs: {existing_ids}
+            Generate exactly {missing} MORE test cases (do NOT repeat those IDs).
+            Suites to use: Smoke, Navigation, Forms.
+            Each test case must include: id, suite, steps, expected, priority.
+            Only use elements actually present in the HTML.
+            Return only a valid JSON array of test case objects, like:
+            [{{"id":"...","suite":"...","steps":[...],"expected":"...","priority":"..."}}]
+        """)
+        fill_prompt = fill_template.format_messages(
+            page_html=page_html,
+            existing_ids=existing_ids,
+            missing=missing,
+        )
+        fill_response = llm.invoke(fill_prompt)
+        fill_json = fill_response.content.strip()
+        if fill_json.startswith("```"):
+            fill_json = fill_json.split("```")[1]
+            if fill_json.startswith("json"):
+                fill_json = fill_json[4:]
+            fill_json = fill_json.strip()
+        try:
+            extra = json.loads(fill_json)
+            if isinstance(extra, list):
+                for c in extra:
+                    cases.append(TestCase(**c))
+        except Exception:
+            pass  # best-effort; proceed with however many we have
+
+    if not suites_list:
+        suites_list = list(dict.fromkeys(c.suite for c in cases))
+
     return TestPlan(website=url, suites=suites_list, cases=cases)
 
 
