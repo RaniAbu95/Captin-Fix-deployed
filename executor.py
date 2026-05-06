@@ -259,9 +259,17 @@ def run_test_file(case_id, file_path):
         ]:
             opts.add_argument(arg)
 
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()), options=opts
-        )
+        chrome_svc = Service(ChromeDriverManager().install())
+        driver = None
+        for attempt in range(3):
+            try:
+                driver = webdriver.Chrome(service=chrome_svc, options=opts)
+                break
+            except Exception:
+                if attempt < 2:
+                    time.sleep(3)
+                else:
+                    raise
         try:
             code = open({repr(file_path)}).read()
             exec(code, {{

@@ -30,6 +30,10 @@ def submit():
     try:
         run_planner(target, depth=int(depth), num_tests=int(num_cases), email=email, pm=pm_tool)
 
+        # Pre-warm executor HTML cache so Run Test never needs to launch Chrome again
+        from executor import extract_full_html as _warm
+        _warm(target)
+
         plan_path = os.path.join('output', 'plan.json')
         with open(plan_path, 'r', encoding='utf-8') as f:
             plan = json.load(f)
