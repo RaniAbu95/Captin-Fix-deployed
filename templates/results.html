@@ -206,8 +206,11 @@
             const r    = data.result;
             const cls  = r.status === 'Pass' ? 'result-pass' : 'result-fail';
             const icon = r.status === 'Pass' ? '✅' : '❌';
+            const screenshotLink = (r.status !== 'Pass' && r.screenshot)
+              ? ` <a href="/download/screenshot/${r.id}" class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.75rem">⬇ Screenshot</a>`
+              : '';
             resultDiv.innerHTML =
-              `<div class="result-output ${cls}">${icon} ${r.status}${r.error ? ': ' + r.error : ''}</div>`;
+              `<div class="result-output ${cls}">${icon} ${r.status}${r.error ? ': ' + r.error : ''}${screenshotLink}</div>`;
             if (data.code) showCode(idx, data.code);
           }
         } catch (e) {

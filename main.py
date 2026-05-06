@@ -100,6 +100,18 @@ def download(filename):
     return send_file(path, as_attachment=True)
 
 
+@app.route('/download/screenshot/<case_id>')
+def download_screenshot(case_id):
+    from flask import send_file, abort
+    import re
+    if not re.match(r'^[\w\-]+$', case_id):
+        abort(400)
+    path = os.path.join(os.getcwd(), 'screen', 'screenshots', f'{case_id}.png')
+    if not os.path.exists(path):
+        abort(404)
+    return send_file(path, as_attachment=True, download_name=f'{case_id}_failure.png')
+
+
 @app.route('/generate-code', methods=['POST'])
 def generate_code():
     from executor import generate_test_files

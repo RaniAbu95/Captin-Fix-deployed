@@ -270,6 +270,9 @@ def run_test_file(case_id, file_path):
                     time.sleep(5)
                 else:
                     raise
+        screenshot_path = {repr(os.path.join(SCREENSHOT_DIR, case_id + ".png"))}
+        import os as _os
+        _os.makedirs({repr(SCREENSHOT_DIR)}, exist_ok=True)
         try:
             code = open({repr(file_path)}).read()
             exec(code, {{
@@ -278,6 +281,11 @@ def run_test_file(case_id, file_path):
             }})
             print("RESULT:Pass")
         except Exception as e:
+            try:
+                driver.save_screenshot(screenshot_path)
+                print(f"SCREENSHOT:{{screenshot_path}}")
+            except Exception:
+                pass
             print(f"RESULT:Fail:{{e}}")
         finally:
             try:
@@ -296,15 +304,18 @@ def run_test_file(case_id, file_path):
         time.sleep(2)  # ensure Chrome OS cleanup finishes before the next test
         combined = proc.stdout + "\n" + proc.stderr
         for line in combined.splitlines():
-            if line.startswith("RESULT:Pass"):
+            if line.startswith("SCREENSHOT:"):
+                result["screenshot"] = line[len("SCREENSHOT:"):]
+            elif line.startswith("RESULT:Pass"):
                 result["status"] = "Pass"
-                break
-            if line.startswith("RESULT:Fail:"):
+            elif line.startswith("RESULT:Fail:"):
                 result["status"] = "Fail"
                 result["error"] = line[len("RESULT:Fail:"):]
-                break
-        else:
-            result["status"] = "Fail"
+        if result["status"] == "Pass" and not result.get("error"):
+            pass
+        elif result["status"] == "Pass" and result.get("error"):
+            pass
+        elif result["status"] == "Fail" and not result.get("error"):
             result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
     except subprocess.TimeoutExpired:
         result["status"] = "Fail"
