@@ -126,7 +126,7 @@ STRUCTURE RULES:
 - Output only raw Python code — no markdown, no backticks, no explanations.
 
 BROWSER MODE: {headless}
-- The HTML provided was fetched using {'headless Chrome' if headless else 'regular Chrome'}.
+- The HTML provided was fetched using {headless}.
 - Only use locators that exist in the provided HTML — do NOT assume elements present in headless
   Chrome (e.g. id="hplogo") exist in regular Chrome or vice versa.
 
