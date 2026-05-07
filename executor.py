@@ -132,9 +132,16 @@ NAVIGATION VERIFICATION RULES:
 - After clicking a link or button that causes navigation:
   1. Capture old_url = driver.current_url BEFORE the click.
   2. After the click, use EC.url_changes(old_url) to confirm navigation happened.
-  3. Then use EC.url_contains(fragment) where the fragment comes from the link's href
-     attribute in the provided HTML — extract the domain or path directly from the HTML,
-     do NOT invent or guess it.
+  3. Then use EC.url_contains(fragment) where the fragment is the EXACT path or domain
+     taken from the link's href attribute in the provided HTML.
+     CRITICAL: Use the href value, NOT the link's visible text.
+     The link text "Images" does NOT mean the URL contains "images" —
+     look at href="/imghp?..." and use "imghp".
+  BAD — using link text as the URL fragment (NEVER do this):
+      # link text is "Images", href is "/imghp?hl=en"
+      WebDriverWait(driver, 10).until(EC.url_contains("images"))  # ← WRONG, "images" is the text not the href
+  GOOD — using the actual href path:
+      WebDriverWait(driver, 10).until(EC.url_contains("imghp"))   # ← CORRECT, taken from href="/imghp?..."
   Example — if the HTML shows href="https://mail.google.com/...":
       old_url = driver.current_url
       gmail_link.click()
