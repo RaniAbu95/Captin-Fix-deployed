@@ -129,22 +129,22 @@ LOCATOR RULES:
 - Never invent or guess locators — only use what is in the HTML.
 
 ASSERTION RULES (most important):
-- After EVERY user action (click, form submit, navigation, input), add an explicit assertion that verifies the expected outcome:
-    * After a click or navigation: assert the new page title, URL, or a landmark element that proves the transition succeeded.
-    * After filling a form and submitting: assert a success message, confirmation element, or URL change.
-    * After clicking a button: assert that the UI state changed (element appeared/disappeared, text changed, counter updated).
-    * Use WebDriverWait + expected_conditions for every assertion — never assert on stale state.
-    * If the assertion fails, save a screenshot and raise an AssertionError with a descriptive message.
-- Example pattern:
-    # Action
-    button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "submit")))
-    button.click()
-    # Assertion — WebDriverWait already raises TimeoutException if the condition is not met,
-    # so do NOT add a redundant assert after it. Use assert ONLY when checking .text or
-    # .get_attribute() values that WebDriverWait cannot verify on its own.
-    WebDriverWait(driver, 10).until(EC.url_contains("/success"))  # no assert needed after this
-    confirmation = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "confirmation-msg")))
-    assert "Thank you" in confirmation.text, f"Expected confirmation, got: {{confirmation.text}}"  # assert needed here because we check .text content
+- After EVERY user action (click, form submit, navigation, input), verify the outcome using WebDriverWait.
+- Use WebDriverWait + expected_conditions for every verification — never check stale state.
+- STRICT RULE — NO REDUNDANT ASSERTS: WebDriverWait IS the assertion. It raises TimeoutException if
+  the condition is not met within the timeout. Therefore:
+    * NEVER write an assert statement on the line after a WebDriverWait that already checks the same thing.
+    * This applies to ALL EC conditions: url_contains, url_to_be, title_is, title_contains,
+      visibility_of_element_located, presence_of_element_located, element_to_be_clickable, etc.
+    * BAD (redundant — never do this):
+        WebDriverWait(driver, 10).until(EC.title_is("Google"))
+        assert driver.title == "Google"   # ← DELETE THIS, it is already checked above
+    * BAD (redundant — never do this):
+        WebDriverWait(driver, 10).until(EC.url_contains("mail.google.com"))
+        assert "mail.google.com" in driver.current_url   # ← DELETE THIS
+    * GOOD — use assert ONLY for .text or .get_attribute() content not covered by WebDriverWait:
+        el = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "msg")))
+        assert "Welcome" in el.text, f"Expected 'Welcome', got: {{el.text}}"
 
 ERROR HANDLING:
 - Wrap the entire test body in try/except.
