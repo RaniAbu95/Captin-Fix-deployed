@@ -117,6 +117,8 @@ Generate a single complete Python Selenium script for ALL steps of this test cas
 
 STRUCTURE RULES:
 - Start with all necessary imports (selenium, WebDriverWait, By, EC, time).
+- CRITICAL: Do NOT create or initialize a WebDriver. The variable `driver` is already
+  provided in scope — do NOT write `driver = webdriver.Chrome()` or any similar line.
 - Call driver.get("{website}") exactly ONCE at the very beginning.
 - Execute each step in order as a logical sequence — do NOT repeat driver.get() or imports.
 - Never call driver.quit() or driver.close().
