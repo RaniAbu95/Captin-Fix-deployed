@@ -129,6 +129,14 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - Only use elements that are actually present in the HTML.
         - Do NOT invent links, forms, or buttons that are not in the HTML.
         - Make steps clear and actionable (like clicking buttons, filling inputs).
+
+        UNIQUENESS RULES (strictly enforced):
+        - Every test case must test a DIFFERENT feature, interaction, or user flow.
+        - No two test cases may have the same steps or the same expected result, even if worded differently.
+        - Do NOT generate variations of the same action (e.g. two test cases that both search for a term and click Google Search are duplicates — generate only ONE).
+        - Before finalising each test case, check it is not already covered by a previous one.
+        - If you run out of distinct features to test, reduce the number of test cases rather than creating duplicates.
+
         Return only valid JSON.
     """)
 
