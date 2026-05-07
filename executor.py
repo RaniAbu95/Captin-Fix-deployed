@@ -157,6 +157,16 @@ NAVIGATION VERIFICATION RULES:
       WebDriverWait(driver, 10).until(EC.url_changes(old_url))
       WebDriverWait(driver, 10).until(EC.url_contains("imghp"))
 
+SEARCH RESULT RULES:
+- When a step says "click the first search result" or "open the first result":
+  1. Submit the search by pressing Keys.RETURN (import Keys from selenium.webdriver.common.keys).
+  2. Wait for results to load: WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "h3")))
+  3. Click the first result: driver.find_elements(By.CSS_SELECTOR, "h3")[0].click()
+  4. Verify navigation happened: WebDriverWait(driver, 10).until(EC.url_changes(old_url))
+  5. Verify we left the search engine: WebDriverWait(driver, 10).until(lambda d: "google.com" not in d.current_url)
+  NEVER use the "I'm Feeling Lucky" button (btnI) as a substitute for clicking the first result.
+  NEVER use url_contains with the search term (e.g. "selenium") — the result URL may not contain it.
+
 ASSERTION RULES (most important):
 - After EVERY user action (click, form submit, navigation, input), verify the outcome using WebDriverWait.
 - Use WebDriverWait + expected_conditions for every verification — never check stale state.
