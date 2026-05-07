@@ -100,9 +100,15 @@ def extract_full_html(url: str) -> str:
     driver.get(url)
     time.sleep(2)
 
+    import re
     html = driver.page_source
     driver.quit()
-    return html
+    html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<svg[^>]*>.*?</svg>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<!--.*?-->', '', html, flags=re.DOTALL)
+    html = re.sub(r'\s+', ' ', html).strip()
+    return html[:30000]
 
 
 def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:

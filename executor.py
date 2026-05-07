@@ -235,13 +235,22 @@ Expected result: {expected}
 #     messages = prompt_template.format_messages(step=step_text, expected=expected_text)
 #     response = llm.invoke(messages)
 #     return response.content.strip()
+def _clean_html(html: str, max_chars: int = 30000) -> str:
+    import re
+    html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<svg[^>]*>.*?</svg>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<!--.*?-->', '', html, flags=re.DOTALL)
+    html = re.sub(r'\s+', ' ', html).strip()
+    return html[:max_chars]
+
 def extract_full_html(url: str) -> str:
     if url in _html_cache:
         return _html_cache[url]
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=_chrome_options())
     driver.get(url)
     time.sleep(2)
-    html = driver.page_source
+    html = _clean_html(driver.page_source)
     driver.quit()
     _html_cache[url] = html
     return html
