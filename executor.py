@@ -129,20 +129,22 @@ LOCATOR RULES:
 - Never invent or guess locators — only use what is in the HTML.
 
 NAVIGATION VERIFICATION RULES:
-- After clicking a link or button that causes navigation, NEVER hardcode an assumed destination
-  URL (e.g. "images.google.com") — you cannot know the exact URL in advance.
-- Instead, verify the navigation succeeded by waiting for a VISIBLE ELEMENT that is known to
-  exist on the destination page (from the HTML you were given, or a logical landmark).
-  Example — WRONG:
+- After clicking a link or button that causes navigation:
+  1. Capture old_url = driver.current_url BEFORE the click.
+  2. After the click, use EC.url_changes(old_url) to confirm navigation happened.
+  3. Then use EC.url_contains(fragment) where the fragment comes from the link's href
+     attribute in the provided HTML — extract the domain or path directly from the HTML,
+     do NOT invent or guess it.
+  Example — if the HTML shows href="https://mail.google.com/...":
+      old_url = driver.current_url
+      gmail_link.click()
+      WebDriverWait(driver, 10).until(EC.url_changes(old_url))
+      WebDriverWait(driver, 10).until(EC.url_contains("mail.google.com"))
+  Example — if the HTML shows href="/imghp?...":
+      old_url = driver.current_url
       images_link.click()
-      WebDriverWait(driver, 10).until(EC.url_contains("images.google.com"))  # assumes URL
-  Example — CORRECT:
-      images_link.click()
-      WebDriverWait(driver, 10).until(EC.url_changes(driver.current_url))  # any navigation happened
-      # then verify a landmark element on the new page:
-      WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "q")))
-- Use EC.url_changes(old_url) (capture old_url BEFORE the click) to confirm navigation occurred
-  without assuming the destination.
+      WebDriverWait(driver, 10).until(EC.url_changes(old_url))
+      WebDriverWait(driver, 10).until(EC.url_contains("imghp"))
 
 ASSERTION RULES (most important):
 - After EVERY user action (click, form submit, navigation, input), verify the outcome using WebDriverWait.
