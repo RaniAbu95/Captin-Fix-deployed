@@ -160,23 +160,45 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
 
     cases = []
 
-    # Handle flat {"cases": [...]} or {"testPlan": {"cases": [...]}}
     raw = parsed.get("testPlan", parsed)
+
+    # Format 1: flat {"cases": [...]}
     flat_cases = raw.get("cases") if isinstance(raw, dict) else None
-    if flat_cases and isinstance(flat_cases, list):
+    if flat_cases and isinstance(flat_cases, list) and all(isinstance(c, dict) and "id" in c for c in flat_cases):
         for c in flat_cases:
             cases.append(TestCase(**c))
         suites_list = list(dict.fromkeys(c.suite for c in cases))
+
     else:
-        # Support {"suites": {suite_name: [cases]}}
-        suites_dict = raw.get("suites", {}) if isinstance(raw, dict) else {}
-        if isinstance(suites_dict, dict):
-            for suite_name, suite_cases in suites_dict.items():
+        suites_raw = raw.get("suites", {}) if isinstance(raw, dict) else {}
+
+        # Format 2: {"suites": [{"name": "Smoke", "testCases": [...]}]}  ← Claude Haiku format
+        if isinstance(suites_raw, list):
+            suites_list = []
+            for suite_obj in suites_raw:
+                if isinstance(suite_obj, dict):
+                    suite_name = suite_obj.get("name", "")
+                    suites_list.append(suite_name)
+                    for c in suite_obj.get("testCases", suite_obj.get("cases", [])):
+                        if "suite" not in c:
+                            c["suite"] = suite_name
+                        cases.append(TestCase(**c))
+                elif isinstance(suite_obj, str):
+                    suites_list.append(suite_obj)
+
+        # Format 3: {"suites": {"Smoke": [...cases], "Navigation": [...cases]}}
+        elif isinstance(suites_raw, dict):
+            suites_list = []
+            for suite_name, suite_cases in suites_raw.items():
+                suites_list.append(suite_name)
                 for c in suite_cases:
                     cases.append(TestCase(**c))
-            suites_list = list(suites_dict.keys())
+
         else:
-            suites_list = suites_dict  # it's already a list of names
+            suites_list = []
+
+    if not suites_list:
+        suites_list = list(dict.fromkeys(c.suite for c in cases))
 
     # Fill in any missing cases with a follow-up LLM call
     if len(cases) < num_tests:
