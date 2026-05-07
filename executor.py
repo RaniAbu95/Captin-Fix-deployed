@@ -135,6 +135,9 @@ LOCATOR RULES:
 - Priority: ID > Name > CSS Selector > XPath with visible text.
 - For Hebrew or non-Latin text, match the exact visible text from the HTML including spaces and punctuation.
 - Never invent or guess locators — only use what is in the HTML.
+- When matching an href, use the FULL href value exactly as it appears in the HTML.
+  BAD: contains(@href, '/history/privacyadvisor')  ← guessed path, may match wrong element
+  GOOD: contains(@href, 'myactivity.google.com/privacyadvisor')  ← domain from actual HTML href
 
 NAVIGATION VERIFICATION RULES:
 - After clicking a link or button that causes navigation:
