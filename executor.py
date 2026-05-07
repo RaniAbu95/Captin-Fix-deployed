@@ -172,9 +172,29 @@ SEARCH RESULT RULES:
        first_result.click()
        WebDriverWait(driver, 10).until(EC.url_changes(old_url))
        WebDriverWait(driver, 10).until(lambda d: expected_domain in d.current_url)
-  NEVER use the "I'm Feeling Lucky" button (btnI) as a substitute for clicking the first result.
   NEVER use url_contains with the search term (e.g. "selenium") — the result URL may not contain it.
   NEVER just check "google.com" not in url — always verify the specific expected domain from the href.
+
+- When a step says "I'm Feeling Lucky leads to the same page as the first search result":
+  This test verifies both paths reach the same destination. Use this exact pattern:
+  1. Search with regular search → record first result domain:
+       from urllib.parse import urlparse
+       search_box.send_keys("test search")
+       search_box.send_keys(Keys.RETURN)
+       WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div#search h3")))
+       first_result = driver.find_element(By.CSS_SELECTOR, "div#search h3")
+       first_link = first_result.find_element(By.XPATH, "./ancestor::a")
+       first_result_domain = urlparse(first_link.get_attribute("href")).netloc
+  2. Go back to Google and search again → click "I'm Feeling Lucky":
+       driver.get("{website}")
+       search_box = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.NAME, "q")))
+       search_box.send_keys("test search")
+       old_url = driver.current_url
+       lucky_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, "btnI")))
+       lucky_btn.click()
+       WebDriverWait(driver, 10).until(EC.url_changes(old_url))
+  3. Verify Lucky landed on the same domain as the first regular search result:
+       WebDriverWait(driver, 10).until(lambda d: first_result_domain in d.current_url)
 
 ASSERTION RULES (most important):
 - After EVERY user action (click, form submit, navigation, input), verify the outcome using WebDriverWait.
