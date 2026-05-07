@@ -214,9 +214,14 @@ ASSERTION RULES (most important):
     * BAD (redundant — never do this):
         WebDriverWait(driver, 10).until(EC.url_contains("mail.google.com"))
         assert "mail.google.com" in driver.current_url   # ← DELETE THIS
-    * GOOD — use assert ONLY for .text or .get_attribute() content not covered by WebDriverWait:
+    * GOOD — use assert ONLY for visible text content (.text) not covered by WebDriverWait:
         el = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "msg")))
         assert "Welcome" in el.text, f"Expected 'Welcome', got: {{el.text}}"
+    * NEVER use get_attribute() to assert HTML attributes (e.g. target, href, class, type).
+      Checking internal HTML attributes is not a user-facing test and must never appear in the script.
+      BAD (never do this):
+        target_attr = element.get_attribute("target")
+        assert target_attr == "_top"   # ← DELETE THIS, tests HTML internals not user behaviour
 
 ERROR HANDLING:
 - Wrap the entire test body in try/except.
