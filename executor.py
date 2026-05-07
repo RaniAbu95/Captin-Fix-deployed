@@ -139,10 +139,12 @@ ASSERTION RULES (most important):
     # Action
     button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "submit")))
     button.click()
-    # Assertion
-    WebDriverWait(driver, 10).until(EC.url_contains("/success"))
+    # Assertion — WebDriverWait already raises TimeoutException if the condition is not met,
+    # so do NOT add a redundant assert after it. Use assert ONLY when checking .text or
+    # .get_attribute() values that WebDriverWait cannot verify on its own.
+    WebDriverWait(driver, 10).until(EC.url_contains("/success"))  # no assert needed after this
     confirmation = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "confirmation-msg")))
-    assert "Thank you" in confirmation.text, f"Expected confirmation, got: {{confirmation.text}}"
+    assert "Thank you" in confirmation.text, f"Expected confirmation, got: {{confirmation.text}}"  # assert needed here because we check .text content
 
 ERROR HANDLING:
 - Wrap the entire test body in try/except.
