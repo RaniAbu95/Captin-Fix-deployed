@@ -20,10 +20,12 @@ RESULTS_JSON = "Results.json"
 SCREENSHOT_DIR = "./screen/screenshots"
 
 _html_cache = {}
+HEADLESS = os.environ.get("HEADLESS", "true").lower() != "false"
 
 def _chrome_options():
     opts = Options()
-    opts.add_argument("--headless=new")
+    if HEADLESS:
+        opts.add_argument("--headless=new")
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-gpu")
@@ -302,9 +304,12 @@ def run_test_file(case_id, file_path):
         from webdriver_manager.chrome import ChromeDriverManager
         import time
 
+        import os as _os
         opts = Options()
+        if _os.environ.get("HEADLESS", "true").lower() != "false":
+            opts.add_argument("--headless=new")
         for arg in [
-            "--headless=new", "--no-sandbox", "--disable-dev-shm-usage",
+            "--no-sandbox", "--disable-dev-shm-usage",
             "--disable-gpu", "--disable-extensions", "--no-first-run",
             "--mute-audio", "--disable-default-apps",
         ]:
