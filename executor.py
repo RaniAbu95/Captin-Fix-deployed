@@ -164,6 +164,11 @@ NAVIGATION VERIFICATION RULES:
       WebDriverWait(driver, 10).until(EC.url_changes(old_url))
       WebDriverWait(driver, 10).until(EC.url_contains("imghp"))
 
+I'M FEELING LUCKY RULES:
+- ALWAYS enter a search term in the search box BEFORE clicking the "I'm Feeling Lucky" button.
+- Clicking "I'm Feeling Lucky" without a search term does nothing — the URL will not change and the test will fail.
+- Correct order: send_keys(search_term) → click btnI → EC.url_changes(old_url)
+
 SEARCH RESULT RULES:
 - When a step says "click the first search result" or "open the first result":
   1. Import Keys: from selenium.webdriver.common.keys import Keys
