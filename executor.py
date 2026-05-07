@@ -125,6 +125,11 @@ STRUCTURE RULES:
 - Never call driver.quit() or driver.close().
 - Output only raw Python code — no markdown, no backticks, no explanations.
 
+BROWSER MODE: {headless}
+- The HTML provided was fetched using {'headless Chrome' if headless else 'regular Chrome'}.
+- Only use locators that exist in the provided HTML — do NOT assume elements present in headless
+  Chrome (e.g. id="hplogo") exist in regular Chrome or vice versa.
+
 LOCATOR RULES:
 - Use ONLY exact attributes that appear in the provided HTML (id, name, placeholder, visible text, class if unique).
 - Priority: ID > Name > CSS Selector > XPath with visible text.
@@ -315,6 +320,7 @@ def generate_test_files(plan):
             html=page_html,
             steps=steps_text,
             expected=expected,
+            headless="headless Chrome" if HEADLESS else "regular Chrome",
         )
         response = llm.invoke(messages)
         code = response.content.strip()
