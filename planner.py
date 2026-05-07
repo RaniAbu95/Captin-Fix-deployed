@@ -20,14 +20,12 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from pydantic import BaseModel
 from typing import List
-from langchain_community.chat_models import ChatOpenAI
-
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 
 # from langchain.prompts import ChatPromptTemplate
 from testPlan import process_target_data
-from config import OPENAI_API_KEY
+from config import ANTHROPIC_API_KEY
 
 
 
@@ -111,9 +109,9 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     # Extract the full HTML from the page
     page_html = extract_full_html(url)
 
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        api_key=OPENAI_API_KEY,
+    llm = ChatAnthropic(
+        model="claude-haiku-4-5-20251001",
+        api_key=ANTHROPIC_API_KEY,
         temperature=0.2
     )
 

@@ -6,12 +6,11 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from webdriver_manager.chrome import ChromeDriverManager
 import time
-from config import OPENAI_API_KEY
+from config import ANTHROPIC_API_KEY
 
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
 PLAN_FILE = "./output/plan.json"
@@ -248,10 +247,10 @@ def extract_full_html(url: str) -> str:
     return html
 
 def generate_selenium_code(step_text, expected_text, website, page_html):
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
+    llm = ChatAnthropic(
+        model="claude-haiku-4-5-20251001",
         temperature=0,
-        api_key=OPENAI_API_KEY
+        api_key=ANTHROPIC_API_KEY
     )
     messages = prompt_template.format_messages(
         step=step_text,
@@ -294,7 +293,7 @@ def generate_test_files(plan):
     website = plan.get("website", "")
 
     page_html = extract_full_html(website)
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
+    llm = ChatAnthropic(model="claude-haiku-4-5-20251001", temperature=0, api_key=ANTHROPIC_API_KEY)
 
     for case in plan["cases"]:
         case_id = case["id"]

@@ -9,6 +9,7 @@ python-dotenv
 webdriver-manager
 langchain
 langchain-openai
+langchain-anthropic
 langchain-community
 langchain-core
 openpyxl
