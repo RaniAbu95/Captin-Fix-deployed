@@ -111,9 +111,14 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - Suites: Smoke, Navigation, Forms
         - Each test case must include: id, suite, steps, expected, priority.
         - Generate a total of exactly {num_tests} test cases distributed across the suites.
-        - Only use elements that are actually present in the HTML.
-        - Do NOT invent links, forms, or buttons that are not in the HTML.
         - Make steps clear and actionable (like clicking buttons, filling inputs).
+
+        HTML RULES (strictly enforced):
+        - Base EVERY test case ONLY on elements visible in the provided HTML above.
+        - Before writing a step, verify the element (button, link, input, image) exists in the HTML.
+        - Do NOT use prior knowledge about the website — ignore anything you know about it from training.
+        - Do NOT reference id="hplogo" or any element ID/class/text that does not appear in the HTML.
+        - If an element is not in the HTML, do not write a test step about it.
 
         UNIQUENESS RULES (strictly enforced):
         - Every test case must test a DIFFERENT feature, interaction, or user flow.
