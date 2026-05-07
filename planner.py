@@ -89,26 +89,7 @@ def sample_links(url: str, num_tests: int, depth: int) -> List[str]:
 # -----------------------------
 # LLM Planner
 # -----------------------------
-def extract_full_html(url: str) -> str:
-    """Extract the entire HTML of the given page."""
-    options = Options()
-    options.add_argument('--headless=new')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    driver.get(url)
-    time.sleep(2)
-
-    import re
-    html = driver.page_source
-    driver.quit()
-    html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    html = re.sub(r'<svg[^>]*>.*?</svg>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    html = re.sub(r'<!--.*?-->', '', html, flags=re.DOTALL)
-    html = re.sub(r'\s+', ' ', html).strip()
-    return html[:30000]
+from executor import extract_full_html
 
 
 def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
