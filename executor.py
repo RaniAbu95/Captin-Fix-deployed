@@ -399,6 +399,8 @@ def run_test_file(case_id, file_path):
         for attempt in range(3):
             try:
                 driver = webdriver.Chrome(service=chrome_svc, options=opts)
+                driver.set_script_timeout(60)
+                driver.set_page_load_timeout(60)
                 break
             except Exception:
                 if attempt < 2:
