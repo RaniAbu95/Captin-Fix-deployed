@@ -421,7 +421,9 @@ def run_test_file(case_id, file_path):
                 print(f"SCREENSHOT:{{screenshot_path}}")
             except Exception:
                 pass
-            print(f"RESULT:Fail:{{e}}")
+            err_msg = str(e).replace("\\n", " ").replace("\\r", "").strip()
+            first_line = err_msg.splitlines()[0] if err_msg.splitlines() else err_msg
+            print(f"RESULT:Fail:{{first_line}}")
         finally:
             try:
                 driver.quit()
@@ -445,12 +447,8 @@ def run_test_file(case_id, file_path):
                 result["status"] = "Pass"
             elif line.startswith("RESULT:Fail:"):
                 result["status"] = "Fail"
-                result["error"] = line[len("RESULT:Fail:"):]
-        if result["status"] == "Pass" and not result.get("error"):
-            pass
-        elif result["status"] == "Pass" and result.get("error"):
-            pass
-        elif result["status"] == "Fail" and not result.get("error"):
+                result["error"] = line[len("RESULT:Fail:"):].strip()
+        if result["status"] == "Fail" and not result.get("error"):
             result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
     except subprocess.TimeoutExpired:
         result["status"] = "Fail"
