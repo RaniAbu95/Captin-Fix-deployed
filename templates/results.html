@@ -60,14 +60,6 @@
       </div>
 
       <!-- Run All -->
-      <div class="mb-3 d-flex align-items-center gap-3">
-        <button class="btn btn-warning" id="run-all-btn" onclick="runAllTests()">
-          <span id="run-all-text">▶▶ Run All Tests</span>
-          <span id="run-all-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
-        </button>
-        <span id="run-all-progress" class="text-muted small"></span>
-      </div>
-
       <!-- Test Cases accordion -->
       <div class="accordion" id="tcAccordion">
         {% for case in plan.cases %}
