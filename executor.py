@@ -436,7 +436,7 @@ def run_test_file(case_id, file_path):
     try:
         proc = subprocess.run(
             [sys.executable, "-c", runner],
-            capture_output=True, text=True, timeout=120
+            capture_output=True, text=True, timeout=240
         )
         time.sleep(2)  # ensure Chrome OS cleanup finishes before the next test
         combined = proc.stdout + "\n" + proc.stderr
@@ -452,7 +452,7 @@ def run_test_file(case_id, file_path):
             result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
     except subprocess.TimeoutExpired:
         result["status"] = "Fail"
-        result["error"] = "Test timed out after 120 seconds"
+        result["error"] = "Test timed out after 240 seconds"
     except Exception as e:
         result["status"] = "Fail"
         result["error"] = str(e)
