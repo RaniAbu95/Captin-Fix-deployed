@@ -143,6 +143,10 @@ LOCATOR RULES:
 - When matching an href, use the FULL href value exactly as it appears in the HTML.
   BAD: contains(@href, '/history/privacyadvisor')  ← guessed path, may match wrong element
   GOOD: contains(@href, 'myactivity.google.com/privacyadvisor')  ← domain from actual HTML href
+- When asserting attribute values (e.g. value, placeholder, alt), copy the exact string from the HTML.
+  Do NOT guess or assume the value from the element's purpose or label.
+  BAD: assert button.get_attribute("value") == "Google Search"  ← guessed from button name
+  GOOD: check the HTML for <input value="..."> and use that exact string in the assert
 
 NAVIGATION VERIFICATION RULES:
 - After clicking a link or button that causes navigation:
