@@ -119,6 +119,8 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - Do NOT use prior knowledge about the website — ignore anything you know about it from training.
         - Do NOT reference id="hplogo" or any element ID/class/text that does not appear in the HTML.
         - If an element is not in the HTML, do not write a test step about it.
+        - NEVER assume a link opens in a new tab unless the HTML explicitly shows target="_blank".
+          If the HTML shows target="_top" or no target attribute, the link opens in the SAME tab — say so in the expected result.
 
         UNIQUENESS RULES (strictly enforced):
         - Every test case must test a DIFFERENT feature, interaction, or user flow.
