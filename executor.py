@@ -129,6 +129,8 @@ STRUCTURE RULES:
   * Use EC.element_to_be_clickable when you need to interact with an element (click, send_keys).
   * Use EC.visibility_of_element_located when you only need to read or assert on an element.
   * EC.presence_of_element_located is redundant whenever either of the above is used — never pair them.
+- NEVER use WebDriverWait with By.TAG_NAME, "body". The body tag is always present on every page
+  and is a useless wait. Always wait for a specific meaningful element on the target page instead.
 
 BROWSER MODE: {headless}
 - The HTML provided was fetched using {headless}.
