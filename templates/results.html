@@ -200,7 +200,16 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ case: caseData, website: TARGET })
           });
-          const data = await res.json();
+          const text = await res.text();
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch (_) {
+            resultDiv.innerHTML = `<div class="result-output result-fail">❌ Fail<pre style="margin-top:0.5rem;font-size:0.78rem;background:transparent;border:none;padding:0;">Server returned empty response — timeout or out of memory. Try running this test individually.</pre></div>`;
+            btnText.classList.remove('d-none');
+            spinner.classList.add('d-none');
+            return status;
+          }
           if (data.error) {
             resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
           } else {
@@ -256,16 +265,19 @@
             '<div class="result-output result-err">Queued…</div>';
         }
 
-        // Run all tests in parallel
-        await Promise.all(
-          Array.from({ length: total }, async (_, i) => {
-            const idx = i + 1;
+        // Run tests in parallel with max 2 concurrent to avoid server OOM
+        const CONCURRENCY = 2;
+        const queue = Array.from({ length: total }, (_, i) => i + 1);
+        async function worker() {
+          while (queue.length > 0) {
+            const idx = queue.shift();
             const status = await runTest(idx);
             completed++;
             if (status === 'Pass') passed++; else failed++;
             updateProgress();
-          })
-        );
+          }
+        }
+        await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
         spinner.classList.add('d-none');
         btnText.classList.remove('d-none');
