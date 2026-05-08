@@ -59,7 +59,18 @@
         {% endfor %}
       </div>
 
-      <!-- Run All -->
+      <!-- Results summary -->
+      <div class="card mb-3 shadow-sm">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center gap-4">
+            <span class="text-muted small fw-semibold">RESULTS</span>
+            <span>✅ <strong id="count-pass">0</strong> passed</span>
+            <span>❌ <strong id="count-fail">0</strong> failed</span>
+            <span class="text-muted small" id="count-total">0 / {{ plan.cases | length }} run</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Test Cases accordion -->
       <div class="accordion" id="tcAccordion">
         {% for case in plan.cases %}
@@ -136,6 +147,17 @@
       const CASES = {{ plan.cases | tojson }};
       const TARGET = {{ target | tojson }};
       const generatedCode = {};
+      const testResults = {};  // tracks pass/fail per index
+
+      function updateSummary(idx, status) {
+        testResults[idx] = status;
+        const values = Object.values(testResults);
+        const passed = values.filter(s => s === 'Pass').length;
+        const failed = values.filter(s => s !== 'Pass').length;
+        document.getElementById('count-pass').textContent  = passed;
+        document.getElementById('count-fail').textContent  = failed;
+        document.getElementById('count-total').textContent = `${values.length} / ${CASES.length} run`;
+      }
 
       function showCode(idx, code) {
         generatedCode[idx] = code;
@@ -207,6 +229,7 @@
           } else {
             const r    = data.result;
             status = r.status;
+            updateSummary(idx, status);
             const cls  = r.status === 'Pass' ? 'result-pass' : 'result-fail';
             const icon = r.status === 'Pass' ? '✅' : '❌';
             const screenshotLink = (r.status !== 'Pass' && r.screenshot)
