@@ -193,6 +193,7 @@
         spinner.classList.remove('d-none');
         resultDiv.innerHTML = '<div class="result-output result-err">Running test… this may take a minute.</div>';
 
+        let status = 'Fail';
         try {
           const res = await fetch('/run-test', {
             method: 'POST',
@@ -204,6 +205,7 @@
             resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
           } else {
             const r    = data.result;
+            status = r.status;
             const cls  = r.status === 'Pass' ? 'result-pass' : 'result-fail';
             const icon = r.status === 'Pass' ? '✅' : '❌';
             const screenshotLink = (r.status !== 'Pass' && r.screenshot)
@@ -222,10 +224,11 @@
 
         btnText.classList.remove('d-none');
         spinner.classList.add('d-none');
+        return status;
       }
 
       async function runAllTests() {
-        const total = CASES.length;
+        const total   = CASES.length;
         const btn     = document.getElementById('run-all-btn');
         const btnText = document.getElementById('run-all-text');
         const spinner = document.getElementById('run-all-spinner');
@@ -235,20 +238,40 @@
         btnText.classList.add('d-none');
         spinner.classList.remove('d-none');
 
+        let passed = 0, failed = 0, completed = 0;
+
+        function updateProgress() {
+          progress.innerHTML =
+            `${completed}/${total} complete &nbsp;|&nbsp; ✅ <strong>${passed}</strong> passed &nbsp; ❌ <strong>${failed}</strong> failed`;
+        }
+        updateProgress();
+
+        // Expand all accordion items and mark as queued
         for (let i = 1; i <= total; i++) {
-          // Expand the accordion item so the result is visible
           const collapse = document.getElementById(`tc-body-${i}`);
           if (!collapse.classList.contains('show')) {
             new bootstrap.Collapse(collapse, { toggle: true });
           }
-          progress.textContent = `Running ${i} / ${total}…`;
-          await runTest(i);
+          document.getElementById(`result-${i}`).innerHTML =
+            '<div class="result-output result-err">Queued…</div>';
         }
+
+        // Run all tests in parallel
+        await Promise.all(
+          Array.from({ length: total }, async (_, i) => {
+            const idx = i + 1;
+            const status = await runTest(idx);
+            completed++;
+            if (status === 'Pass') passed++; else failed++;
+            updateProgress();
+          })
+        );
 
         spinner.classList.add('d-none');
         btnText.classList.remove('d-none');
         btn.disabled = false;
-        progress.textContent = `Done — ${total} tests run.`;
+        progress.innerHTML =
+          `Done &nbsp;|&nbsp; ✅ <strong>${passed}</strong> passed &nbsp; ❌ <strong>${failed}</strong> failed`;
       }
 
       function copyCode(idx) {
