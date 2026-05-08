@@ -124,6 +124,11 @@ STRUCTURE RULES:
 - Execute each step in order as a logical sequence — do NOT repeat driver.get() or imports.
 - Never call driver.quit() or driver.close().
 - Output only raw Python code — no markdown, no backticks, no explanations.
+- NEVER use EC.presence_of_element_located followed by EC.element_to_be_clickable or
+  EC.visibility_of_element_located for the same element. Use only the stronger condition:
+  * Use EC.element_to_be_clickable when you need to interact with an element (click, send_keys).
+  * Use EC.visibility_of_element_located when you only need to read or assert on an element.
+  * EC.presence_of_element_located is redundant whenever either of the above is used — never pair them.
 
 BROWSER MODE: {headless}
 - The HTML provided was fetched using {headless}.
