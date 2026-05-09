@@ -100,7 +100,8 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     llm = ChatAnthropic(
         model="claude-haiku-4-5-20251001",
         api_key=ANTHROPIC_API_KEY,
-        temperature=0.2
+        temperature=0.2,
+        max_tokens=8192,
     )
 
     template = ChatPromptTemplate.from_template("""
@@ -110,8 +111,9 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
 
         Generate a structured test plan in JSON with:
         - Suites: Smoke, Navigation, Forms
-        - Each test case must include: id, suite, steps, expected, priority.
+        - Each test case must include: id, suite, steps, expected, priority, negative (boolean).
         - Generate a total of exactly {num_tests} test cases distributed across the suites.
+        - Keep steps concise — maximum 4 steps per test case.
         - Make steps clear and actionable (like clicking buttons, filling inputs).
 
         HTML RULES (strictly enforced):
@@ -143,7 +145,9 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     prompt = template.format_messages(page_html=page_html, num_tests=num_tests)
     response = llm.invoke(prompt)
     plan_json = response.content.strip()
-    print("LLM Output:", plan_json)
+    stop_reason = (response.response_metadata or {}).get("stop_reason", "unknown")
+    print(f"LLM stop_reason: {stop_reason}")
+    print(f"LLM Output ({len(plan_json)} chars):", plan_json[:2000])
 
     # Strip markdown code fences (```json ... ``` or ``` ... ```)
     import re as _re
@@ -158,9 +162,9 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     try:
         parsed = json.loads(plan_json)
     except json.JSONDecodeError as e:
-        preview = plan_json[:500] if plan_json else "(empty)"
-        print("❌ Failed JSON parsing. Raw LLM output:", plan_json)
-        raise ValueError(f"LLM did not return valid JSON. Raw output preview: {preview}") from e
+        preview = plan_json[:2000] if plan_json else "(empty)"
+        print("❌ Failed JSON parsing. Full LLM output:", plan_json)
+        raise ValueError(f"LLM did not return valid JSON (stop_reason={stop_reason}). Raw output preview: {preview}") from e
 
     cases = []
 
