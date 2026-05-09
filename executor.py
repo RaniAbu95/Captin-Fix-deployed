@@ -183,6 +183,17 @@ SAME TAB VERIFICATION RULE:
       assert len(driver.window_handles) == len(handles_before), "Expected link to open in same tab but a new tab was opened"
 - If the link has target="_blank", do NOT add this check — a new tab is expected.
 
+EMPTY FORM SUBMISSION RULES:
+- When the step clicks a submit/search button WITHOUT entering any input:
+  * The page does NOT navigate — the URL stays the same.
+  * Do NOT use EC.url_contains, EC.url_changes, or any URL assertion — the URL will not change.
+  * CORRECT assertion: verify the form input is still visible, confirming no navigation occurred:
+        google_search_button.click()
+        WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.NAME, "q")))
+  * BAD (this will always time out when no input was entered):
+        google_search_button.click()
+        WebDriverWait(driver, 10).until(EC.url_contains("/search"))  ← WRONG, URL never changes
+
 GOOGLE SEARCH BUTTONS RULES:
 - On the Google homepage, the "Google Search" (btnK) and "I'm Feeling Lucky" (btnI) buttons are
   hidden by default. They only become visible after the user interacts with the search box.
