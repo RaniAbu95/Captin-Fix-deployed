@@ -97,6 +97,9 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     # Extract the full HTML from the page
     page_html = extract_full_html(url)
 
+    num_negative = max(1, round(num_tests / 3))
+    num_positive = num_tests - num_negative
+
     llm = ChatAnthropic(
         model="claude-haiku-4-5-20251001",
         api_key=ANTHROPIC_API_KEY,
@@ -112,7 +115,8 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         Generate a structured test plan in JSON with:
         - Suites: Smoke, Navigation, Forms
         - Each test case must include: id, suite, steps, expected, priority, negative (boolean).
-        - Generate a total of exactly {num_tests} test cases distributed across the suites.
+        - Generate a total of EXACTLY {num_tests} test cases — no more, no fewer.
+        - EXACTLY {num_negative} of those must have "negative": true, and EXACTLY {num_positive} must have "negative": false.
         - Keep steps concise — maximum 4 steps per test case.
         - Make steps clear and actionable (like clicking buttons, filling inputs).
 
@@ -133,7 +137,6 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - If you run out of distinct features to test, reduce the number of test cases rather than creating duplicates.
 
         NEGATIVE TEST RULES:
-        - At least ONE test case must be a negative test.
         - A negative test INTENTIONALLY tests invalid behaviour: submitting an empty form, entering wrong/invalid input, searching for something that returns no results.
         - Negative test cases must have "negative": true in the JSON.
         - ALL other test cases must have "negative": false — including tests that verify visible elements, navigation, and normal user flows, even if those tests might fail at runtime.
@@ -142,7 +145,8 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         Return only valid JSON.
     """)
 
-    prompt = template.format_messages(page_html=page_html, num_tests=num_tests)
+    prompt = template.format_messages(page_html=page_html, num_tests=num_tests,
+                                      num_negative=num_negative, num_positive=num_positive)
     response = llm.invoke(prompt)
     plan_json = response.content.strip()
     stop_reason = (response.response_metadata or {}).get("stop_reason", "unknown")
@@ -247,6 +251,10 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
 
     if not suites_list:
         suites_list = list(dict.fromkeys(c.suite for c in cases))
+
+    # Enforce exact count — LLMs sometimes return one extra case
+    cases = cases[:num_tests]
+    suites_list = list(dict.fromkeys(c.suite for c in cases))
 
     return TestPlan(website=url, suites=suites_list, cases=cases)
 
