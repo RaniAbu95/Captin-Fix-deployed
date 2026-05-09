@@ -56,14 +56,12 @@ def health():
     try:
         from selenium import webdriver
         from selenium.webdriver.chrome.options import Options
-        from selenium.webdriver.chrome.service import Service
-        from webdriver_manager.chrome import ChromeDriverManager
         opts = Options()
         opts.add_argument("--headless=new")
         opts.add_argument("--no-sandbox")
         opts.add_argument("--disable-dev-shm-usage")
         opts.add_argument("--disable-gpu")
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
+        driver = webdriver.Chrome(options=opts)
         driver.get("https://www.google.com")
         results["chrome"] = f"OK — title: {driver.title}"
         driver.quit()

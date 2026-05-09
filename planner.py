@@ -1,30 +1,11 @@
 import json
 import os
-import time
 import pandas as pd
 import requests
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-
-options = Options()
-options.add_argument("--headless=new")
-options.add_argument("--no-sandbox")
-options.add_argument("--disable-dev-shm-usage")
-options.add_argument("--disable-gpu")
-
-
-
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 from pydantic import BaseModel
 from typing import List
 from langchain_anthropic import ChatAnthropic
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-
-# from langchain.prompts import ChatPromptTemplate
-from testPlan import process_target_data
+from langchain_core.prompts import ChatPromptTemplate
 from config import ANTHROPIC_API_KEY
 
 
@@ -48,48 +29,6 @@ class TestPlan(BaseModel):
 
 
 
-# -----------------------------
-# Website Sampler using Selenium with user parameters
-# -----------------------------
-def sample_links(url: str, num_tests: int, depth: int) -> List[str]:
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    visited = set()
-    to_visit = [(url, 0)]
-    links = []
-
-    while to_visit and len(links) < num_tests:
-        current_url, current_depth = to_visit.pop(0)
-        if current_url in visited or current_depth > depth:
-            continue
-        try:
-            driver.get(current_url)
-            time.sleep(2)
-        except Exception:
-            continue
-
-        visited.add(current_url)
-        elements = driver.find_elements(By.TAG_NAME, 'a')
-        for elem in elements:
-            link = elem.get_attribute('href')
-            if link and link.startswith('http') and link not in links:
-                links.append(link)
-                if current_depth + 1 <= depth:
-                    to_visit.append((link, current_depth + 1))
-            if len(links) >= num_tests:
-                break
-
-    driver.quit()
-    return links
-
-# -----------------------------
-# LLM Planner
-# -----------------------------
 from executor import extract_full_html
 
 
