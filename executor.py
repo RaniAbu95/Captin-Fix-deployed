@@ -164,16 +164,27 @@ NAVIGATION VERIFICATION RULES:
       WebDriverWait(driver, 10).until(EC.url_contains("images"))  # ← WRONG, "images" is the text not the href
   GOOD — using the actual href path:
       WebDriverWait(driver, 10).until(EC.url_contains("imghp"))   # ← CORRECT, taken from href="/imghp?..."
-  Example — if the HTML shows href="https://mail.google.com/...":
+  Example — if the HTML shows href="https://mail.google.com/..." and target="_top":
+      handles_before = driver.window_handles
       old_url = driver.current_url
       gmail_link.click()
       WebDriverWait(driver, 10).until(EC.url_changes(old_url))
       WebDriverWait(driver, 10).until(EC.url_contains("mail.google.com"))
+      assert len(driver.window_handles) == len(handles_before), "Expected link to open in same tab but a new tab was opened"
   Example — if the HTML shows href="/imghp?...":
+      handles_before = driver.window_handles
       old_url = driver.current_url
       images_link.click()
       WebDriverWait(driver, 10).until(EC.url_changes(old_url))
       WebDriverWait(driver, 10).until(EC.url_contains("imghp"))
+      assert len(driver.window_handles) == len(handles_before), "Expected link to open in same tab but a new tab was opened"
+
+SAME TAB VERIFICATION RULE:
+- Whenever a link has target="_top" or no target attribute in the HTML, ALWAYS add this check after navigation:
+      handles_before = driver.window_handles  # capture BEFORE clicking
+      # ... click and url_changes/url_contains ...
+      assert len(driver.window_handles) == len(handles_before), "Expected link to open in same tab but a new tab was opened"
+- If the link has target="_blank", do NOT add this check — a new tab is expected.
 
 GOOGLE SEARCH BUTTONS RULES:
 - On the Google homepage, the "Google Search" (btnK) and "I'm Feeling Lucky" (btnI) buttons are
