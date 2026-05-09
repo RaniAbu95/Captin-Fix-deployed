@@ -158,8 +158,9 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     try:
         parsed = json.loads(plan_json)
     except json.JSONDecodeError as e:
+        preview = plan_json[:500] if plan_json else "(empty)"
         print("❌ Failed JSON parsing. Raw LLM output:", plan_json)
-        raise ValueError("LLM did not return valid JSON") from e
+        raise ValueError(f"LLM did not return valid JSON. Raw output preview: {preview}") from e
 
     cases = []
 
