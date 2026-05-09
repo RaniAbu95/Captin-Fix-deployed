@@ -93,8 +93,56 @@ def sample_links(url: str, num_tests: int, depth: int) -> List[str]:
 from executor import extract_full_html
 
 
+def _parse_cases_from_json(parsed) -> tuple:
+    """Return (cases, suites_list) from any Claude JSON format."""
+    cases = []
+    raw = parsed.get("testPlan", parsed)
+
+    # Format 1: flat {"cases": [...]}
+    flat_cases = raw.get("cases") if isinstance(raw, dict) else None
+    if flat_cases and isinstance(flat_cases, list) and all(isinstance(c, dict) and "id" in c for c in flat_cases):
+        for c in flat_cases:
+            cases.append(TestCase(**c))
+        return cases, list(dict.fromkeys(c.suite for c in cases))
+
+    suites_raw = raw.get("suites", {}) if isinstance(raw, dict) else {}
+
+    # Format 2: {"suites": [{"name": "Smoke", "testCases": [...]}]}
+    if isinstance(suites_raw, list):
+        suites_list = []
+        for suite_obj in suites_raw:
+            if isinstance(suite_obj, dict):
+                suite_name = suite_obj.get("name", "")
+                suites_list.append(suite_name)
+                for c in suite_obj.get("testCases", suite_obj.get("cases", [])):
+                    if "suite" not in c:
+                        c["suite"] = suite_name
+                    cases.append(TestCase(**c))
+            elif isinstance(suite_obj, str):
+                suites_list.append(suite_obj)
+        return cases, suites_list
+
+    # Format 3: {"suites": {"Smoke": [...cases], ...}}
+    if isinstance(suites_raw, dict):
+        suites_list = []
+        for suite_name, suite_cases in suites_raw.items():
+            suites_list.append(suite_name)
+            for c in suite_cases:
+                cases.append(TestCase(**c))
+        return cases, suites_list
+
+    return cases, list(dict.fromkeys(c.suite for c in cases))
+
+
+def _strip_json(text: str) -> str:
+    import re as _re
+    text = _re.sub(r"^```[a-z]*\s*", "", text, flags=_re.IGNORECASE).strip()
+    text = _re.sub(r"```$", "", text).strip()
+    m = _re.search(r"(\{.*\}|\[.*\])", text, _re.DOTALL)
+    return m.group(0) if m else text
+
+
 def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
-    # Extract the full HTML from the page
     page_html = extract_full_html(url)
 
     num_negative = max(1, round(num_tests / 3))
@@ -116,7 +164,6 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - Suites: Smoke, Navigation, Forms
         - Each test case must include: id, suite, steps, expected, priority, negative (boolean).
         - Generate a total of EXACTLY {num_tests} test cases — no more, no fewer.
-        - EXACTLY {num_negative} of those must have "negative": true, and EXACTLY {num_positive} must have "negative": false.
         - Keep steps concise — maximum 4 steps per test case.
         - Make steps clear and actionable (like clicking buttons, filling inputs).
 
@@ -136,11 +183,19 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - Before finalising each test case, check it is not already covered by a previous one.
         - If you run out of distinct features to test, reduce the number of test cases rather than creating duplicates.
 
-        NEGATIVE TEST RULES:
-        - A negative test INTENTIONALLY tests invalid behaviour: submitting an empty form, entering wrong/invalid input, searching for something that returns no results.
-        - Negative test cases must have "negative": true in the JSON.
-        - ALL other test cases must have "negative": false — including tests that verify visible elements, navigation, and normal user flows, even if those tests might fail at runtime.
-        - "negative" refers to the TEST INTENT, not the runtime outcome. If the test is designed to confirm something works correctly, it is "negative": false even if it fails.
+        NEGATIVE TEST RULES — COUNT IS MANDATORY:
+        - You MUST include EXACTLY {num_negative} negative test cases (negative: true).
+        - You MUST include EXACTLY {num_positive} positive test cases (negative: false).
+        - A negative test INTENTIONALLY tests invalid behaviour: submitting an empty form,
+          entering wrong/invalid input, searching for something that returns no results.
+        - ALL other test cases must have "negative": false.
+        - "negative" refers to the TEST INTENT, not the runtime outcome.
+
+        BEFORE RETURNING — verify these three counts:
+        1. Total test cases = {num_tests}
+        2. Cases with "negative": true = {num_negative}
+        3. Cases with "negative": false = {num_positive}
+        If any count is wrong, fix the JSON before returning.
 
         Return only valid JSON.
     """)
@@ -153,15 +208,7 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     print(f"LLM stop_reason: {stop_reason}")
     print(f"LLM Output ({len(plan_json)} chars):", plan_json[:2000])
 
-    # Strip markdown code fences (```json ... ``` or ``` ... ```)
-    import re as _re
-    plan_json = _re.sub(r"^```[a-z]*\s*", "", plan_json, flags=_re.IGNORECASE).strip()
-    plan_json = _re.sub(r"```$", "", plan_json).strip()
-
-    # Extract first JSON object or array if there is surrounding text
-    match = _re.search(r"(\{.*\}|\[.*\])", plan_json, _re.DOTALL)
-    if match:
-        plan_json = match.group(0)
+    plan_json = _strip_json(plan_json)
 
     try:
         parsed = json.loads(plan_json)
@@ -170,49 +217,9 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         print("❌ Failed JSON parsing. Full LLM output:", plan_json)
         raise ValueError(f"LLM did not return valid JSON (stop_reason={stop_reason}). Raw output preview: {preview}") from e
 
-    cases = []
+    cases, suites_list = _parse_cases_from_json(parsed)
 
-    raw = parsed.get("testPlan", parsed)
-
-    # Format 1: flat {"cases": [...]}
-    flat_cases = raw.get("cases") if isinstance(raw, dict) else None
-    if flat_cases and isinstance(flat_cases, list) and all(isinstance(c, dict) and "id" in c for c in flat_cases):
-        for c in flat_cases:
-            cases.append(TestCase(**c))
-        suites_list = list(dict.fromkeys(c.suite for c in cases))
-
-    else:
-        suites_raw = raw.get("suites", {}) if isinstance(raw, dict) else {}
-
-        # Format 2: {"suites": [{"name": "Smoke", "testCases": [...]}]}  ← Claude Haiku format
-        if isinstance(suites_raw, list):
-            suites_list = []
-            for suite_obj in suites_raw:
-                if isinstance(suite_obj, dict):
-                    suite_name = suite_obj.get("name", "")
-                    suites_list.append(suite_name)
-                    for c in suite_obj.get("testCases", suite_obj.get("cases", [])):
-                        if "suite" not in c:
-                            c["suite"] = suite_name
-                        cases.append(TestCase(**c))
-                elif isinstance(suite_obj, str):
-                    suites_list.append(suite_obj)
-
-        # Format 3: {"suites": {"Smoke": [...cases], "Navigation": [...cases]}}
-        elif isinstance(suites_raw, dict):
-            suites_list = []
-            for suite_name, suite_cases in suites_raw.items():
-                suites_list.append(suite_name)
-                for c in suite_cases:
-                    cases.append(TestCase(**c))
-
-        else:
-            suites_list = []
-
-    if not suites_list:
-        suites_list = list(dict.fromkeys(c.suite for c in cases))
-
-    # Fill in any missing cases with a follow-up LLM call
+    # Fill missing cases (total count short)
     if len(cases) < num_tests:
         missing = num_tests - len(cases)
         existing_ids = [c.id for c in cases]
@@ -224,36 +231,65 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
             A test plan already has these test case IDs: {existing_ids}
             Generate exactly {missing} MORE test cases (do NOT repeat those IDs).
             Suites to use: Smoke, Navigation, Forms.
-            Each test case must include: id, suite, steps, expected, priority.
+            Each test case must include: id, suite, steps, expected, priority, negative (boolean).
             Only use elements actually present in the HTML.
-            Return only a valid JSON array of test case objects, like:
-            [{{"id":"...","suite":"...","steps":[...],"expected":"...","priority":"..."}}]
+            Return only a valid JSON array of test case objects.
         """)
-        fill_prompt = fill_template.format_messages(
-            page_html=page_html,
-            existing_ids=existing_ids,
-            missing=missing,
-        )
-        fill_response = llm.invoke(fill_prompt)
-        fill_json = fill_response.content.strip()
-        if fill_json.startswith("```"):
-            fill_json = fill_json.split("```")[1]
-            if fill_json.startswith("json"):
-                fill_json = fill_json[4:]
-            fill_json = fill_json.strip()
+        fill_resp = llm.invoke(fill_template.format_messages(
+            page_html=page_html, existing_ids=existing_ids, missing=missing))
         try:
-            extra = json.loads(fill_json)
+            extra = json.loads(_strip_json(fill_resp.content.strip()))
             if isinstance(extra, list):
                 for c in extra:
+                    c.setdefault("negative", False)
                     cases.append(TestCase(**c))
         except Exception:
-            pass  # best-effort; proceed with however many we have
+            pass
+
+    # Enforce exact total count
+    cases = cases[:num_tests]
+
+    # Enforce negative ratio via follow-up call if the LLM under-generated negatives
+    neg_count = sum(1 for c in cases if c.negative)
+    if neg_count < num_negative:
+        shortage = num_negative - neg_count
+        positives = [c for c in cases if not c.negative]
+        negatives = [c for c in cases if c.negative]
+        # Drop the last `shortage` positive cases to make room
+        positives = positives[:len(positives) - shortage]
+        existing_ids = [c.id for c in cases]
+
+        neg_fill_template = ChatPromptTemplate.from_template("""
+            You are an expert QA engineer.
+            Here is the FULL HTML of the target website:
+            {page_html}
+
+            Generate exactly {shortage} NEGATIVE test cases for this website.
+            Do NOT repeat these existing IDs: {existing_ids}
+            A negative test intentionally tests invalid behaviour:
+            submitting an empty form, entering wrong/invalid input,
+            searching for something that returns no results, etc.
+            Each test case must include: id, suite, steps, expected, priority.
+            Set "negative": true on every case you return.
+            Only use elements actually present in the HTML.
+            Return only a valid JSON array.
+        """)
+        neg_resp = llm.invoke(neg_fill_template.format_messages(
+            page_html=page_html, shortage=shortage, existing_ids=existing_ids))
+        try:
+            extra_neg = json.loads(_strip_json(neg_resp.content.strip()))
+            if isinstance(extra_neg, list):
+                for c in extra_neg[:shortage]:
+                    c["negative"] = True
+                    c.setdefault("suite", "Forms")
+                    negatives.append(TestCase(**c))
+        except Exception:
+            pass
+
+        cases = positives + negatives
 
     if not suites_list:
         suites_list = list(dict.fromkeys(c.suite for c in cases))
-
-    # Enforce exact count — LLMs sometimes return one extra case
-    cases = cases[:num_tests]
     suites_list = list(dict.fromkeys(c.suite for c in cases))
 
     return TestPlan(website=url, suites=suites_list, cases=cases)
