@@ -196,15 +196,20 @@ EMPTY FORM SUBMISSION RULES:
 
 GOOGLE SEARCH BUTTONS RULES:
 - On the Google homepage, the "Google Search" (btnK) and "I'm Feeling Lucky" (btnI) buttons are
-  hidden by default. They only become visible after the user interacts with the search box.
-- ALWAYS click the search input first before waiting for the buttons to be visible:
+  hidden by default. They only become visible after the user CLICKS the search input.
+- send_keys() alone does NOT reveal the buttons — you MUST call click() on the input first.
+- ALWAYS use By.NAME to locate Google search buttons — never use CSS class selectors like
+  .gNO89b or any other minified class name. Those classes are dynamic and change between
+  Google deployments. By.NAME is stable.
+- Correct sequence:
       search_input = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, "q")))
-      search_input.click()
-      google_search_button = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.NAME, "btnK")))
-      lucky_button = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.NAME, "btnI")))
-- ALWAYS enter a search term in the search box BEFORE clicking the "I'm Feeling Lucky" button.
-- Clicking "I'm Feeling Lucky" without a search term does nothing — the URL will not change and the test will fail.
-- Correct order: search_input.click() → send_keys(search_term) → click btnI → EC.url_contains(fragment_from_href)
+      search_input.click()                   # REQUIRED — reveals the search buttons
+      search_input.send_keys("search term")
+      google_search_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, "btnK")))
+      google_search_button.click()
+- ALWAYS enter a search term BEFORE clicking "I'm Feeling Lucky" (btnI).
+- Clicking btnI without a search term does nothing — URL will not change.
+- Correct order for Lucky: search_input.click() → send_keys(search_term) → click btnI → EC.url_contains(fragment_from_href)
 
 SEARCH RESULT RULES:
 - When a step says "click the first search result" or "open the first result":
