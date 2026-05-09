@@ -5,10 +5,8 @@ import traceback
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from langchain_anthropic import ChatAnthropic
-from webdriver_manager.chrome import ChromeDriverManager
 import time
 from config import ANTHROPIC_API_KEY
 
@@ -254,7 +252,7 @@ def _clean_html(html: str, max_chars: int = 30000) -> str:
 def extract_full_html(url: str) -> str:
     if url in _html_cache:
         return _html_cache[url]
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=_chrome_options())
+    driver = webdriver.Chrome(options=_chrome_options())
     driver.get(url)
     time.sleep(2)
     html = _clean_html(driver.page_source)
@@ -351,12 +349,10 @@ def run_test_file(case_id, file_path):
     runner = textwrap.dedent(f"""
         import sys
         from selenium import webdriver
-        from selenium.webdriver.chrome.service import Service
         from selenium.webdriver.chrome.options import Options
         from selenium.webdriver.common.by import By
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
-        from webdriver_manager.chrome import ChromeDriverManager
         import time
 
         import os as _os
@@ -372,11 +368,10 @@ def run_test_file(case_id, file_path):
         ]:
             opts.add_argument(arg)
 
-        chrome_svc = Service(ChromeDriverManager().install())
         driver = None
         for attempt in range(3):
             try:
-                driver = webdriver.Chrome(service=chrome_svc, options=opts)
+                driver = webdriver.Chrome(options=opts)
                 driver.set_script_timeout(60)
                 driver.set_page_load_timeout(60)
                 break

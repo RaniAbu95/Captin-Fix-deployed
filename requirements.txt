@@ -6,7 +6,6 @@ pandas
 requests
 pydantic
 python-dotenv
-webdriver-manager
 langchain
 langchain-openai
 langchain-anthropic
