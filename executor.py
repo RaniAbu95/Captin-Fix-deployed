@@ -201,10 +201,13 @@ GOOGLE SEARCH BUTTONS RULES:
 - ALWAYS use By.NAME to locate Google search buttons — never use CSS class selectors like
   .gNO89b or any other minified class name. Those classes are dynamic and change between
   Google deployments. By.NAME is stable.
+- ALWAYS locate the Google search input with By.NAME, "q" — never use By.ID with values
+  like "APjFqb" or any other alphanumeric Google-internal ID. Those IDs are dynamic and
+  change between deployments. By.NAME, "q" is the only stable locator for the search box.
 - Correct sequence:
       search_input = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, "q")))
       search_input.click()                   # REQUIRED — reveals the search buttons
-      search_input.send_keys("search term")
+      search_input.send_keys("search term")  # REQUIRED — must enter a term before clicking btnK
       google_search_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, "btnK")))
       google_search_button.click()
 - ALWAYS enter a search term BEFORE clicking "I'm Feeling Lucky" (btnI).
