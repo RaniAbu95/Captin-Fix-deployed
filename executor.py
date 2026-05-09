@@ -130,12 +130,14 @@ STRUCTURE RULES:
   * Use EC.element_to_be_clickable when you need to interact with an element (click, send_keys).
   * Use EC.visibility_of_element_located when you only need to read or assert on an element.
   * EC.presence_of_element_located is redundant whenever either of the above is used — never pair them.
-- NEVER use WebDriverWait with By.TAG_NAME, "body". The body tag is always present on every page
-  and is a useless wait. Always wait for a specific meaningful element instead.
-- After clicking a button or link, choose the wait based on what should actually change:
-    * If the page navigates to a new page: wait for a specific element on the new page (e.g. a heading or unique element from the HTML).
-    * If the page stays the same (e.g. empty form submit, no input search): wait for an element that confirms you are still on the same page (e.g. the search input is still visible).
-    * NEVER use body, html, or any tag that is always present on every page as the wait target.
+- STRICTLY FORBIDDEN — delete any of these lines before returning code:
+    WebDriverWait(driver, ...).until(EC.visibility_of_element_located((By.TAG_NAME, "body")))
+    WebDriverWait(driver, ...).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+    WebDriverWait(driver, ...).until(EC.visibility_of_element_located((By.TAG_NAME, "html")))
+  body and html are always in the DOM — waiting for them asserts nothing and is dead code.
+- After every click or submit, wait for a specific meaningful element that reflects what changed:
+    * Page navigates away → wait for a unique visible element on the destination page (from the HTML).
+    * Page stays the same (empty submit, no input) → wait for an element confirming you are still on the same page (e.g. the form input is still visible).
 
 BROWSER MODE: {headless}
 - The HTML provided was fetched using {headless}.
@@ -192,17 +194,17 @@ SEARCH RESULT RULES:
   1. Import Keys: from selenium.webdriver.common.keys import Keys
   2. Submit the search by pressing Keys.RETURN.
   3. Wait for results: WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div#search h3")))
-  4. Click the first result and verify a page loaded by waiting for a visible element:
+  4. Click the first result and verify the destination page loaded by waiting for its heading:
        first_result = driver.find_element(By.CSS_SELECTOR, "div#search h3")
        first_result.click()
-       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "body")))
+       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
   NEVER use url_changes, url_contains, or driver.current_url to verify navigation.
 
 - When a step says "I'm Feeling Lucky":
   1. Click the search input, send_keys the search term, then click btnI.
-  2. After clicking, wait for a visible element on the destination page:
+  2. After clicking, wait for the destination page heading:
        lucky_btn.click()
-       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "body")))
+       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
 
 ASSERTION RULES (most important):
 - After EVERY user action (click, form submit, navigation, input), verify the outcome using WebDriverWait.
