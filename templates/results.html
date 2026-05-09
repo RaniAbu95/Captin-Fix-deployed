@@ -62,11 +62,25 @@
       <!-- Results summary -->
       <div class="card mb-3 shadow-sm">
         <div class="card-body py-2">
-          <div class="d-flex align-items-center gap-4">
-            <span class="text-muted small fw-semibold">RESULTS</span>
-            <span>✅ <strong id="count-pass">0</strong> passed</span>
-            <span>❌ <strong id="count-fail">0</strong> failed</span>
-            <span class="text-muted small" id="count-total">0 / {{ plan.cases | length }} run</span>
+          <div class="row text-center">
+            <div class="col">
+              <div class="fw-bold text-muted small">RUN</div>
+              <div class="fs-5 fw-bold" id="count-total">0 / {{ plan.cases | length }}</div>
+            </div>
+            <div class="col">
+              <div class="fw-bold text-muted small">PASSED</div>
+              <div class="fs-5 fw-bold text-success" id="count-pass">0</div>
+            </div>
+            <div class="col">
+              <div class="fw-bold text-muted small">FAILED</div>
+              <div class="fs-5 fw-bold text-danger" id="count-fail">0</div>
+            </div>
+            <div class="col">
+              <div class="fw-bold text-muted small">MATCHES EXPECTED</div>
+              <div class="fs-5 fw-bold text-primary">
+                <span id="count-match">0</span> / {{ plan.cases | length }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -156,7 +170,8 @@
         const failed = values.filter(s => s !== 'Pass').length;
         document.getElementById('count-pass').textContent  = passed;
         document.getElementById('count-fail').textContent  = failed;
-        document.getElementById('count-total').textContent = `${values.length} / ${CASES.length} run`;
+        document.getElementById('count-total').textContent = `${values.length} / ${CASES.length}`;
+        document.getElementById('count-match').textContent = passed;
       }
 
       function showCode(idx, code) {
