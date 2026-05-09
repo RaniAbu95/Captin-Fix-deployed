@@ -130,13 +130,29 @@
                         onclick="copyCode({{ loop.index }})" disabled>
                   Copy Code
                 </button>
-                <div class="form-check ms-2 mb-0">
-                  <input class="form-check-input" type="checkbox" id="negative-{{ loop.index }}"
-                         {% if case.negative %}checked{% endif %}
-                         onchange="updateSummary({{ loop.index }}, testResults[{{ loop.index }}])">
-                  <label class="form-check-label small text-muted" for="negative-{{ loop.index }}">
-                    Expected to fail
-                  </label>
+                <div class="d-flex gap-3 ms-2 align-items-center">
+                  <div class="form-check mb-0">
+                    <input class="form-check-input" type="radio"
+                           name="expectation-{{ loop.index }}"
+                           id="expect-pass-{{ loop.index }}"
+                           value="pass"
+                           {% if not case.negative %}checked{% endif %}
+                           onchange="updateSummary({{ loop.index }}, testResults[{{ loop.index }}])">
+                    <label class="form-check-label small text-success fw-semibold" for="expect-pass-{{ loop.index }}">
+                      Expected to pass
+                    </label>
+                  </div>
+                  <div class="form-check mb-0">
+                    <input class="form-check-input" type="radio"
+                           name="expectation-{{ loop.index }}"
+                           id="expect-fail-{{ loop.index }}"
+                           value="fail"
+                           {% if case.negative %}checked{% endif %}
+                           onchange="updateSummary({{ loop.index }}, testResults[{{ loop.index }}])">
+                    <label class="form-check-label small text-danger fw-semibold" for="expect-fail-{{ loop.index }}">
+                      Expected to fail
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -180,10 +196,10 @@
         document.getElementById('count-fail').textContent  = failed;
         document.getElementById('count-total').textContent = `${values.length} / ${CASES.length}`;
 
-        // Matches expected: Pass on positive test OR Fail on negative test
+        // Matches expected: Pass on "expected to pass" OR Fail on "expected to fail"
         let matches = 0;
         for (const [i, s] of Object.entries(testResults)) {
-          const isNegative = document.getElementById(`negative-${i}`)?.checked;
+          const isNegative = document.getElementById(`expect-fail-${i}`)?.checked;
           if (isNegative ? s !== 'Pass' : s === 'Pass') matches++;
         }
         document.getElementById('count-match').textContent = matches;
