@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 import traceback
 from datetime import datetime
 from selenium import webdriver
@@ -20,6 +21,9 @@ SCREENSHOT_DIR = "./screen/screenshots"
 
 _html_cache = {}
 HEADLESS = os.environ.get("HEADLESS", "true").lower() != "false"
+
+# Only one Chrome subprocess at a time — prevents OOM on low-memory hosts
+_chrome_lock = threading.Semaphore(1)
 
 def _chrome_options():
     opts = Options()
@@ -409,29 +413,30 @@ def run_test_file(case_id, file_path):
     """)
 
     result = {"id": case_id, "status": "Pass", "error": None, "screenshot": None}
-    try:
-        proc = subprocess.run(
-            [sys.executable, "-c", runner],
-            capture_output=True, text=True, timeout=240
-        )
-        time.sleep(2)  # ensure Chrome OS cleanup finishes before the next test
-        combined = proc.stdout + "\n" + proc.stderr
-        for line in combined.splitlines():
-            if line.startswith("SCREENSHOT:"):
-                result["screenshot"] = line[len("SCREENSHOT:"):]
-            elif line.startswith("RESULT:Pass"):
-                result["status"] = "Pass"
-            elif line.startswith("RESULT:Fail:"):
-                result["status"] = "Fail"
-                result["error"] = line[len("RESULT:Fail:"):].strip()
-        if result["status"] == "Fail" and not result.get("error"):
-            result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
-    except subprocess.TimeoutExpired:
-        result["status"] = "Fail"
-        result["error"] = "Test timed out after 240 seconds"
-    except Exception as e:
-        result["status"] = "Fail"
-        result["error"] = str(e)
+    with _chrome_lock:
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-c", runner],
+                capture_output=True, text=True, timeout=240
+            )
+            time.sleep(2)  # ensure Chrome OS cleanup finishes before the next test
+            combined = proc.stdout + "\n" + proc.stderr
+            for line in combined.splitlines():
+                if line.startswith("SCREENSHOT:"):
+                    result["screenshot"] = line[len("SCREENSHOT:"):]
+                elif line.startswith("RESULT:Pass"):
+                    result["status"] = "Pass"
+                elif line.startswith("RESULT:Fail:"):
+                    result["status"] = "Fail"
+                    result["error"] = line[len("RESULT:Fail:"):].strip()
+            if result["status"] == "Fail" and not result.get("error"):
+                result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
+        except subprocess.TimeoutExpired:
+            result["status"] = "Fail"
+            result["error"] = "Test timed out after 240 seconds"
+        except Exception as e:
+            result["status"] = "Fail"
+            result["error"] = str(e)
 
     return result
 
