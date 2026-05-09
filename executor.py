@@ -28,6 +28,7 @@ def _chrome_options():
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-gpu")
+    opts.add_argument("--single-process")
     opts.add_argument("--disable-extensions")
     opts.add_argument("--disable-plugins")
     opts.add_argument("--disable-background-networking")
@@ -362,7 +363,8 @@ def run_test_file(case_id, file_path):
             opts.add_argument("--headless=new")
         for arg in [
             "--no-sandbox", "--disable-dev-shm-usage",
-            "--disable-gpu", "--disable-extensions", "--no-first-run",
+            "--disable-gpu", "--single-process",
+            "--disable-extensions", "--no-first-run",
             "--mute-audio", "--disable-default-apps",
         ]:
             opts.add_argument(arg)
