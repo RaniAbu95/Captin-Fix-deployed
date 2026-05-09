@@ -145,8 +145,7 @@ def _strip_json(text: str) -> str:
 def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     page_html = extract_full_html(url)
 
-    num_negative = max(1, round(num_tests / 3))
-    num_positive = num_tests - num_negative
+    max_negative = round(num_tests / 3)
 
     llm = ChatAnthropic(
         model="claude-haiku-4-5-20251001",
@@ -183,25 +182,25 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - Before finalising each test case, check it is not already covered by a previous one.
         - If you run out of distinct features to test, reduce the number of test cases rather than creating duplicates.
 
-        NEGATIVE TEST RULES — COUNT IS MANDATORY:
-        - You MUST include EXACTLY {num_negative} negative test cases (negative: true).
-        - You MUST include EXACTLY {num_positive} positive test cases (negative: false).
-        - A negative test INTENTIONALLY tests invalid behaviour: submitting an empty form,
-          entering wrong/invalid input, searching for something that returns no results.
+        NEGATIVE TEST RULES:
+        - A negative test is a test that deliberately tries to crash the website or force it to
+          return an error message (e.g. HTTP 404/500, validation error, "Something went wrong",
+          server-side error page, unhandled exception).
+        - Examples: submitting a form with missing required fields so the server shows a
+          validation error; navigating to a URL that does not exist to get a 404;
+          entering malformed or oversized input that triggers a server error.
+        - ONLY include negative tests when the HTML contains functionality that can realistically
+          produce a crash or an error response (forms, search inputs, login fields, etc.).
+        - If the page has NO such functionality, set "negative": false on EVERY test case.
+        - When negative tests ARE applicable, include at most {max_negative} of them.
+        - Set "negative": true only on cases that fit the crash/error definition above.
         - ALL other test cases must have "negative": false.
-        - "negative" refers to the TEST INTENT, not the runtime outcome.
-
-        BEFORE RETURNING — verify these three counts:
-        1. Total test cases = {num_tests}
-        2. Cases with "negative": true = {num_negative}
-        3. Cases with "negative": false = {num_positive}
-        If any count is wrong, fix the JSON before returning.
 
         Return only valid JSON.
     """)
 
     prompt = template.format_messages(page_html=page_html, num_tests=num_tests,
-                                      num_negative=num_negative, num_positive=num_positive)
+                                      max_negative=max_negative)
     response = llm.invoke(prompt)
     plan_json = response.content.strip()
     stop_reason = (response.response_metadata or {}).get("stop_reason", "unknown")
@@ -248,45 +247,6 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
 
     # Enforce exact total count
     cases = cases[:num_tests]
-
-    # Enforce negative ratio via follow-up call if the LLM under-generated negatives
-    neg_count = sum(1 for c in cases if c.negative)
-    if neg_count < num_negative:
-        shortage = num_negative - neg_count
-        positives = [c for c in cases if not c.negative]
-        negatives = [c for c in cases if c.negative]
-        # Drop the last `shortage` positive cases to make room
-        positives = positives[:len(positives) - shortage]
-        existing_ids = [c.id for c in cases]
-
-        neg_fill_template = ChatPromptTemplate.from_template("""
-            You are an expert QA engineer.
-            Here is the FULL HTML of the target website:
-            {page_html}
-
-            Generate exactly {shortage} NEGATIVE test cases for this website.
-            Do NOT repeat these existing IDs: {existing_ids}
-            A negative test intentionally tests invalid behaviour:
-            submitting an empty form, entering wrong/invalid input,
-            searching for something that returns no results, etc.
-            Each test case must include: id, suite, steps, expected, priority.
-            Set "negative": true on every case you return.
-            Only use elements actually present in the HTML.
-            Return only a valid JSON array.
-        """)
-        neg_resp = llm.invoke(neg_fill_template.format_messages(
-            page_html=page_html, shortage=shortage, existing_ids=existing_ids))
-        try:
-            extra_neg = json.loads(_strip_json(neg_resp.content.strip()))
-            if isinstance(extra_neg, list):
-                for c in extra_neg[:shortage]:
-                    c["negative"] = True
-                    c.setdefault("suite", "Forms")
-                    negatives.append(TestCase(**c))
-        except Exception:
-            pass
-
-        cases = positives + negatives
 
     if not suites_list:
         suites_list = list(dict.fromkeys(c.suite for c in cases))

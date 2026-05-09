@@ -150,7 +150,7 @@
                            {% if case.negative %}checked{% endif %}
                            onchange="updateSummary({{ loop.index }}, testResults[{{ loop.index }}])">
                     <label class="form-check-label small text-danger fw-semibold" for="expect-fail-{{ loop.index }}">
-                      Expected to fail
+                      Expected to crash / error
                     </label>
                   </div>
                 </div>
