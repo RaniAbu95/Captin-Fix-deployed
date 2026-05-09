@@ -28,17 +28,12 @@ def _chrome_options():
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-gpu")
-    opts.add_argument("--disable-software-rasterizer")
-    opts.add_argument("--renderer-process-limit=1")
-    opts.add_argument("--disable-features=VizDisplayCompositor,Translate,TranslateUI")
     opts.add_argument("--disable-extensions")
-    opts.add_argument("--disable-plugins")
+    opts.add_argument("--no-first-run")
     opts.add_argument("--disable-background-networking")
     opts.add_argument("--disable-sync")
-    opts.add_argument("--no-first-run")
-    opts.add_argument("--mute-audio")
     opts.add_argument("--disable-default-apps")
-    opts.add_argument("--js-flags=--max-old-space-size=256")
+    opts.add_argument("--blink-settings=imagesEnabled=false")
     return opts
 
 # llm is initialised inside generate_selenium_code() to avoid import-time errors
@@ -366,12 +361,10 @@ def run_test_file(case_id, file_path):
             opts.add_argument("--headless=new")
         for arg in [
             "--no-sandbox", "--disable-dev-shm-usage",
-            "--disable-gpu", "--disable-software-rasterizer",
-            "--renderer-process-limit=1",
-            "--disable-features=VizDisplayCompositor,Translate,TranslateUI",
-            "--disable-extensions", "--no-first-run",
-            "--mute-audio", "--disable-default-apps",
-            "--js-flags=--max-old-space-size=256",
+            "--disable-gpu", "--disable-extensions",
+            "--no-first-run", "--disable-background-networking",
+            "--disable-sync", "--disable-default-apps",
+            "--blink-settings=imagesEnabled=false",
         ]:
             opts.add_argument(arg)
 
