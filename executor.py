@@ -158,22 +158,28 @@ LOCATOR RULES:
       assert button.get_attribute("value") == "Google Search"  ← do NOT add this line ever
 
 NAVIGATION VERIFICATION RULES:
-- NEVER use old_url, driver.current_url, EC.url_changes, or EC.url_contains to verify navigation.
-  You cannot know in advance what URL a click will produce — guessing causes false failures.
-- After clicking a link or button, verify navigation happened by waiting for a visible
-  element that is known to exist on the destination page (from the HTML), for example:
-      WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
-- NEVER write these patterns (strictly forbidden):
+- After clicking a link, ALWAYS verify the destination URL using EC.url_contains with a
+  fragment taken DIRECTLY from the link's href attribute in the provided HTML.
+  NEVER guess the fragment from the link's visible text — always read the href value.
+  BAD (using link text — NEVER do this):
+      # link text is "Gmail", href is "https://mail.google.com/mail/..."
+      WebDriverWait(driver, 10).until(EC.url_contains("gmail"))    ← WRONG: taken from text
+  GOOD (using the actual href domain):
+      WebDriverWait(driver, 10).until(EC.url_contains("mail.google.com"))  ← CORRECT
+  BAD (using link text — NEVER do this):
+      # link text is "Images", href is "/imghp?hl=en"
+      WebDriverWait(driver, 10).until(EC.url_contains("images"))   ← WRONG: taken from text
+  GOOD (using the actual href path):
+      WebDriverWait(driver, 10).until(EC.url_contains("imghp"))    ← CORRECT
+- FORBIDDEN — never write these patterns:
       old_url = driver.current_url          ← FORBIDDEN
       EC.url_changes(old_url)               ← FORBIDDEN
-      EC.url_contains("...")                ← FORBIDDEN
       EC.url_to_be("...")                   ← FORBIDDEN
-      driver.current_url                    ← FORBIDDEN
 
 SAME TAB VERIFICATION RULE:
 - Whenever a link has target="_top" or no target attribute in the HTML, ALWAYS add this check after clicking:
       handles_before = driver.window_handles  # capture BEFORE clicking
-      # ... click and wait for destination element ...
+      # ... EC.url_contains wait ...
       assert len(driver.window_handles) == len(handles_before), "Expected link to open in same tab but a new tab was opened"
 - If the link has target="_blank", do NOT add this check — a new tab is expected.
 
@@ -187,18 +193,17 @@ GOOGLE SEARCH BUTTONS RULES:
       lucky_button = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.NAME, "btnI")))
 - ALWAYS enter a search term in the search box BEFORE clicking the "I'm Feeling Lucky" button.
 - Clicking "I'm Feeling Lucky" without a search term does nothing — the URL will not change and the test will fail.
-- Correct order: search_input.click() → send_keys(search_term) → click btnI → EC.url_changes(old_url)
+- Correct order: search_input.click() → send_keys(search_term) → click btnI → EC.url_contains(fragment_from_href)
 
 SEARCH RESULT RULES:
 - When a step says "click the first search result" or "open the first result":
   1. Import Keys: from selenium.webdriver.common.keys import Keys
   2. Submit the search by pressing Keys.RETURN.
   3. Wait for results: WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div#search h3")))
-  4. Click the first result and verify the destination page loaded by waiting for its heading:
+  4. Click the first result and verify the destination loaded:
        first_result = driver.find_element(By.CSS_SELECTOR, "div#search h3")
        first_result.click()
        WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
-  NEVER use url_changes, url_contains, or driver.current_url to verify navigation.
 
 - When a step says "I'm Feeling Lucky":
   1. Click the search input, send_keys the search term, then click btnI.

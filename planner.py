@@ -114,6 +114,16 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - NEVER assume a link opens in a new tab unless the HTML explicitly shows target="_blank".
           If the HTML shows target="_top" or no target attribute, the link opens in the SAME tab — say so in the expected result.
 
+        NAVIGATION STEP RULES:
+        - Every test case that clicks a link MUST include a final step that verifies the destination URL.
+        - The verification step must state the exact domain or path fragment taken from the link's href attribute in the HTML.
+        - NEVER use the link's visible text as the URL fragment — always use the href value.
+        - Example: if the HTML shows <a href="https://mail.google.com/mail/...">Gmail</a>,
+          the verification step must say: "Verify the page URL contains 'mail.google.com'".
+        - Example: if the HTML shows <a href="/imghp?hl=en">Images</a>,
+          the verification step must say: "Verify the page URL contains 'imghp'".
+        - This URL verification step counts toward the 4-step maximum.
+
         UNIQUENESS RULES (strictly enforced):
         - Every test case must test a DIFFERENT feature, interaction, or user flow.
         - No two test cases may have the same steps or the same expected result, even if worded differently.
