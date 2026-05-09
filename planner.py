@@ -131,10 +131,11 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - If you run out of distinct features to test, reduce the number of test cases rather than creating duplicates.
 
         NEGATIVE TEST RULES:
-        - At least ONE test case must be a negative test (testing invalid input, non-existent elements, wrong data, empty fields, etc.).
+        - At least ONE test case must be a negative test.
+        - A negative test INTENTIONALLY tests invalid behaviour: submitting an empty form, entering wrong/invalid input, searching for something that returns no results.
         - Negative test cases must have "negative": true in the JSON.
-        - All other test cases must have "negative": false.
-        - Example negative test: submitting an empty search form, searching for a non-existent page, clicking a disabled button.
+        - ALL other test cases must have "negative": false — including tests that verify visible elements, navigation, and normal user flows, even if those tests might fail at runtime.
+        - "negative" refers to the TEST INTENT, not the runtime outcome. If the test is designed to confirm something works correctly, it is "negative": false even if it fails.
 
         Return only valid JSON.
     """)
