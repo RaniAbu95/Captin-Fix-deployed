@@ -145,8 +145,15 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     plan_json = response.content.strip()
     print("LLM Output:", plan_json)
 
-    if plan_json.startswith("```json"):
-        plan_json = plan_json.replace("```json", "").replace("```", "").strip()
+    # Strip markdown code fences (```json ... ``` or ``` ... ```)
+    import re as _re
+    plan_json = _re.sub(r"^```[a-z]*\s*", "", plan_json, flags=_re.IGNORECASE).strip()
+    plan_json = _re.sub(r"```$", "", plan_json).strip()
+
+    # Extract first JSON object or array if there is surrounding text
+    match = _re.search(r"(\{.*\}|\[.*\])", plan_json, _re.DOTALL)
+    if match:
+        plan_json = match.group(0)
 
     try:
         parsed = json.loads(plan_json)
