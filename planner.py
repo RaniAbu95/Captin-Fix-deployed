@@ -38,6 +38,7 @@ class TestCase(BaseModel):
     steps: List[str]
     expected: str
     priority: str
+    negative: bool = False
 
 class TestPlan(BaseModel):
     website: str
@@ -128,6 +129,12 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         - Do NOT generate variations of the same action (e.g. two test cases that both search for a term and click Google Search are duplicates — generate only ONE).
         - Before finalising each test case, check it is not already covered by a previous one.
         - If you run out of distinct features to test, reduce the number of test cases rather than creating duplicates.
+
+        NEGATIVE TEST RULES:
+        - At least ONE test case must be a negative test (testing invalid input, non-existent elements, wrong data, empty fields, etc.).
+        - Negative test cases must have "negative": true in the JSON.
+        - All other test cases must have "negative": false.
+        - Example negative test: submitting an empty search form, searching for a non-existent page, clicking a disabled button.
 
         Return only valid JSON.
     """)
