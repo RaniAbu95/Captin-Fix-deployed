@@ -131,7 +131,11 @@ STRUCTURE RULES:
   * Use EC.visibility_of_element_located when you only need to read or assert on an element.
   * EC.presence_of_element_located is redundant whenever either of the above is used — never pair them.
 - NEVER use WebDriverWait with By.TAG_NAME, "body". The body tag is always present on every page
-  and is a useless wait. Always wait for a specific meaningful element on the target page instead.
+  and is a useless wait. Always wait for a specific meaningful element instead.
+- After clicking a button or link, choose the wait based on what should actually change:
+    * If the page navigates to a new page: wait for a specific element on the new page (e.g. a heading or unique element from the HTML).
+    * If the page stays the same (e.g. empty form submit, no input search): wait for an element that confirms you are still on the same page (e.g. the search input is still visible).
+    * NEVER use body, html, or any tag that is always present on every page as the wait target.
 
 BROWSER MODE: {headless}
 - The HTML provided was fetched using {headless}.
