@@ -229,6 +229,18 @@ ERROR HANDLING:
 - On any exception: save a screenshot to "error_{{int(time.time())}}.png", then re-raise.
 - Do not swallow exceptions silently.
 
+STEP FIDELITY RULES — most important:
+- The Steps list below is the authoritative specification. Your Selenium code must implement
+  EXACTLY those steps, in EXACTLY that order, with EXACTLY that intent.
+- Each numbered step must map to a visible, identifiable block of code.
+- Do NOT add extra steps that are not in the list.
+- Do NOT skip or merge steps.
+- Do NOT change the intent of a step (e.g. if the step says "click the Login button",
+  do not click a different button, do not navigate to a different page first).
+- Do NOT invent interactions that are not described in the steps.
+- The steps are written in plain English — translate each one directly into Selenium code
+  and nothing more.
+
 Website URL: {website}
 
 Full HTML: {html}
