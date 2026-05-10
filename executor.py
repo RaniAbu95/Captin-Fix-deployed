@@ -149,6 +149,15 @@ LOCATOR RULES:
 - Priority: ID > Name > CSS Selector > XPath with visible text.
 - For Hebrew or non-Latin text, match the exact visible text from the HTML including spaces and punctuation.
 - Never invent or guess locators — only use what is in the HTML.
+- ONLY use these By strategies: By.ID, By.NAME, By.CLASS_NAME, By.TAG_NAME,
+  By.CSS_SELECTOR, By.XPATH, By.LINK_TEXT, By.PARTIAL_LINK_TEXT.
+  Any other attribute on By (e.g. By.DATA_TESTID, By.DATA_TEST, By.ATTRIBUTE)
+  does not exist in Selenium and will raise AttributeError at runtime — never use them.
+- To locate elements by data-test or data-testid attributes, always use
+  By.CSS_SELECTOR with the attribute selector syntax:
+    By.CSS_SELECTOR, "[data-test='login-container']"
+    By.CSS_SELECTOR, "[data-testid='submit-button']"
+  Never use By.DATA_TESTID or By.DATA_TEST — those do not exist in Selenium.
 - When matching an href, use the FULL href value exactly as it appears in the HTML.
   BAD: contains(@href, '/history/privacyadvisor')  ← guessed path, may match wrong element
   GOOD: contains(@href, 'myactivity.google.com/privacyadvisor')  ← domain from actual HTML href
