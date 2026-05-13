@@ -8,7 +8,9 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: RESEND_API_KEY
+      - key: BREVO_API_KEY
         sync: false
       - key: FROM_EMAIL
+        sync: false
+      - key: FROM_NAME
         sync: false
