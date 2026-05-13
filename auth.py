@@ -29,7 +29,7 @@ def register():
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-        login_user(user)
+        login_user(user, remember=True)
         flash('Account created! Welcome to Captain Fix.', 'success')
         return redirect(url_for('index'))
 
@@ -47,7 +47,8 @@ def login():
             flash('Invalid email or password.', 'danger')
             return redirect(url_for('auth.login'))
 
-        login_user(user)
+        remember = bool(request.form.get('remember'))
+        login_user(user, remember=remember)
         next_page = request.args.get('next')
         return redirect(next_page or url_for('index'))
 

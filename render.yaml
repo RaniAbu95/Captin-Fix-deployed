@@ -14,3 +14,7 @@ services:
         sync: false
       - key: FROM_NAME
         sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
