@@ -14,11 +14,10 @@ def send_results_email(to_email: str, attachments: list, subject="Test Plan Resu
     :param subject: Email subject
     """
     from_email = os.getenv("EMAIL_ADDRESS")
-    email_password = os.getenv("EMAIL_PASSWORD")  # Use app password for Gmail
+    email_password = os.getenv("EMAIL_PASSWORD")  # iCloud app-specific password
 
     if not from_email or not email_password:
-        print("❌ Email credentials not set in .env")
-        return
+        raise RuntimeError("EMAIL_ADDRESS / EMAIL_PASSWORD not set in environment")
 
     msg = MIMEMultipart()
     msg['From'] = from_email
@@ -42,12 +41,11 @@ def send_results_email(to_email: str, attachments: list, subject="Test Plan Resu
             print(f"❌ Failed to attach file {file_path}: {e}")
 
     # Send email
+    server = smtplib.SMTP('smtp.mail.me.com', 587)  # iCloud Mail
     try:
-        server = smtplib.SMTP('smtp.mail.me.com', 587)  # iCloud Mail
         server.starttls()
         server.login(from_email, email_password)
         server.send_message(msg)
-        server.quit()
         print(f"📧 Email sent successfully to {to_email}")
-    except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+    finally:
+        server.quit()
