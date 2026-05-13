@@ -1,18 +1,46 @@
 import os
 import json
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import LoginManager, login_required, current_user
+from models import db, User
+from auth import auth
 from planner import run_planner
 
 app = Flask(__name__)
-app.secret_key = "dev-secret-key-123"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-123")
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL', f"sqlite:///{os.path.join(os.getcwd(), 'users.db')}"
+)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'auth.login'
+login_manager.login_message = 'Please sign in to access Captain Fix.'
+login_manager.login_message_category = 'warning'
+
+app.register_blueprint(auth)
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+with app.app_context():
+    db.create_all()
 
 
 @app.route('/', methods=['GET'])
+@login_required
 def index():
     return render_template('index.html')
 
 
 @app.route('/submit', methods=['POST'])
+@login_required
 def submit():
     target = request.form.get('target')
     depth = request.form.get('depth')
@@ -43,8 +71,6 @@ def submit():
     except Exception as e:
         flash(f"❌ Error: {str(e)}", 'danger')
         return redirect(url_for('index'))
-
-
 
 
 @app.route('/health', methods=['GET', 'POST'])
@@ -87,6 +113,7 @@ def health():
 
 
 @app.route('/download/<filename>')
+@login_required
 def download(filename):
     from flask import send_file, abort
     allowed = {'plan.json': 'output/plan.json', 'Plan.xlsx': 'output/Plan.xlsx'}
@@ -99,6 +126,7 @@ def download(filename):
 
 
 @app.route('/download/screenshot/<case_id>')
+@login_required
 def download_screenshot(case_id):
     from flask import send_file, abort
     import re
@@ -111,6 +139,7 @@ def download_screenshot(case_id):
 
 
 @app.route('/generate-code', methods=['POST'])
+@login_required
 def generate_code():
     from executor import generate_test_files
     data = request.get_json()
@@ -132,6 +161,7 @@ def generate_code():
 
 
 @app.route('/run-test', methods=['POST'])
+@login_required
 def run_test():
     from executor import generate_test_files, run_test_file
     data = request.get_json()
