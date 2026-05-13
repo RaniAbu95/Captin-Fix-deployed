@@ -43,7 +43,7 @@ def send_results_email(to_email: str, attachments: list, subject="Test Plan Resu
 
     # Send email
     try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)  # For Gmail
+        server = smtplib.SMTP('smtp.mail.me.com', 587)  # iCloud Mail
         server.starttls()
         server.login(from_email, email_password)
         server.send_message(msg)

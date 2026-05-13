@@ -5,11 +5,13 @@ from flask_login import LoginManager, login_required, current_user
 from models import db, User
 from auth import auth
 from planner import run_planner
+from email_utils import send_results_email
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-123")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-    'DATABASE_URL', f"sqlite:///{os.path.join(os.getcwd(), 'users.db')}"
+    'DATABASE_URL', f"sqlite:///{os.path.join(BASE_DIR, 'users.db')}"
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -65,6 +67,18 @@ def submit():
         plan_path = os.path.join('output', 'plan.json')
         with open(plan_path, 'r', encoding='utf-8') as f:
             plan = json.load(f)
+
+        xlsx_path = os.path.join('output', 'Plan.xlsx')
+        attachments = [p for p in (plan_path, xlsx_path) if os.path.exists(p)]
+        try:
+            send_results_email(
+                to_email=email,
+                attachments=attachments,
+                subject=f"Captain Fix — Test Plan for {target}",
+            )
+            flash(f"📧 Test plan sent to {email}", 'success')
+        except Exception as e:
+            flash(f"⚠️ Plan generated, but email failed: {e}", 'warning')
 
         return render_template('results.html', plan=plan, target=target, email=email, pm_tool=pm_tool)
 
