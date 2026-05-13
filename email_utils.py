@@ -38,8 +38,13 @@ def send_results_email(to_email: str, attachments: list, subject="Test Plan Resu
         try:
             with open(file_path, "rb") as f:
                 encoded = base64.b64encode(f.read()).decode("ascii")
+            # Brevo rejects .json attachments (not on their extension whitelist).
+            # Rename to .txt — content is identical, recipient can rename back.
+            name = os.path.basename(file_path)
+            if name.lower().endswith(".json"):
+                name = name[:-5] + ".txt"
             payload["attachment"].append({
-                "name": os.path.basename(file_path),
+                "name": name,
                 "content": encoded,
             })
         except Exception as e:
