@@ -475,6 +475,12 @@ def run_test_file(case_id, file_path):
         def _patched_get(url):
             _orig_get(url)
             _dismiss_cookies(driver)
+            # Progress snapshot so the parent has something on disk even
+            # if a later wait hangs past the subprocess wall-clock.
+            try:
+                driver.save_screenshot(screenshot_path)
+            except Exception:
+                pass
         driver.get = _patched_get
 
         screenshot_path = {repr(os.path.join(SCREENSHOT_DIR, case_id + ".png"))}
