@@ -509,6 +509,27 @@ def run_test_file(case_id, file_path):
                 except Exception:
                     pass
                 time.sleep(0.2)
+            # Fallback: JS hide of any small fixed/sticky element whose text
+            # mentions cookies — catches custom banners (e.g. castro.com's
+            # Hebrew "גולש יקר, אנו משתמשים בקבצי Cookie") with no exposed X.
+            try:
+                d.execute_script(\"\"\"
+                    const phrases = ['גולש יקר', 'בקבצי Cookie', 'cookie', 'cookies', 'עוגיות'];
+                    document.querySelectorAll('div, section, aside').forEach(el => {{
+                        const cs = getComputedStyle(el);
+                        if ((cs.position === 'fixed' || cs.position === 'sticky') && el.offsetHeight < 400) {{
+                            const text = (el.innerText || '').toLowerCase();
+                            for (const p of phrases) {{
+                                if (text.includes(p.toLowerCase())) {{
+                                    el.style.display = 'none';
+                                    return;
+                                }}
+                            }}
+                        }}
+                    }});
+                \"\"\")
+            except Exception:
+                pass
         _orig_get = driver.get
         def _patched_get(url):
             _orig_get(url)
