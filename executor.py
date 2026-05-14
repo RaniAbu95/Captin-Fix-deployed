@@ -431,6 +431,49 @@ def run_test_file(case_id, file_path):
                     time.sleep(5)
                 else:
                     raise
+
+        # Auto-dismiss cookie banners after every navigation so tests don't
+        # have to know about them. Covers OneTrust, TrustArc, and generic
+        # accept-all buttons (English text + Hebrew "אישור"/"אשר").
+        _cookie_css = [
+            "#onetrust-accept-btn-handler",
+            "#truste-consent-button",
+            "button[id*='accept-all']",
+            "button[id*='acceptAll']",
+            "button[id*='accept_all']",
+            "button[class*='accept-all']",
+            "button[class*='acceptAll']",
+        ]
+        _cookie_xpaths = [
+            "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept all')]",
+            "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept cookies')]",
+            "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'i agree')]",
+            "//button[contains(., 'אישור')]",
+            "//button[contains(., 'אשר')]",
+        ]
+        def _dismiss_cookies(d):
+            end = time.time() + 3
+            while time.time() < end:
+                try:
+                    for sel in _cookie_css:
+                        for el in d.find_elements(By.CSS_SELECTOR, sel):
+                            if el.is_displayed() and el.is_enabled():
+                                el.click()
+                                return
+                    for xp in _cookie_xpaths:
+                        for el in d.find_elements(By.XPATH, xp):
+                            if el.is_displayed() and el.is_enabled():
+                                el.click()
+                                return
+                except Exception:
+                    pass
+                time.sleep(0.2)
+        _orig_get = driver.get
+        def _patched_get(url):
+            _orig_get(url)
+            _dismiss_cookies(driver)
+        driver.get = _patched_get
+
         screenshot_path = {repr(os.path.join(SCREENSHOT_DIR, case_id + ".png"))}
         import os as _os
         _os.makedirs({repr(SCREENSHOT_DIR)}, exist_ok=True)
