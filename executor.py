@@ -439,6 +439,7 @@ def run_test_file(case_id, file_path):
         # have to know about them. Covers OneTrust, TrustArc, and generic
         # accept-all buttons (English text + Hebrew "אישור"/"אשר").
         _cookie_css = [
+            # Accept buttons — major platforms first
             "#onetrust-accept-btn-handler",
             "#truste-consent-button",
             ".cky-btn-accept",
@@ -452,12 +453,29 @@ def run_test_file(case_id, file_path):
             "[data-testid*='accept']",
             "[aria-label*='Accept']",
             "[aria-label*='accept']",
+            # Close (X) buttons — scoped to a cookie/consent container first
+            "[id*='cookie'] button[aria-label='Close']",
+            "[id*='cookie'] [class*='close']",
+            "[class*='cookie'] button[aria-label='Close']",
+            "[class*='cookie'] [class*='close']",
+            "[id*='consent'] [class*='close']",
+            "[class*='consent'] [class*='close']",
+            "#CybotCookiebotDialogBodyButtonClose",
+            ".cky-btn-close",
+            ".iubenda-cs-close-btn",
+            # Generic X / close buttons — last resort
+            "button[aria-label='Close']",
+            "button[aria-label='close']",
+            "button.btn-close",
+            "[role='button'][aria-label='Close']",
         ]
         _cookie_xpaths = [
+            # Accept text (English)
             "//*[(self::button or self::a or self::div or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept all')]",
             "//*[(self::button or self::a or self::div or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept cookies')]",
             "//*[(self::button or self::a or self::div or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'i agree')]",
             "//*[(self::button or self::a or self::div or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'got it')]",
+            # Accept text (Hebrew)
             "//*[(self::button or self::a or self::div or self::span)][contains(., 'אישור')]",
             "//*[(self::button or self::a or self::div or self::span)][contains(., 'אשר')]",
             "//*[(self::button or self::a or self::div or self::span)][contains(., 'מאשר')]",
@@ -467,6 +485,12 @@ def run_test_file(case_id, file_path):
             "//*[(self::button or self::a or self::div or self::span)][contains(., 'קבל את כל')]",
             "//*[(self::button or self::a or self::div or self::span)][normalize-space()='קבל']",
             "//*[(self::button or self::a or self::div or self::span)][normalize-space()='המשך']",
+            # Close (X) — unicode multiplication sign, heavy ballot X, and Hebrew close/cancel
+            "//*[(self::button or self::a or self::div or self::span)][normalize-space()='×']",
+            "//*[(self::button or self::a or self::div or self::span)][normalize-space()='✕']",
+            "//*[(self::button or self::a or self::div or self::span)][normalize-space()='✖']",
+            "//*[(self::button or self::a or self::div or self::span)][normalize-space()='סגור']",
+            "//*[(self::button or self::a or self::div or self::span)][normalize-space()='ביטול']",
         ]
         def _dismiss_cookies(d):
             end = time.time() + 3
