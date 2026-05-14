@@ -172,14 +172,14 @@ NAVIGATION VERIFICATION RULES:
   NEVER guess the fragment from the link's visible text — always read the href value.
   BAD (using link text — NEVER do this):
       # link text is "Gmail", href is "https://mail.google.com/mail/..."
-      WebDriverWait(driver, 10).until(EC.url_contains("gmail"))    ← WRONG: taken from text
+      WebDriverWait(driver, 5).until(EC.url_contains("gmail"))    ← WRONG: taken from text
   GOOD (using the actual href domain):
-      WebDriverWait(driver, 10).until(EC.url_contains("mail.google.com"))  ← CORRECT
+      WebDriverWait(driver, 5).until(EC.url_contains("mail.google.com"))  ← CORRECT
   BAD (using link text — NEVER do this):
       # link text is "Images", href is "/imghp?hl=en"
-      WebDriverWait(driver, 10).until(EC.url_contains("images"))   ← WRONG: taken from text
+      WebDriverWait(driver, 5).until(EC.url_contains("images"))   ← WRONG: taken from text
   GOOD (using the actual href path):
-      WebDriverWait(driver, 10).until(EC.url_contains("imghp"))    ← CORRECT
+      WebDriverWait(driver, 5).until(EC.url_contains("imghp"))    ← CORRECT
 - FORBIDDEN — never write these patterns:
       old_url = driver.current_url          ← FORBIDDEN
       EC.url_changes(old_url)               ← FORBIDDEN
@@ -201,7 +201,7 @@ EMPTY FORM SUBMISSION RULES:
         WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.NAME, "q")))
   * BAD (this will always time out when no input was entered):
         google_search_button.click()
-        WebDriverWait(driver, 10).until(EC.url_contains("/search"))  ← WRONG, URL never changes
+        WebDriverWait(driver, 5).until(EC.url_contains("/search"))  ← WRONG, URL never changes
 
 GOOGLE SEARCH BUTTONS RULES:
 - On the Google homepage, the "Google Search" (btnK) and "I'm Feeling Lucky" (btnI) buttons are
@@ -214,10 +214,10 @@ GOOGLE SEARCH BUTTONS RULES:
   like "APjFqb" or any other alphanumeric Google-internal ID. Those IDs are dynamic and
   change between deployments. By.NAME, "q" is the only stable locator for the search box.
 - Correct sequence:
-      search_input = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, "q")))
+      search_input = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.NAME, "q")))
       search_input.click()                   # REQUIRED — reveals the search buttons
       search_input.send_keys("search term")  # REQUIRED — must enter a term before clicking btnK
-      google_search_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, "btnK")))
+      google_search_button = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.NAME, "btnK")))
       google_search_button.click()
 - ALWAYS enter a search term BEFORE clicking "I'm Feeling Lucky" (btnI).
 - Clicking btnI without a search term does nothing — URL will not change.
@@ -227,17 +227,17 @@ SEARCH RESULT RULES:
 - When a step says "click the first search result" or "open the first result":
   1. Import Keys: from selenium.webdriver.common.keys import Keys
   2. Submit the search by pressing Keys.RETURN.
-  3. Wait for results: WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div#search h3")))
+  3. Wait for results: WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div#search h3")))
   4. Click the first result and verify the destination loaded:
        first_result = driver.find_element(By.CSS_SELECTOR, "div#search h3")
        first_result.click()
-       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
+       WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
 
 - When a step says "I'm Feeling Lucky":
   1. Click the search input, send_keys the search term, then click btnI.
   2. After clicking, wait for the destination page heading:
        lucky_btn.click()
-       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
+       WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
 
 ASSERTION RULES (most important):
 - After EVERY user action (click, form submit, navigation, input), verify the outcome using WebDriverWait.
@@ -248,13 +248,13 @@ ASSERTION RULES (most important):
     * This applies to ALL EC conditions: url_contains, url_to_be, title_is, title_contains,
       visibility_of_element_located, presence_of_element_located, element_to_be_clickable, etc.
     * BAD (redundant — never do this):
-        WebDriverWait(driver, 10).until(EC.title_is("Google"))
+        WebDriverWait(driver, 5).until(EC.title_is("Google"))
         assert driver.title == "Google"   # ← DELETE THIS, it is already checked above
     * BAD (redundant — never do this):
-        WebDriverWait(driver, 10).until(EC.url_contains("mail.google.com"))
+        WebDriverWait(driver, 5).until(EC.url_contains("mail.google.com"))
         assert "mail.google.com" in driver.current_url   # ← DELETE THIS
     * GOOD — use assert ONLY for .text or .get_attribute() content not covered by WebDriverWait:
-        el = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "msg")))
+        el = WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.ID, "msg")))
         assert "Welcome" in el.text, f"Expected 'Welcome', got: {{el.text}}"
 
 ERROR HANDLING:
@@ -423,8 +423,8 @@ def run_test_file(case_id, file_path):
         for attempt in range(3):
             try:
                 driver = webdriver.Chrome(options=opts)
-                driver.set_script_timeout(120)
-                driver.set_page_load_timeout(120)
+                driver.set_script_timeout(60)
+                driver.set_page_load_timeout(60)
                 break
             except Exception:
                 if attempt < 2:
@@ -463,7 +463,7 @@ def run_test_file(case_id, file_path):
         try:
             proc = subprocess.run(
                 [sys.executable, "-c", runner],
-                capture_output=True, text=True, timeout=120
+                capture_output=True, text=True, timeout=60
             )
             time.sleep(2)  # ensure Chrome OS cleanup finishes before the next test
             combined = proc.stdout + "\n" + proc.stderr
@@ -479,7 +479,7 @@ def run_test_file(case_id, file_path):
                 result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
         except subprocess.TimeoutExpired:
             result["status"] = "Fail"
-            result["error"] = "Test timed out after 120 seconds"
+            result["error"] = "Test timed out after 60 seconds"
         except Exception as e:
             result["status"] = "Fail"
             result["error"] = str(e)
