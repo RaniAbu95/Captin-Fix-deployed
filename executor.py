@@ -423,8 +423,11 @@ def run_test_file(case_id, file_path):
         for attempt in range(3):
             try:
                 driver = webdriver.Chrome(options=opts)
-                driver.set_script_timeout(120)
-                driver.set_page_load_timeout(120)
+                # Internal Selenium timeouts intentionally < subprocess
+                # wall-clock (60s) so the inner except has room to write
+                # the screenshot before SIGKILL.
+                driver.set_script_timeout(50)
+                driver.set_page_load_timeout(50)
                 break
             except Exception:
                 if attempt < 2:
@@ -506,7 +509,7 @@ def run_test_file(case_id, file_path):
         try:
             proc = subprocess.run(
                 [sys.executable, "-c", runner],
-                capture_output=True, text=True, timeout=120
+                capture_output=True, text=True, timeout=60
             )
             time.sleep(2)  # ensure Chrome OS cleanup finishes before the next test
             combined = proc.stdout + "\n" + proc.stderr
@@ -522,7 +525,13 @@ def run_test_file(case_id, file_path):
                 result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
         except subprocess.TimeoutExpired:
             result["status"] = "Fail"
-            result["error"] = "Test timed out after 120 seconds"
+            result["error"] = "Test timed out after 60 seconds"
+            # If the inner except managed to save a screenshot before the
+            # SIGKILL, surface its path even though the stdout marker was
+            # cut off by the kill.
+            fallback = os.path.join(SCREENSHOT_DIR, case_id + ".png")
+            if os.path.exists(fallback):
+                result["screenshot"] = fallback
         except Exception as e:
             result["status"] = "Fail"
             result["error"] = str(e)
