@@ -623,6 +623,14 @@ def run_test_file(case_id, file_path):
             result["status"] = "Fail"
             result["error"] = str(e)
 
+    # Always surface a screenshot file if one exists on disk — covers
+    # passing tests (no SCREENSHOT marker printed) and any race where
+    # the marker was cut off mid-print.
+    if not result.get("screenshot"):
+        fallback = os.path.join(SCREENSHOT_DIR, case_id + ".png")
+        if os.path.exists(fallback):
+            result["screenshot"] = fallback
+
     return result
 
 
