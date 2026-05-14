@@ -500,6 +500,23 @@ def run_test_file(case_id, file_path):
         screenshot_path = {repr(os.path.join(SCREENSHOT_DIR, case_id + ".png"))}
         import os as _os
         _os.makedirs({repr(SCREENSHOT_DIR)}, exist_ok=True)
+
+        # Background snapshot loop — overwrites the file every 2s so the
+        # most-recent page state is always on disk by the time the
+        # subprocess wall-clock kill fires, regardless of where the test hangs.
+        import threading as _threading
+        _stop_snap = _threading.Event()
+        def _snapshot_loop():
+            while not _stop_snap.is_set():
+                try:
+                    driver.save_screenshot(screenshot_path)
+                except Exception:
+                    pass
+                if _stop_snap.wait(2):
+                    break
+        _snap_thread = _threading.Thread(target=_snapshot_loop, daemon=True)
+        _snap_thread.start()
+
         try:
             code = open({repr(file_path)}).read()
             exec(code, {{
@@ -517,6 +534,11 @@ def run_test_file(case_id, file_path):
             first_line = err_msg.splitlines()[0] if err_msg.splitlines() else err_msg
             print(f"RESULT:Fail:{{first_line}}")
         finally:
+            _stop_snap.set()
+            try:
+                _snap_thread.join(timeout=2)
+            except Exception:
+                pass
             try:
                 driver.quit()
             except Exception:
