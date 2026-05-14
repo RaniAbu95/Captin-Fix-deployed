@@ -17,3 +17,5 @@ wikipedia_homepage.png
 users.db
 *.sqlite
 *.sqlite3
+tests/
+Results.json
