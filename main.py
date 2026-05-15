@@ -59,6 +59,13 @@ def submit():
         return redirect(url_for('index'))
 
     try:
+        # Clear stale generated test code from prior plans so /run-test
+        # doesn't accidentally serve old code under reused case_ids.
+        import shutil
+        if os.path.exists('tests'):
+            shutil.rmtree('tests')
+        os.makedirs('tests', exist_ok=True)
+
         run_planner(target, depth=int(depth), num_tests=int(num_cases), email=email, pm=pm_tool)
 
         # Pre-warm executor HTML cache so Run Test never needs to launch Chrome again
@@ -68,6 +75,16 @@ def submit():
         plan_path = os.path.join('output', 'plan.json')
         with open(plan_path, 'r', encoding='utf-8') as f:
             plan = json.load(f)
+
+        # Eagerly generate Selenium code for every case now, so clicking
+        # Run Test or Generate Code later reads the cached file instead
+        # of re-billing Anthropic on every click. Best-effort: if this
+        # fails, /run-test falls back to on-demand generation.
+        try:
+            from executor import generate_test_files
+            generate_test_files({"cases": plan.get("cases", []), "website": target})
+        except Exception as gen_err:
+            print(f"[submit] Pre-generation failed (will fall back on /run-test): {gen_err}")
 
         xlsx_path = os.path.join('output', 'Plan.xlsx')
         attachments = [p for p in (plan_path, xlsx_path) if os.path.exists(p)]
@@ -153,21 +170,34 @@ def download_screenshot(case_id):
     return send_file(path, as_attachment=True, download_name=f'{case_id}_failure.png')
 
 
+def _load_or_generate_test_file(case, website):
+    """Return (case_id, file_path) for a case. Reads cached file from
+    tests/<case_id>.py if it exists; otherwise calls Anthropic to
+    generate it. The cache is the entire point — it makes repeated
+    Run Test / Generate Code clicks free after the first generation."""
+    from executor import generate_test_files
+    case_id = case.get('id')
+    cached_path = os.path.join('tests', f'{case_id}.py')
+    if case_id and os.path.exists(cached_path):
+        return case_id, cached_path
+    test_files = generate_test_files({"cases": [case], "website": website})
+    if not test_files:
+        return None, None
+    return test_files[0]
+
+
 @app.route('/generate-code', methods=['POST'])
 @login_required
 def generate_code():
-    from executor import generate_test_files
     data = request.get_json()
     case = data.get('case')
     website = data.get('website', '')
     if not case or not website:
         return jsonify({"error": "case and website are required"}), 400
-    plan = {"cases": [case], "website": website}
     try:
-        test_files = generate_test_files(plan)
-        if not test_files:
+        case_id, file_path = _load_or_generate_test_file(case, website)
+        if not file_path:
             return jsonify({"error": "Failed to generate code"}), 500
-        case_id, file_path = test_files[0]
         with open(file_path, 'r', encoding='utf-8') as f:
             code = f.read()
         return jsonify({"code": code})
@@ -178,20 +208,18 @@ def generate_code():
 @app.route('/run-test', methods=['POST'])
 @login_required
 def run_test():
-    from executor import generate_test_files, run_test_file
+    from executor import run_test_file
     data = request.get_json()
     case = data.get('case')
     website = data.get('website', '')
     if not case or not website:
         return jsonify({"error": "case and website are required"}), 400
 
-    plan = {"cases": [case], "website": website}
     try:
-        test_files = generate_test_files(plan)
-        if not test_files:
+        case_id, file_path = _load_or_generate_test_file(case, website)
+        if not file_path:
             return jsonify({"error": "Failed to generate test file"}), 500
 
-        case_id, file_path = test_files[0]
         with open(file_path, 'r', encoding='utf-8') as f:
             code = f.read()
 
