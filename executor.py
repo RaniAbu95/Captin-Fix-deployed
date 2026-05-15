@@ -210,8 +210,28 @@ HOVER DROPDOWN MENU RULES:
       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".nav-dropdown")))  ← ALWAYS times out
 - Use .click() on a nav <a> ONLY when the step explicitly requires navigating to that category page
   (e.g. "go to the HOME category page and verify products are listed").
-- For headless Chrome, also call driver.set_window_size(1440, 900) right after driver.get(...) so
-  the desktop layout (with hover menus) is rendered instead of the mobile hamburger layout.
+- For headless Chrome, call driver.set_window_size(1440, 900) BEFORE driver.get(...) so the
+  desktop layout (with hover menus) is what the server initially returns, not the mobile
+  hamburger layout. Setting the size AFTER the first navigation is too late — the page is
+  already committed to the size it saw at request time.
+
+LINK SELECTOR ROBUSTNESS RULES:
+- Prefer visible-text XPath for identifying links: //a[normalize-space()='Forgot password?']
+  The visible text label is FAR more stable than the URL. Site URL paths change frequently
+  (Facebook's forgot-password link has been /recover/initiate/, /login/identify/, /login/help/
+  in different years); the text "Forgot password?" stays the same.
+- AVOID matching links by partial href substring when the visible text is well-defined:
+      WRONG: (By.XPATH, "//a[contains(@href, '/recover/initiate/')]")  ← breaks when URL changes
+      RIGHT: (By.XPATH, "//a[normalize-space()='Forgot password?']")    ← survives URL changes
+- The href-based pattern is acceptable ONLY when:
+    * The link has no visible text (icon-only link), OR
+    * Multiple links share the same visible text and must be disambiguated by URL fragment.
+- When verifying that a click navigated, prefer matching the EXACT destination URL fragment the
+  site actually serves (capture it once by manually clicking the link in a browser). If the
+  destination is uncertain or known to vary, fall back to "URL changed from baseline":
+      baseline = driver.current_url
+      link.click()
+      WebDriverWait(driver, 10).until(lambda d: d.current_url != baseline)
 
 EMPTY FORM SUBMISSION RULES:
 - When the step clicks a submit/search button WITHOUT entering any input:
