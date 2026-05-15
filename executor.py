@@ -113,207 +113,58 @@ def _chrome_options():
 # """)
 
 full_case_prompt = ChatPromptTemplate.from_template("""
-You are a senior QA automation engineer with 10+ years of experience writing production-grade Selenium tests.
+You are a senior QA automation engineer. Generate ONE Python Selenium script implementing all steps of this test case using the provided `driver`.
 
-Generate a single complete Python Selenium script for ALL steps of this test case using the provided `driver`.
+OUTPUT:
+- Raw Python only — no markdown, no backticks, no commentary.
+- Start with imports (selenium, WebDriverWait, By, EC, time; add ActionChains or Keys only if needed).
+- `driver` is already provided in scope. NEVER call webdriver.Chrome(), driver.quit(), or driver.close().
+- Call driver.get("{website}") exactly ONCE at the start.
 
-STRUCTURE RULES:
-- Start with all necessary imports (selenium, WebDriverWait, By, EC, time).
-- CRITICAL: Do NOT create or initialize a WebDriver. The variable `driver` is already
-  provided in scope — do NOT write `driver = webdriver.Chrome()` or any similar line.
-- Call driver.get("{website}") exactly ONCE at the very beginning.
-- Execute each step in order as a logical sequence — do NOT repeat driver.get() or imports.
-- Never call driver.quit() or driver.close().
-- Output only raw Python code — no markdown, no backticks, no explanations.
-- NEVER use EC.presence_of_element_located followed by EC.element_to_be_clickable or
-  EC.visibility_of_element_located for the same element. Use only the stronger condition:
-  * Use EC.element_to_be_clickable when you need to interact with an element (click, send_keys).
-  * Use EC.visibility_of_element_located when you only need to read or assert on an element.
-  * EC.presence_of_element_located is redundant whenever either of the above is used — never pair them.
-- STRICTLY FORBIDDEN — delete any of these lines before returning code:
-    WebDriverWait(driver, ...).until(EC.visibility_of_element_located((By.TAG_NAME, "body")))
-    WebDriverWait(driver, ...).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-    WebDriverWait(driver, ...).until(EC.visibility_of_element_located((By.TAG_NAME, "html")))
-  body and html are always in the DOM — waiting for them asserts nothing and is dead code.
-- After every click or submit, wait for a specific meaningful element that reflects what changed:
-    * Page navigates away → wait for a unique visible element on the destination page (from the HTML).
-    * Page stays the same (empty submit, no input) → wait for an element confirming you are still on the same page (e.g. the form input is still visible).
+STEP FIDELITY (most important):
+- The Steps list is authoritative. Implement EXACTLY those steps, in order, with their stated intent.
+- One numbered step → one identifiable code block. Do not skip, merge, reorder, or invent steps.
 
-BROWSER MODE: {headless}
-- The HTML provided was fetched using {headless}.
-- Only use locators that exist in the provided HTML — do NOT assume elements present in headless
-  Chrome (e.g. id="hplogo") exist in regular Chrome or vice versa.
-
-LOCATOR RULES:
-- Use ONLY exact attributes that appear in the provided HTML (id, name, placeholder, visible text, class if unique).
+LOCATORS:
+- Use ONLY attributes present in the provided HTML. Never guess.
 - Priority: ID > Name > CSS Selector > XPath with visible text.
-- For Hebrew or non-Latin text, match the exact visible text from the HTML including spaces and punctuation.
-- Never invent or guess locators — only use what is in the HTML.
-- ONLY use these By strategies: By.ID, By.NAME, By.CLASS_NAME, By.TAG_NAME,
-  By.CSS_SELECTOR, By.XPATH, By.LINK_TEXT, By.PARTIAL_LINK_TEXT.
-  Any other attribute on By (e.g. By.DATA_TESTID, By.DATA_TEST, By.ATTRIBUTE)
-  does not exist in Selenium and will raise AttributeError at runtime — never use them.
-- To locate elements by data-test or data-testid attributes, always use
-  By.CSS_SELECTOR with the attribute selector syntax:
-    By.CSS_SELECTOR, "[data-test='login-container']"
-    By.CSS_SELECTOR, "[data-testid='submit-button']"
-  Never use By.DATA_TESTID or By.DATA_TEST — those do not exist in Selenium.
-- When matching an href, use the FULL href value exactly as it appears in the HTML.
-  BAD: contains(@href, '/history/privacyadvisor')  ← guessed path, may match wrong element
-  GOOD: contains(@href, 'myactivity.google.com/privacyadvisor')  ← domain from actual HTML href
-- NEVER assert the "value" attribute of a button or input. The value attribute text (e.g. "Google Search")
-  varies by language and region and must not be hardcoded in tests.
-  BAD (never do this):
-      assert button.get_attribute("value") == "Google Search"  ← do NOT add this line ever
+- For non-Latin text (Hebrew etc.), match the exact visible text from the HTML.
+- For href XPath, use the FULL href value from the HTML (e.g. contains(@href, 'myactivity.google.com/privacyadvisor') — not a guessed substring).
+- For links, PREFER visible text over href: //a[normalize-space()='Forgot password?'] is more stable than //a[contains(@href,'/recover/initiate/')] because URLs change.
+- For data-test / data-testid use By.CSS_SELECTOR, "[data-testid='x']" — there is no By.DATA_TESTID.
+- Allowed By strategies only: ID, NAME, CLASS_NAME, TAG_NAME, CSS_SELECTOR, XPATH, LINK_TEXT, PARTIAL_LINK_TEXT.
+- NEVER assert button/input value attributes — they vary by locale.
 
-NAVIGATION VERIFICATION RULES:
-- After clicking a link, ALWAYS verify the destination URL using EC.url_contains with a
-  fragment taken DIRECTLY from the link's href attribute in the provided HTML.
-  NEVER guess the fragment from the link's visible text — always read the href value.
-  BAD (using link text — NEVER do this):
-      # link text is "Gmail", href is "https://mail.google.com/mail/..."
-      WebDriverWait(driver, 10).until(EC.url_contains("gmail"))    ← WRONG: taken from text
-  GOOD (using the actual href domain):
-      WebDriverWait(driver, 10).until(EC.url_contains("mail.google.com"))  ← CORRECT
-  BAD (using link text — NEVER do this):
-      # link text is "Images", href is "/imghp?hl=en"
-      WebDriverWait(driver, 10).until(EC.url_contains("images"))   ← WRONG: taken from text
-  GOOD (using the actual href path):
-      WebDriverWait(driver, 10).until(EC.url_contains("imghp"))    ← CORRECT
-- FORBIDDEN — never write these patterns:
-      old_url = driver.current_url          ← FORBIDDEN
-      EC.url_changes(old_url)               ← FORBIDDEN
-      EC.url_to_be("...")                   ← FORBIDDEN
+WAITS AND ASSERTIONS:
+- For interactions use EC.element_to_be_clickable; for read/assert use EC.visibility_of_element_located.
+- Never pair EC.presence_of_element_located with a stronger condition on the same element — use only the strongest.
+- FORBIDDEN dead waits: WebDriverWait for By.TAG_NAME 'body' or 'html'. Both always exist.
+- After every click/submit, wait for a SPECIFIC element that reflects what changed (the destination heading, an updated form, the same input still visible if no navigation expected).
+- NO REDUNDANT ASSERTS: WebDriverWait IS the assertion. Do not write `assert driver.title == "X"` after `EC.title_is("X")` — same for url_contains, visibility_of, etc.
+- Use plain `assert` ONLY for .text / .get_attribute() content that no EC checks.
+- FORBIDDEN: capturing old_url and using EC.url_changes / EC.url_to_be. Use EC.url_contains(fragment).
 
-SAME TAB VERIFICATION RULE:
-- Whenever a link has target="_top" or no target attribute in the HTML, ALWAYS add this check after clicking:
-      handles_before = driver.window_handles  # capture BEFORE clicking
-      # ... EC.url_contains wait ...
-      assert len(driver.window_handles) == len(handles_before), "Expected link to open in same tab but a new tab was opened"
-- If the link has target="_blank", do NOT add this check — a new tab is expected.
+NAVIGATION:
+- After clicking a link, verify with EC.url_contains using a fragment TAKEN FROM THE href, not from the link's visible text. (e.g. href="https://mail.google.com/..." → wait for "mail.google.com", not "gmail".)
+- If the link has target="_top" or no target attribute, also assert that window_handles length is unchanged. If target="_blank" is set, skip that assertion.
 
-HOVER DROPDOWN MENU RULES:
-- When the step is to "see/verify the dropdown / submenu / subcategories" under a nav item, the
-  nav item is almost always BOTH a link to a category page AND a hover trigger for a dropdown.
-  Clicking it navigates away from the current page and DESTROYS the dropdown before the test can
-  observe it.
-- HOW TO TELL: the trigger element is an <a> with a real href (e.g. href="/home", href="/women").
-  Clicking will navigate. If the step is about the dropdown content (not opening the destination
-  page), the correct interaction is HOVER, not CLICK.
-- CORRECT — use ActionChains.move_to_element to hover, then wait for the dropdown:
-      from selenium.webdriver import ActionChains
-      home_link = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//a[@title='HOME']")))
-      ActionChains(driver).move_to_element(home_link).pause(0.5).perform()
-      dropdown = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".nav-dropdown")))
-- WRONG — clicking the link navigates and the dropdown is gone:
-      home_link.click()
-      WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".nav-dropdown")))  ← ALWAYS times out
-- Use .click() on a nav <a> ONLY when the step explicitly requires navigating to that category page
-  (e.g. "go to the HOME category page and verify products are listed").
-- For headless Chrome, call driver.set_window_size(1440, 900) BEFORE driver.get(...) so the
-  desktop layout (with hover menus) is what the server initially returns, not the mobile
-  hamburger layout. Setting the size AFTER the first navigation is too late — the page is
-  already committed to the size it saw at request time.
+EMPTY SUBMIT:
+- Clicking submit/search WITHOUT entering input does not navigate. Do NOT use any url_* condition. Instead wait that the form input is still visible.
 
-LINK SELECTOR ROBUSTNESS RULES:
-- Prefer visible-text XPath for identifying links: //a[normalize-space()='Forgot password?']
-  The visible text label is FAR more stable than the URL. Site URL paths change frequently
-  (Facebook's forgot-password link has been /recover/initiate/, /login/identify/, /login/help/
-  in different years); the text "Forgot password?" stays the same.
-- AVOID matching links by partial href substring when the visible text is well-defined:
-      WRONG: (By.XPATH, "//a[contains(@href, '/recover/initiate/')]")  ← breaks when URL changes
-      RIGHT: (By.XPATH, "//a[normalize-space()='Forgot password?']")    ← survives URL changes
-- The href-based pattern is acceptable ONLY when:
-    * The link has no visible text (icon-only link), OR
-    * Multiple links share the same visible text and must be disambiguated by URL fragment.
-- When verifying that a click navigated, prefer matching the EXACT destination URL fragment the
-  site actually serves (capture it once by manually clicking the link in a browser). If the
-  destination is uncertain or known to vary, fall back to "URL changed from baseline":
-      baseline = driver.current_url
-      link.click()
-      WebDriverWait(driver, 10).until(lambda d: d.current_url != baseline)
-
-EMPTY FORM SUBMISSION RULES:
-- When the step clicks a submit/search button WITHOUT entering any input:
-  * The page does NOT navigate — the URL stays the same.
-  * Do NOT use EC.url_contains, EC.url_changes, or any URL assertion — the URL will not change.
-  * CORRECT assertion: verify the form input is still visible, confirming no navigation occurred:
-        google_search_button.click()
-        WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.NAME, "q")))
-  * BAD (this will always time out when no input was entered):
-        google_search_button.click()
-        WebDriverWait(driver, 10).until(EC.url_contains("/search"))  ← WRONG, URL never changes
-
-GOOGLE SEARCH BUTTONS RULES:
-- On the Google homepage, the "Google Search" (btnK) and "I'm Feeling Lucky" (btnI) buttons are
-  hidden by default. They only become visible after the user CLICKS the search input.
-- send_keys() alone does NOT reveal the buttons — you MUST call click() on the input first.
-- ALWAYS use By.NAME to locate Google search buttons — never use CSS class selectors like
-  .gNO89b or any other minified class name. Those classes are dynamic and change between
-  Google deployments. By.NAME is stable.
-- ALWAYS locate the Google search input with By.NAME, "q" — never use By.ID with values
-  like "APjFqb" or any other alphanumeric Google-internal ID. Those IDs are dynamic and
-  change between deployments. By.NAME, "q" is the only stable locator for the search box.
-- Correct sequence:
-      search_input = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, "q")))
-      search_input.click()                   # REQUIRED — reveals the search buttons
-      search_input.send_keys("search term")  # REQUIRED — must enter a term before clicking btnK
-      google_search_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, "btnK")))
-      google_search_button.click()
-- ALWAYS enter a search term BEFORE clicking "I'm Feeling Lucky" (btnI).
-- Clicking btnI without a search term does nothing — URL will not change.
-- Correct order for Lucky: search_input.click() → send_keys(search_term) → click btnI → EC.url_contains(fragment_from_href)
-
-SEARCH RESULT RULES:
-- When a step says "click the first search result" or "open the first result":
-  1. Import Keys: from selenium.webdriver.common.keys import Keys
-  2. Submit the search by pressing Keys.RETURN.
-  3. Wait for results: WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div#search h3")))
-  4. Click the first result and verify the destination loaded:
-       first_result = driver.find_element(By.CSS_SELECTOR, "div#search h3")
-       first_result.click()
-       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
-
-- When a step says "I'm Feeling Lucky":
-  1. Click the search input, send_keys the search term, then click btnI.
-  2. After clicking, wait for the destination page heading:
-       lucky_btn.click()
-       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.TAG_NAME, "h1")))
-
-ASSERTION RULES (most important):
-- After EVERY user action (click, form submit, navigation, input), verify the outcome using WebDriverWait.
-- Use WebDriverWait + expected_conditions for every verification — never check stale state.
-- STRICT RULE — NO REDUNDANT ASSERTS: WebDriverWait IS the assertion. It raises TimeoutException if
-  the condition is not met within the timeout. Therefore:
-    * NEVER write an assert statement on the line after a WebDriverWait that already checks the same thing.
-    * This applies to ALL EC conditions: url_contains, url_to_be, title_is, title_contains,
-      visibility_of_element_located, presence_of_element_located, element_to_be_clickable, etc.
-    * BAD (redundant — never do this):
-        WebDriverWait(driver, 10).until(EC.title_is("Google"))
-        assert driver.title == "Google"   # ← DELETE THIS, it is already checked above
-    * BAD (redundant — never do this):
-        WebDriverWait(driver, 10).until(EC.url_contains("mail.google.com"))
-        assert "mail.google.com" in driver.current_url   # ← DELETE THIS
-    * GOOD — use assert ONLY for .text or .get_attribute() content not covered by WebDriverWait:
-        el = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "msg")))
-        assert "Welcome" in el.text, f"Expected 'Welcome', got: {{el.text}}"
+HOVER DROPDOWNS:
+- Nav items that are <a> with real hrefs are usually BOTH a link and a hover trigger. Clicking navigates and destroys the dropdown.
+- For "verify dropdown / submenu / subcategories" steps, hover with ActionChains — do NOT click:
+      ActionChains(driver).move_to_element(link).pause(0.5).perform()
+      WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".dropdown")))
+- Click the nav <a> only when the step explicitly says to navigate to that destination page.
+- For headless Chrome, call driver.set_window_size(1440, 900) BEFORE driver.get() so the server returns the desktop (hover-menu) layout, not the mobile hamburger.
 
 ERROR HANDLING:
 - Wrap the entire test body in try/except.
-- On any exception: save a screenshot to "error_{{int(time.time())}}.png", then re-raise.
-- Do not swallow exceptions silently.
+- On any exception, save a screenshot to "error_{{int(time.time())}}.png", then re-raise. Do not swallow exceptions.
 
-STEP FIDELITY RULES — most important:
-- The Steps list below is the authoritative specification. Your Selenium code must implement
-  EXACTLY those steps, in EXACTLY that order, with EXACTLY that intent.
-- Each numbered step must map to a visible, identifiable block of code.
-- Do NOT add extra steps that are not in the list.
-- Do NOT skip or merge steps.
-- Do NOT change the intent of a step (e.g. if the step says "click the Login button",
-  do not click a different button, do not navigate to a different page first).
-- Do NOT invent interactions that are not described in the steps.
-- The steps are written in plain English — translate each one directly into Selenium code
-  and nothing more.
+BROWSER MODE: {headless}
+- HTML below was fetched using {headless}. Only use locators that exist in this HTML.
 
 Website URL: {website}
 
