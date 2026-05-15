@@ -252,7 +252,7 @@ def generate_test_files(plan):
     website = plan.get("website", "")
 
     page_html = extract_full_html(website)
-    llm = ChatAnthropic(model="claude-haiku-4-5-20251001", temperature=0, api_key=ANTHROPIC_API_KEY)
+    llm = ChatAnthropic(model="claude-sonnet-4-6", temperature=0, api_key=ANTHROPIC_API_KEY)
 
     # Build the system prompt ONCE per run — same instructions, website, and HTML
     # are reused for every case, so this whole block is the cache prefix.
