@@ -11,6 +11,7 @@ import time
 from config import ANTHROPIC_API_KEY
 
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage, HumanMessage
 
 PLAN_FILE = "./output/plan.json"
 OUTPUT_DIR = "tests"
@@ -112,8 +113,9 @@ def _chrome_options():
 # Expected result: {expected}
 # """)
 
-full_case_prompt = ChatPromptTemplate.from_template("""
-You are a senior QA automation engineer. Generate ONE Python Selenium script implementing all steps of this test case using the provided `driver`.
+# System portion — static across all cases in a run (instructions, website, HTML).
+# Marked as a cache breakpoint so Anthropic reuses it on every call after the first.
+SYSTEM_PROMPT_TEMPLATE = """You are a senior QA automation engineer. Generate ONE Python Selenium script implementing all steps of this test case using the provided `driver`.
 
 OUTPUT:
 - Raw Python only — no markdown, no backticks, no commentary.
@@ -168,13 +170,13 @@ BROWSER MODE: {headless}
 
 Website URL: {website}
 
-Full HTML: {html}
+Full HTML: {html}"""
 
-Steps:
+# Per-case portion — varies per case, NOT cached.
+USER_PROMPT_TEMPLATE = """Steps:
 {steps}
 
-Expected result: {expected}
-""")
+Expected result: {expected}"""
 
 
 
@@ -252,19 +254,27 @@ def generate_test_files(plan):
     page_html = extract_full_html(website)
     llm = ChatAnthropic(model="claude-haiku-4-5-20251001", temperature=0, api_key=ANTHROPIC_API_KEY)
 
+    # Build the system prompt ONCE per run — same instructions, website, and HTML
+    # are reused for every case, so this whole block is the cache prefix.
+    system_text = SYSTEM_PROMPT_TEMPLATE.format(
+        website=website,
+        html=page_html,
+        headless="headless Chrome" if HEADLESS else "regular Chrome",
+    )
+    cached_system = SystemMessage(content=[{
+        "type": "text",
+        "text": system_text,
+        "cache_control": {"type": "ephemeral"},
+    }])
+
     for case in plan["cases"]:
         case_id = case["id"]
         steps = case.get("steps", [])
         expected = case.get("expected", "")
 
         steps_text = "\n".join(f"{i+1}. {s}" for i, s in enumerate(steps))
-        messages = full_case_prompt.format_messages(
-            website=website,
-            html=page_html,
-            steps=steps_text,
-            expected=expected,
-            headless="headless Chrome" if HEADLESS else "regular Chrome",
-        )
+        user_text = USER_PROMPT_TEMPLATE.format(steps=steps_text, expected=expected)
+        messages = [cached_system, HumanMessage(content=user_text)]
         response = llm.invoke(messages)
         code = response.content.strip()
         if code.startswith("```"):
