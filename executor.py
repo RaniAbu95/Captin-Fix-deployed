@@ -192,6 +192,27 @@ SAME TAB VERIFICATION RULE:
       assert len(driver.window_handles) == len(handles_before), "Expected link to open in same tab but a new tab was opened"
 - If the link has target="_blank", do NOT add this check — a new tab is expected.
 
+HOVER DROPDOWN MENU RULES:
+- When the step is to "see/verify the dropdown / submenu / subcategories" under a nav item, the
+  nav item is almost always BOTH a link to a category page AND a hover trigger for a dropdown.
+  Clicking it navigates away from the current page and DESTROYS the dropdown before the test can
+  observe it.
+- HOW TO TELL: the trigger element is an <a> with a real href (e.g. href="/home", href="/women").
+  Clicking will navigate. If the step is about the dropdown content (not opening the destination
+  page), the correct interaction is HOVER, not CLICK.
+- CORRECT — use ActionChains.move_to_element to hover, then wait for the dropdown:
+      from selenium.webdriver import ActionChains
+      home_link = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//a[@title='HOME']")))
+      ActionChains(driver).move_to_element(home_link).pause(0.5).perform()
+      dropdown = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".nav-dropdown")))
+- WRONG — clicking the link navigates and the dropdown is gone:
+      home_link.click()
+      WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".nav-dropdown")))  ← ALWAYS times out
+- Use .click() on a nav <a> ONLY when the step explicitly requires navigating to that category page
+  (e.g. "go to the HOME category page and verify products are listed").
+- For headless Chrome, also call driver.set_window_size(1440, 900) right after driver.get(...) so
+  the desktop layout (with hover menus) is rendered instead of the mobile hamburger layout.
+
 EMPTY FORM SUBMISSION RULES:
 - When the step clicks a submit/search button WITHOUT entering any input:
   * The page does NOT navigate — the URL stays the same.
