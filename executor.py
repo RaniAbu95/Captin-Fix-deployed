@@ -155,11 +155,22 @@ EMPTY SUBMIT:
 
 HOVER DROPDOWNS:
 - Nav items that are <a> with real hrefs are usually BOTH a link and a hover trigger. Clicking navigates and destroys the dropdown.
-- For "verify dropdown / submenu / subcategories" steps, hover with ActionChains — do NOT click:
+- For "verify dropdown / submenu / subcategories" steps, hover with ActionChains — do NOT click. Also dispatch a JS mouseover as a backup, because synthetic mouse moves in headless Chrome don't always trip CSS :hover:
       ActionChains(driver).move_to_element(link).pause(0.5).perform()
+      driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('mouseover', {bubbles: true}));", link)
       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".dropdown")))
 - Click the nav <a> only when the step explicitly says to navigate to that destination page.
 - For headless Chrome, call driver.set_window_size(1440, 900) BEFORE driver.get() so the server returns the desktop (hover-menu) layout, not the mobile hamburger.
+
+VERIFY-LOAD ECONOMY:
+- "Page loaded" verification needs ONE wait, not many. Pick a single high-signal element (the page header, the main nav, or the hero) and wait for its visibility. Adding redundant waits on header_wrapper, header_content, header_strip, nav_list, page_wrapper etc. multiplies latency without adding signal — each wait can sit near its timeout ceiling, and 9 of them at 10s each will easily exceed the per-test budget.
+- BAD (multiplies failure surface):
+      WebDriverWait(...).until(EC.visibility_of(...header_wrapper...))
+      WebDriverWait(...).until(EC.visibility_of(...header_content...))
+      WebDriverWait(...).until(EC.visibility_of(...header_strip...))
+      [...7 more...]
+- GOOD (one decisive check):
+      WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#page-header-navigation")))
 
 ERROR HANDLING:
 - Wrap the entire test body in try/except.
@@ -459,7 +470,7 @@ def run_test_file(case_id, file_path):
                     driver.save_screenshot(screenshot_path)
                 except Exception:
                     pass
-                if _stop_snap.wait(2):
+                if _stop_snap.wait(5):
                     break
         _snap_thread = _threading.Thread(target=_snapshot_loop, daemon=True)
         _snap_thread.start()
