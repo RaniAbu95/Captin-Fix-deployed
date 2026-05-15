@@ -157,7 +157,7 @@ HOVER DROPDOWNS:
 - Nav items that are <a> with real hrefs are usually BOTH a link and a hover trigger. Clicking navigates and destroys the dropdown.
 - For "verify dropdown / submenu / subcategories" steps, hover with ActionChains — do NOT click. Also dispatch a JS mouseover as a backup, because synthetic mouse moves in headless Chrome don't always trip CSS :hover:
       ActionChains(driver).move_to_element(link).pause(0.5).perform()
-      driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('mouseover', {bubbles: true}));", link)
+      driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('mouseover', {{bubbles: true}}));", link)
       WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".dropdown")))
 - Click the nav <a> only when the step explicitly says to navigate to that destination page.
 - For headless Chrome, call driver.set_window_size(1440, 900) BEFORE driver.get() so the server returns the desktop (hover-menu) layout, not the mobile hamburger.
