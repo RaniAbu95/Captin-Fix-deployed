@@ -37,6 +37,10 @@ def _chrome_options():
     opts.add_argument("--disable-sync")
     opts.add_argument("--disable-default-apps")
     opts.add_argument("--blink-settings=imagesEnabled=false")
+    opts.add_argument("--disable-blink-features=AutomationControlled")
+    opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+    opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+    opts.add_experimental_option("useAutomationExtension", False)
     return opts
 
 # llm is initialised inside generate_selenium_code() to avoid import-time errors
@@ -332,8 +336,12 @@ def run_test_file(case_id, file_path):
             "--no-first-run", "--disable-background-networking",
             "--disable-sync", "--disable-default-apps",
             "--blink-settings=imagesEnabled=false",
+            "--disable-blink-features=AutomationControlled",
+            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         ]:
             opts.add_argument(arg)
+        opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+        opts.add_experimental_option("useAutomationExtension", False)
 
         driver = None
         for attempt in range(3):
@@ -344,6 +352,10 @@ def run_test_file(case_id, file_path):
                 # the screenshot before SIGKILL.
                 driver.set_script_timeout(50)
                 driver.set_page_load_timeout(50)
+                # Hide the automation flag that sites use for bot detection.
+                driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {{
+                    "source": "Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}})"
+                }})
                 break
             except Exception:
                 if attempt < 2:
