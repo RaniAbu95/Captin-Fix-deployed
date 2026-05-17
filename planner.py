@@ -87,7 +87,7 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     max_negative = round(num_tests / 3)
 
     llm = ChatAnthropic(
-        model="claude-haiku-4-5-20251001",
+        model="claude-sonnet-4-6",
         api_key=ANTHROPIC_API_KEY,
         temperature=0.2,
         max_tokens=8192,
