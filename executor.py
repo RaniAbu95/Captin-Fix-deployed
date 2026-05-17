@@ -42,6 +42,7 @@ def _chrome_options():
     opts.add_argument("--window-size=1440,900")
     opts.add_experimental_option("excludeSwitches", ["enable-automation"])
     opts.add_experimental_option("useAutomationExtension", False)
+    opts.page_load_strategy = 'none'
     return opts
 
 # llm is initialised inside generate_selenium_code() to avoid import-time errors
@@ -344,6 +345,7 @@ def run_test_file(case_id, file_path):
             opts.add_argument(arg)
         opts.add_experimental_option("excludeSwitches", ["enable-automation"])
         opts.add_experimental_option("useAutomationExtension", False)
+        opts.page_load_strategy = 'none'
 
         driver = None
         for attempt in range(3):
