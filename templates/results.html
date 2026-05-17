@@ -270,6 +270,30 @@
         spinner.classList.add('d-none');
       }
 
+      function _applyTestResult(idx, data, resultDiv, status) {
+        if (data.error) {
+          resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
+          return status;
+        }
+        const r = data.result;
+        status = r.status;
+        updateSummary(idx, status);
+        const cls  = r.status === 'Pass' ? 'result-pass' : 'result-fail';
+        const icon = r.status === 'Pass' ? '✅' : '❌';
+        let screenshotLink = '';
+        if (r.status !== 'Pass' && r.screenshot_b64) {
+          const dataUrl = `data:image/png;base64,${r.screenshot_b64}`;
+          screenshotLink = `<a href="${dataUrl}" download="${r.id}_failure.png" class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.75rem">⬇ Screenshot</a>`;
+        }
+        const errorBlock = (r.status !== 'Pass' && r.error)
+          ? `<pre style="margin-top:0.5rem;margin-bottom:0;white-space:pre-wrap;word-break:break-word;font-size:0.78rem;background:transparent;border:none;padding:0;">${r.error}</pre>`
+          : '';
+        resultDiv.innerHTML =
+          `<div class="result-output ${cls}">${icon} ${r.status} ${screenshotLink}${errorBlock}</div>`;
+        if (data.code) showCode(idx, data.code);
+        return status;
+      }
+
       async function runTest(idx) {
         const caseData  = CASES[idx - 1];
         const btnText   = document.getElementById(`run-btn-text-${idx}`);
@@ -278,48 +302,41 @@
 
         btnText.classList.add('d-none');
         spinner.classList.remove('d-none');
-        resultDiv.innerHTML = '<div class="result-output result-err">Running test… this may take up to 2 minutes.</div>';
+        resultDiv.innerHTML = '<div class="result-output result-err">Starting test…</div>';
 
         let status = 'Fail';
         try {
-          const controller = new AbortController();
-          const _tid = setTimeout(() => controller.abort(), 150000); // 2.5 min hard cap
-          const res = await fetch('/run-test', {
+          // Step 1: kick off the job — returns immediately with a job_id
+          const startRes = await fetch('/run-test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ case: caseData, website: TARGET }),
-            signal: controller.signal,
           });
-          clearTimeout(_tid);
-          const text = await res.text();
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch (_) {
-            resultDiv.innerHTML = `<div class="result-output result-fail">❌ Fail<pre style="margin-top:0.5rem;font-size:0.78rem;background:transparent;border:none;padding:0;">Server returned empty response — timeout or out of memory. Try running this test individually.</pre></div>`;
+          const startJson = await startRes.json();
+          if (startJson.error) {
+            resultDiv.innerHTML = `<div class="result-output result-err">Error: ${startJson.error}</div>`;
             btnText.classList.remove('d-none');
             spinner.classList.add('d-none');
             return status;
           }
-          if (data.error) {
-            resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
-          } else {
-            const r    = data.result;
-            status = r.status;
-            updateSummary(idx, status);
-            const cls  = r.status === 'Pass' ? 'result-pass' : 'result-fail';
-            const icon = r.status === 'Pass' ? '✅' : '❌';
-            let screenshotLink = '';
-            if (r.status !== 'Pass' && r.screenshot_b64) {
-              const dataUrl = `data:image/png;base64,${r.screenshot_b64}`;
-              screenshotLink = `<a href="${dataUrl}" download="${r.id}_failure.png" class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.75rem">⬇ Screenshot</a>`;
+          const jobId = startJson.job_id;
+
+          // Step 2: poll /test-status/<job_id> every 4 seconds (max 3 min)
+          const deadline = Date.now() + 180000;
+          let elapsed = 0;
+          while (Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 4000));
+            elapsed += 4;
+            resultDiv.innerHTML = `<div class="result-output result-err">Running test… ${elapsed}s elapsed</div>`;
+            const pollRes = await fetch(`/test-status/${jobId}`);
+            const job = await pollRes.json();
+            if (job.state === 'done') {
+              status = _applyTestResult(idx, job, resultDiv, status);
+              break;
             }
-            const errorBlock = (r.status !== 'Pass' && r.error)
-              ? `<pre style="margin-top:0.5rem;margin-bottom:0;white-space:pre-wrap;word-break:break-word;font-size:0.78rem;background:transparent;border:none;padding:0;">${r.error}</pre>`
-              : '';
-            resultDiv.innerHTML =
-              `<div class="result-output ${cls}">${icon} ${r.status} ${screenshotLink}${errorBlock}</div>`;
-            if (data.code) showCode(idx, data.code);
+          }
+          if (Date.now() >= deadline) {
+            resultDiv.innerHTML = `<div class="result-output result-fail">❌ Timed out waiting for test result after 3 minutes.</div>`;
           }
         } catch (e) {
           resultDiv.innerHTML = `<div class="result-output result-err">Network error: ${e.message}</div>`;

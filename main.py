@@ -1,6 +1,7 @@
-# Trivial change to verify that a deploy alone does not consume Anthropic API credit.
 import os
 import json
+import threading
+import uuid
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_required, current_user
 from models import db, User
@@ -26,6 +27,11 @@ login_manager.login_message = 'Please sign in to access Captain Fix.'
 login_manager.login_message_category = 'warning'
 
 app.register_blueprint(auth)
+
+# In-memory job store for async test runs.
+# Single-worker deployment (--workers 1) so this is safe without Redis.
+_jobs = {}
+_jobs_lock = threading.Lock()
 
 
 @login_manager.user_loader
@@ -216,18 +222,38 @@ def run_test():
     if not case or not website:
         return jsonify({"error": "case and website are required"}), 400
 
-    try:
-        case_id, file_path = _load_or_generate_test_file(case, website)
-        if not file_path:
-            return jsonify({"error": "Failed to generate test file"}), 500
+    job_id = str(uuid.uuid4())
+    with _jobs_lock:
+        _jobs[job_id] = {"state": "running"}
 
-        with open(file_path, 'r', encoding='utf-8') as f:
-            code = f.read()
+    def _run():
+        try:
+            case_id, file_path = _load_or_generate_test_file(case, website)
+            if not file_path:
+                with _jobs_lock:
+                    _jobs[job_id] = {"state": "done", "error": "Failed to generate test file"}
+                return
+            with open(file_path, 'r', encoding='utf-8') as f:
+                code = f.read()
+            result = run_test_file(case_id, file_path)
+            with _jobs_lock:
+                _jobs[job_id] = {"state": "done", "code": code, "result": result}
+        except Exception as e:
+            with _jobs_lock:
+                _jobs[job_id] = {"state": "done", "error": str(e)}
 
-        result = run_test_file(case_id, file_path)
-        return jsonify({"code": code, "result": result})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route('/test-status/<job_id>')
+@login_required
+def test_status(job_id):
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify(job)
 
 
 if __name__ == '__main__':
