@@ -1,5 +1,5 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # deploy-cost check 2026-05-17
 
 # טוען מהקובץ המקומי (לא נמצא ב-GitHub)
 load_dotenv("properties.env")
