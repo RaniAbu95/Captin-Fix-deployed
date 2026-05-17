@@ -150,6 +150,8 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
 
     prompt = template.format_messages(page_html=page_html, num_tests=num_tests,
                                       max_negative=max_negative)
+    import sys as _sys, time as _t
+    print(f"[anthropic] generate_testplan.invoke at {_t.time()} (planner.py:153)", flush=True, file=_sys.stderr)
     response = llm.invoke(prompt)
     plan_json = response.content.strip()
     stop_reason = (response.response_metadata or {}).get("stop_reason", "unknown")
@@ -183,6 +185,8 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
             Only use elements actually present in the HTML.
             Return only a valid JSON array of test case objects.
         """)
+        import sys as _sys, time as _t
+        print(f"[anthropic] generate_testplan.fill_invoke at {_t.time()} (planner.py:186)", flush=True, file=_sys.stderr)
         fill_resp = llm.invoke(fill_template.format_messages(
             page_html=page_html, existing_ids=existing_ids, missing=missing))
         try:

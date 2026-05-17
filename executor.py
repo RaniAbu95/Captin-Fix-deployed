@@ -228,6 +228,8 @@ def generate_selenium_code(step_text, expected_text, website, page_html):
         website=website,
         html=page_html
     )
+    import sys as _sys, time as _t
+    print(f"[anthropic] generate_selenium_code.invoke at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
     response = llm.invoke(messages)
     return response.content.strip()
 
@@ -286,6 +288,8 @@ def generate_test_files(plan):
         steps_text = "\n".join(f"{i+1}. {s}" for i, s in enumerate(steps))
         user_text = USER_PROMPT_TEMPLATE.format(steps=steps_text, expected=expected)
         messages = [cached_system, HumanMessage(content=user_text)]
+        import sys as _sys, time as _t
+        print(f"[anthropic] generate_test_files.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
         response = llm.invoke(messages)
         code = response.content.strip()
         if code.startswith("```"):
