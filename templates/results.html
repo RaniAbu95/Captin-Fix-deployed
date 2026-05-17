@@ -312,7 +312,13 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ case: caseData, website: TARGET }),
           });
-          const startJson = await startRes.json();
+          const startText = await startRes.text();
+          let startJson;
+          try { startJson = JSON.parse(startText); } catch (_) {
+            resultDiv.innerHTML = `<div class="result-output result-err">Server error starting test (empty response). Please try again.</div>`;
+            btnText.classList.remove('d-none'); spinner.classList.add('d-none');
+            return status;
+          }
           if (startJson.error) {
             resultDiv.innerHTML = `<div class="result-output result-err">Error: ${startJson.error}</div>`;
             btnText.classList.remove('d-none');
@@ -329,7 +335,9 @@
             elapsed += 4;
             resultDiv.innerHTML = `<div class="result-output result-err">Running test… ${elapsed}s elapsed</div>`;
             const pollRes = await fetch(`/test-status/${jobId}`);
-            const job = await pollRes.json();
+            const pollText = await pollRes.text();
+            let job;
+            try { job = JSON.parse(pollText); } catch (_) { continue; }
             if (job.state === 'done') {
               status = _applyTestResult(idx, job, resultDiv, status);
               break;

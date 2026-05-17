@@ -216,7 +216,7 @@ def generate_code():
 @login_required
 def run_test():
     from executor import run_test_file
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     case = data.get('case')
     website = data.get('website', '')
     if not case or not website:
