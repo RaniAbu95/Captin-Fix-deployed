@@ -500,7 +500,10 @@ def run_test_file(case_id, file_path):
         except Exception as e:
             try:
                 driver.save_screenshot(screenshot_path)
-                print(f"SCREENSHOT:{{screenshot_path}}")
+                import base64 as _b64
+                with open(screenshot_path, "rb") as _sf:
+                    _b64data = _b64.b64encode(_sf.read()).decode("ascii")
+                print(f"SCREENSHOT_B64:{{_b64data}}")
             except Exception:
                 pass
             err_msg = str(e).replace("\\n", " ").replace("\\r", "").strip()
@@ -524,13 +527,13 @@ def run_test_file(case_id, file_path):
         try:
             proc = subprocess.run(
                 [sys.executable, "-c", runner],
-                capture_output=True, text=True, timeout=60
+                capture_output=True, text=True, timeout=120
             )
             time.sleep(2)  # ensure Chrome OS cleanup finishes before the next test
             combined = proc.stdout + "\n" + proc.stderr
             for line in combined.splitlines():
-                if line.startswith("SCREENSHOT:"):
-                    result["screenshot"] = line[len("SCREENSHOT:"):]
+                if line.startswith("SCREENSHOT_B64:"):
+                    result["screenshot_b64"] = line[len("SCREENSHOT_B64:"):]
                 elif line.startswith("RESULT:Pass"):
                     result["status"] = "Pass"
                 elif line.startswith("RESULT:Fail:"):
@@ -540,32 +543,16 @@ def run_test_file(case_id, file_path):
                 result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
         except subprocess.TimeoutExpired:
             result["status"] = "Fail"
-            result["error"] = "Test timed out after 60 seconds"
-            # If the inner except managed to save a screenshot before the
-            # SIGKILL, surface its path even though the stdout marker was
-            # cut off by the kill.
+            result["error"] = "Test timed out after 120 seconds"
+            # Fallback: if the snapshot loop managed to write a file before SIGKILL, encode it.
             fallback = os.path.join(SCREENSHOT_DIR, case_id + ".png")
             if os.path.exists(fallback):
-                result["screenshot"] = fallback
+                import base64
+                with open(fallback, "rb") as _f:
+                    result["screenshot_b64"] = base64.b64encode(_f.read()).decode("ascii")
         except Exception as e:
             result["status"] = "Fail"
             result["error"] = str(e)
-
-    # Always surface a screenshot file if one exists on disk — covers
-    # passing tests (no SCREENSHOT marker printed) and any race where
-    # the marker was cut off mid-print.
-    if not result.get("screenshot"):
-        fallback = os.path.join(SCREENSHOT_DIR, case_id + ".png")
-        if os.path.exists(fallback):
-            result["screenshot"] = fallback
-
-    # Embed screenshot as base64 so the frontend can offer a download
-    # without a separate HTTP request (avoids ephemeral-filesystem races
-    # and multi-instance issues on Render).
-    if result.get("screenshot") and os.path.exists(result["screenshot"]):
-        import base64
-        with open(result["screenshot"], "rb") as _f:
-            result["screenshot_b64"] = base64.b64encode(_f.read()).decode("ascii")
 
     return result
 

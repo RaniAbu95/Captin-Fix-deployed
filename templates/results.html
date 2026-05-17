@@ -278,15 +278,19 @@
 
         btnText.classList.add('d-none');
         spinner.classList.remove('d-none');
-        resultDiv.innerHTML = '<div class="result-output result-err">Running test… this may take up to 60 seconds.</div>';
+        resultDiv.innerHTML = '<div class="result-output result-err">Running test… this may take up to 2 minutes.</div>';
 
         let status = 'Fail';
         try {
+          const controller = new AbortController();
+          const _tid = setTimeout(() => controller.abort(), 150000); // 2.5 min hard cap
           const res = await fetch('/run-test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ case: caseData, website: TARGET })
+            body: JSON.stringify({ case: caseData, website: TARGET }),
+            signal: controller.signal,
           });
+          clearTimeout(_tid);
           const text = await res.text();
           let data;
           try {
