@@ -354,10 +354,34 @@ def run_test_file(case_id, file_path):
                 # the screenshot before SIGKILL.
                 driver.set_script_timeout(50)
                 driver.set_page_load_timeout(50)
-                # Hide the automation flag that sites use for bot detection.
-                driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {{
-                    "source": "Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}})"
-                }})
+                # Comprehensive stealth: patch every property sites use to detect headless Chrome.
+                driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {{"source": """
+                    // 1. Hide webdriver flag
+                    Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
+                    // 2. Add window.chrome.runtime (absent in headless — most reliable check sites use)
+                    if (!window.chrome) window.chrome = {{}};
+                    if (!window.chrome.runtime) window.chrome.runtime = {{}};
+                    // 3. Fake non-empty plugins list (headless has none)
+                    Object.defineProperty(navigator, 'plugins', {{get: () => [
+                        {{name:'Chrome PDF Plugin', filename:'internal-pdf-viewer', description:'Portable Document Format'}},
+                        {{name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjai', description:''}},
+                        {{name:'Native Client', filename:'internal-nacl-plugin', description:''}}
+                    ]}});
+                    // 4. Fake mimeTypes
+                    Object.defineProperty(navigator, 'mimeTypes', {{get: () => [
+                        {{type:'application/pdf', suffixes:'pdf', description:'', enabledPlugin: {{name:'Chrome PDF Plugin'}}}}
+                    ]}});
+                    // 5. Languages (use Israeli Hebrew to match the sites under test)
+                    Object.defineProperty(navigator, 'languages', {{get: () => ['he-IL', 'he', 'en-US', 'en']}});
+                    // 6. Platform
+                    Object.defineProperty(navigator, 'platform', {{get: () => 'Win32'}});
+                    // 7. Permissions API — headless returns 'denied' for notifications; real Chrome returns 'default'
+                    const _origPerms = navigator.permissions.query.bind(navigator.permissions);
+                    navigator.permissions.query = (p) =>
+                        p.name === 'notifications'
+                            ? Promise.resolve({{state: 'default', onchange: null}})
+                            : _origPerms(p);
+                """}})
                 break
             except Exception:
                 if attempt < 2:
@@ -463,6 +487,8 @@ def run_test_file(case_id, file_path):
         _orig_get = driver.get
         def _patched_get(url):
             _orig_get(url)
+            # Allow WAF/Cloudflare JS challenges to run before the test starts waiting.
+            time.sleep(3)
             _dismiss_cookies(driver)
             # Progress snapshot so the parent has something on disk even
             # if a later wait hangs past the subprocess wall-clock.
