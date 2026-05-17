@@ -208,11 +208,10 @@ def _clean_html(html: str, max_chars: int = 30000) -> str:
 def extract_full_html(url: str) -> str:
     if url in _html_cache:
         return _html_cache[url]
-    driver = webdriver.Chrome(options=_chrome_options())
-    driver.get(url)
-    time.sleep(2)
-    html = _clean_html(driver.page_source)
-    driver.quit()
+    import requests as _requests
+    resp = _requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+    resp.raise_for_status()
+    html = _clean_html(resp.text)
     _html_cache[url] = html
     return html
 
