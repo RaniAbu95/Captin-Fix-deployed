@@ -562,7 +562,7 @@ def run_test_file(case_id, file_path):
 
         try:
             code = open({repr(file_path)}).read()
-            _ns = {{}}
+            _ns = {{'__name__': 'captainfix_runner'}}
             exec(code, _ns)
             _ns['run'](driver)
             print("RESULT:Pass")
