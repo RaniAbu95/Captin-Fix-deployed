@@ -246,7 +246,16 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ case: caseData, website: TARGET })
           });
-          const data = await res.json();
+          const text = await res.text();
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch (_) {
+            resultDiv.innerHTML = '<div class="result-output result-err">Server returned an empty response — timeout or out of memory. Please try again.</div>';
+            btnText.classList.remove('d-none');
+            spinner.classList.add('d-none');
+            return;
+          }
           if (data.error) {
             resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
           } else {
