@@ -547,6 +547,14 @@ def run_test_file(case_id, file_path):
         if os.path.exists(fallback):
             result["screenshot"] = fallback
 
+    # Embed screenshot as base64 so the frontend can offer a download
+    # without a separate HTTP request (avoids ephemeral-filesystem races
+    # and multi-instance issues on Render).
+    if result.get("screenshot") and os.path.exists(result["screenshot"]):
+        import base64
+        with open(result["screenshot"], "rb") as _f:
+            result["screenshot_b64"] = base64.b64encode(_f.read()).decode("ascii")
+
     return result
 
 

@@ -305,9 +305,11 @@
             updateSummary(idx, status);
             const cls  = r.status === 'Pass' ? 'result-pass' : 'result-fail';
             const icon = r.status === 'Pass' ? '✅' : '❌';
-            const screenshotLink = (r.status !== 'Pass' && r.screenshot)
-              ? `<a href="/download/screenshot/${r.id}" class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.75rem">⬇ Screenshot</a>`
-              : '';
+            let screenshotLink = '';
+            if (r.status !== 'Pass' && r.screenshot_b64) {
+              const dataUrl = `data:image/png;base64,${r.screenshot_b64}`;
+              screenshotLink = `<a href="${dataUrl}" download="${r.id}_failure.png" class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.75rem">⬇ Screenshot</a>`;
+            }
             const errorBlock = (r.status !== 'Pass' && r.error)
               ? `<pre style="margin-top:0.5rem;margin-bottom:0;white-space:pre-wrap;word-break:break-word;font-size:0.78rem;background:transparent;border:none;padding:0;">${r.error}</pre>`
               : '';
