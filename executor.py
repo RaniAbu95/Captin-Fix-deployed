@@ -591,6 +591,14 @@ def run_test_file(case_id, file_path):
             time.sleep(3)  # let Chrome fully exit before subprocess ends
     """)
 
+    # Remove any stale screenshot from a previous run with the same case_id
+    # so a timed-out test never serves an old site's image.
+    stale = os.path.join(SCREENSHOT_DIR, case_id + ".png")
+    try:
+        os.remove(stale)
+    except FileNotFoundError:
+        pass
+
     result = {"id": case_id, "status": "Pass", "error": None, "screenshot": None}
     with _chrome_lock:
         try:
