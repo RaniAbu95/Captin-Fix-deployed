@@ -121,13 +121,59 @@ def _chrome_options():
 
 # System portion — static across all cases in a run (instructions, website, HTML).
 # Marked as a cache breakpoint so Anthropic reuses it on every call after the first.
-SYSTEM_PROMPT_TEMPLATE = """You are a senior QA automation engineer. Generate ONE Python Selenium script implementing all steps of this test case using the provided `driver`.
+_MAIN_BLOCK_TEMPLATE = '''
+if __name__ == "__main__":
+    import os, time
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    opts = Options()
+    opts.page_load_strategy = "none"
+    if os.environ.get("HEADLESS", "true").lower() != "false":
+        opts.add_argument("--headless=new")
+    for _arg in [
+        "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
+        "--disable-extensions", "--no-first-run", "--disable-background-networking",
+        "--disable-sync", "--disable-default-apps",
+        "--blink-settings=imagesEnabled=false",
+        "--disable-blink-features=AutomationControlled",
+        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+        "--window-size=1440,900",
+    ]:
+        opts.add_argument(_arg)
+    opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+    opts.add_experimental_option("useAutomationExtension", False)
+    _driver = webdriver.Chrome(options=opts)
+    _driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
+        Object.defineProperty(navigator, \'webdriver\', {get: () => undefined});
+        if (!window.chrome) window.chrome = {};
+        if (!window.chrome.runtime) window.chrome.runtime = {};
+    """})
+    _driver.set_script_timeout(50)
+    _driver.set_page_load_timeout(50)
+    _orig = _driver.get
+    def _pg(url):
+        _orig(url)
+        time.sleep(3)
+    _driver.get = _pg
+    try:
+        run(_driver)
+        print("RESULT: Pass")
+    except Exception as _e:
+        import traceback; traceback.print_exc()
+    finally:
+        _driver.quit()
+'''
 
-OUTPUT:
-- Raw Python only — no markdown, no backticks, no commentary.
-- Start with imports (selenium, WebDriverWait, By, EC, time; add ActionChains or Keys only if needed).
-- `driver` is already provided in scope. NEVER call webdriver.Chrome(), driver.quit(), or driver.close().
-- Call driver.get("{website}") exactly ONCE at the start.
+SYSTEM_PROMPT_TEMPLATE = """You are a senior QA automation engineer. Generate ONE Python Selenium script implementing all steps of this test case.
+
+OUTPUT FORMAT — follow exactly:
+1. Module-level imports (selenium, WebDriverWait, By, EC, time; add ActionChains or Keys only if needed).
+2. A single `def run(driver):` function containing ALL test steps. No try/except inside run() — let exceptions propagate naturally.
+3. Append this block verbatim at the end (do not modify it):
+{main_block}
+
+The backend calls run(driver) with an already-configured driver. NEVER call webdriver.Chrome(), driver.quit(), or driver.close() inside run().
+- Call driver.get("{website}") exactly ONCE at the start of run().
 
 STEP FIDELITY (most important):
 - The Steps list is authoritative. Implement EXACTLY those steps, in order, with their stated intent.
@@ -278,6 +324,7 @@ def generate_test_files(plan):
         website=website,
         html=page_html,
         headless="headless Chrome" if HEADLESS else "regular Chrome",
+        main_block=_MAIN_BLOCK_TEMPLATE,
     )
     cached_system = SystemMessage(content=[{
         "type": "text",
@@ -515,10 +562,9 @@ def run_test_file(case_id, file_path):
 
         try:
             code = open({repr(file_path)}).read()
-            exec(code, {{
-                "driver": driver, "By": By,
-                "WebDriverWait": WebDriverWait, "EC": EC, "time": time,
-            }})
+            _ns = {{}}
+            exec(code, _ns)
+            _ns['run'](driver)
             print("RESULT:Pass")
         except Exception as e:
             try:
