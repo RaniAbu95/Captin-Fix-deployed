@@ -221,7 +221,7 @@ def extract_full_html(url: str) -> str:
 
 def generate_selenium_code(step_text, expected_text, website, page_html):
     llm = ChatAnthropic(
-        model="claude-haiku-4-5-20251001",
+        model="claude-sonnet-4-6",
         temperature=0,
         api_key=ANTHROPIC_API_KEY
     )
