@@ -267,11 +267,31 @@ def run_planner(target: str, num_tests: int, depth: int, email: str = "", pm: st
         if not os.path.exists(local_path):
             raise ValueError(f"Local file not accessible: {local_path}")
     elif parsed.scheme in ("http", "https"):
+        # Pre-flight reachability check. WAF-protected sites (Cloudflare etc.)
+        # often reject Python's requests library on TLS fingerprint even with a
+        # browser User-Agent, so a non-2xx response is NOT a fatal signal — the
+        # real headless Chrome that runs the tests usually still works.
+        browser_headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
         try:
-            resp = requests.get(target, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-            resp.raise_for_status()
+            requests.get(target, headers=browser_headers, timeout=10)
+            # Don't call raise_for_status(): a 4xx/5xx here usually means the
+            # WAF blocked requests but the site itself is up. Let Selenium try.
+        except requests.exceptions.ConnectionError as e:
+            raise ValueError(f"Site not reachable (network error): {e}") from e
+        except requests.exceptions.Timeout as e:
+            raise ValueError(f"Site not reachable (timeout): {e}") from e
         except Exception as e:
-            raise ValueError(f"Site not accessible: {e}") from e
+            # Any other exception is logged but not fatal — proceed and let
+            # the real browser-driven flow surface a clearer error if needed.
+            print(f"[planner] pre-flight check raised {type(e).__name__}: {e} — proceeding anyway")
     else:
         raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
 
