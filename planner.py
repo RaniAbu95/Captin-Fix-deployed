@@ -35,6 +35,15 @@ from executor import extract_full_html
 def _parse_cases_from_json(parsed) -> tuple:
     """Return (cases, suites_list) from any Claude JSON format."""
     cases = []
+
+    # Claude sometimes returns a bare array instead of a wrapped object.
+    if isinstance(parsed, list):
+        for c in parsed:
+            if isinstance(c, dict) and "id" in c:
+                c.setdefault("negative", False)
+                cases.append(TestCase(**c))
+        return cases, list(dict.fromkeys(c.suite for c in cases))
+
     raw = parsed.get("testPlan", parsed)
 
     # Format 1: flat {"cases": [...]}
