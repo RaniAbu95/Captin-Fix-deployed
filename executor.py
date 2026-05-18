@@ -541,6 +541,10 @@ def run_test_file(case_id, file_path):
             "button[aria-label='close']",
             "button.btn-close",
             "[role='button'][aria-label='Close']",
+            # Castro.com custom cookie/promo popup
+            ".idus_popup_widget_cookie_popup button",
+            ".idus_popup_wrap button",
+            "[class*='idus_popup'] button",
         ]
         _cookie_xpaths = [
             # Accept text (English)
@@ -598,6 +602,18 @@ def run_test_file(case_id, file_path):
                                     return;
                                 }}
                             }}
+                        }}
+                    }});
+                \"\"\")
+            except Exception:
+                pass
+            # Final safety net: JS-hide any remaining visible modal/dialog overlays
+            # so they cannot intercept clicks on page elements underneath them.
+            try:
+                d.execute_script(\"\"\"
+                    document.querySelectorAll('[role="dialog"], .modal-popup, .modal-slide._show, [class*="popup_wrap"]').forEach(el => {{
+                        if (el.offsetWidth > 0 && el.offsetHeight > 0) {{
+                            el.style.display = 'none';
                         }}
                     }});
                 \"\"\")
