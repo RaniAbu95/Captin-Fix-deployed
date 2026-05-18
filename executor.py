@@ -195,6 +195,9 @@ WAITS AND ASSERTIONS:
 - Default timeout for ALL WebDriverWait calls is 20 seconds. Never use less than 20.
 - For the INITIAL page-load check (verifying the page opened): use EC.presence_of_element_located — the element only needs to be in the DOM, not yet painted.
 - For interactions use EC.element_to_be_clickable; for subsequent read/assert steps use EC.visibility_of_element_located.
+- NEVER use EC.visibility_of_element_located on <img> elements — images are disabled in headless mode so img tags have 0×0 dimensions and are never "visible". Use EC.presence_of_element_located for images and verify via .get_attribute("alt") or .get_attribute("src") instead.
+- NEVER use assert element.is_displayed() on <img> elements for the same reason.
+- For page title checks: use `assert "keyword" in driver.title` with a SHORT unique keyword, never the full exact title string (titles vary by locale, A/B test, or dash character encoding).
 - Never pair EC.presence_of_element_located with a stronger condition on the same element — use only the strongest.
 - FORBIDDEN dead waits: WebDriverWait for By.TAG_NAME 'body' or 'html'. Both always exist.
 - After every click/submit, wait for a SPECIFIC element that reflects what changed (the destination heading, an updated form, the same input still visible if no navigation expected).
