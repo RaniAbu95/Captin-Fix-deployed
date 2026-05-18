@@ -185,6 +185,8 @@ LOCATORS:
 - For ANY clickable link that has visible text: ALWAYS use By.PARTIAL_LINK_TEXT. This is NON-NEGOTIABLE. NEVER use href, title, or class attributes to locate a link you intend to click — the rendered href often differs from the HTML snapshot (absolute vs relative, redirects, query params). Visible text is always stable.
 - NEVER use By.LINK_TEXT — it breaks on nested spans or extra whitespace. By.PARTIAL_LINK_TEXT only.
 - NEVER write CSS selectors like a[href='...'] or a[href*='...'][title='...'] for clickable links. These fail whenever the rendered href differs from the static HTML.
+- NEVER combine a parent container ID with a href selector (e.g. NEVER "#headerMenu a[href='/categories.aspx']"). The href is absolute in the rendered DOM even when the HTML shows a relative path.
+- When asserting .get_attribute("alt") or any attribute value: NEVER use exact equality (==). Always use `in` with a short keyword — e.g. `assert "דרושים" in (alt or "")` — because attributes may be None or slightly different across environments.
 - Only fall back to CSS_SELECTOR on href when the link has NO visible text at all (e.g. icon-only links).
 - NEVER combine href with any other attribute (class, title, etc.) in a selector.
 - For data-test / data-testid use By.CSS_SELECTOR, "[data-testid='x']" — there is no By.DATA_TESTID.
