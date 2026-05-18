@@ -310,6 +310,44 @@ def generate_selenium_code(step_text, expected_text, website, page_html):
 #
 #     return test_files
 
+
+def _strip_code_fences(text: str) -> str:
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.startswith("python"):
+            text = text[6:]
+        text = text.strip()
+    return text
+
+
+def _fix_syntax(code: str, llm, cached_system, case_id: str):
+    """Return code if it compiles, or ask Claude once to fix syntax errors.
+    Returns None if the code is still broken after one retry."""
+    try:
+        compile(code, f"{case_id}.py", "exec")
+        return code
+    except SyntaxError as e:
+        print(f"[syntax] {case_id} has syntax error: {e} — asking Claude to fix.")
+    import sys as _sys, time as _t
+    from langchain_core.messages import HumanMessage
+    fix_prompt = HumanMessage(content=(
+        f"The following Python script has a syntax error:\n\n```python\n{code}\n```\n\n"
+        f"Return ONLY the corrected Python script with no explanation and no markdown fences."
+    ))
+    try:
+        print(f"[anthropic] _fix_syntax.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
+        fixed = llm.invoke([cached_system, fix_prompt]).content.strip()
+        fixed = _strip_code_fences(fixed)
+        compile(fixed, f"{case_id}.py", "exec")
+        return fixed
+    except SyntaxError as e2:
+        print(f"[syntax] {case_id} still broken after fix attempt: {e2}")
+        return None
+    except Exception as e3:
+        print(f"[syntax] {case_id} fix request failed: {e3}")
+        return None
+
+
 def generate_test_files(plan):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     test_files = []
@@ -343,12 +381,13 @@ def generate_test_files(plan):
         import sys as _sys, time as _t
         print(f"[anthropic] generate_test_files.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
         response = llm.invoke(messages)
-        code = response.content.strip()
-        if code.startswith("```"):
-            code = code.split("```")[1]
-            if code.startswith("python"):
-                code = code[6:]
-            code = code.strip()
+        code = _strip_code_fences(response.content.strip())
+
+        # Validate syntax; ask Claude to fix it once if broken.
+        code = _fix_syntax(code, llm, cached_system, case_id)
+        if code is None:
+            print(f"[generate_test_files] Skipping {case_id}: could not produce valid Python after retry.")
+            continue
 
         file_path = os.path.join(OUTPUT_DIR, f"{case_id}.py")
         with open(file_path, "w", encoding="utf-8") as f:
