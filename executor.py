@@ -578,29 +578,34 @@ def run_test_file(case_id, file_path):
             # Allow WAF/Cloudflare JS challenges to run before the test starts waiting.
             time.sleep(3)
             _dismiss_cookies(driver)
-            # Progress snapshot so the parent has something on disk even
-            # if a later wait hangs past the subprocess wall-clock.
-            try:
-                driver.save_screenshot(screenshot_path)
-            except Exception:
-                pass
+            # Progress snapshot — run in a thread so a slow Chrome doesn't block navigation.
+            import threading as _threading
+            _t = _threading.Thread(target=lambda: driver.save_screenshot(screenshot_path), daemon=True)
+            _t.start()
+            _t.join(timeout=8)
         driver.get = _patched_get
 
         screenshot_path = {repr(os.path.join(SCREENSHOT_DIR, case_id + ".png"))}
         import os as _os
         _os.makedirs({repr(SCREENSHOT_DIR)}, exist_ok=True)
 
-        # Background snapshot loop — overwrites the file every 2s so the
-        # most-recent page state is always on disk by the time the
-        # subprocess wall-clock kill fires, regardless of where the test hangs.
+        # Background snapshot loop — overwrites the file every 5s so the
+        # most-recent page state is always on disk when the subprocess is killed.
+        # Each save_screenshot() runs in its own daemon thread with an 8s timeout
+        # so a hung Chrome (which makes save_screenshot block forever) never
+        # prevents the loop from continuing or from writing a later screenshot.
         import threading as _threading
         _stop_snap = _threading.Event()
+        def _safe_snap():
+            try:
+                driver.save_screenshot(screenshot_path)
+            except Exception:
+                pass
         def _snapshot_loop():
             while not _stop_snap.is_set():
-                try:
-                    driver.save_screenshot(screenshot_path)
-                except Exception:
-                    pass
+                _t = _threading.Thread(target=_safe_snap, daemon=True)
+                _t.start()
+                _t.join(timeout=8)  # abandon if Chrome is hung
                 if _stop_snap.wait(5):
                     break
         _snap_thread = _threading.Thread(target=_snapshot_loop, daemon=True)
