@@ -694,15 +694,20 @@ def run_test_file(case_id, file_path):
         except subprocess.TimeoutExpired:
             result["status"] = "Fail"
             result["error"] = "Test timed out after 120 seconds"
-            # Fallback: if the snapshot loop managed to write a file before SIGKILL, encode it.
-            fallback = os.path.join(SCREENSHOT_DIR, case_id + ".png")
-            if os.path.exists(fallback):
-                import base64
-                with open(fallback, "rb") as _f:
-                    result["screenshot_b64"] = base64.b64encode(_f.read()).decode("ascii")
         except Exception as e:
             result["status"] = "Fail"
             result["error"] = str(e)
+        finally:
+            # Always try the disk fallback when no screenshot was captured via
+            # stdout — covers normal failures where the exception handler's
+            # save_screenshot failed, AND timeout kills where SIGKILL prevented
+            # the subprocess from printing SCREENSHOT_B64.
+            if not result.get("screenshot_b64"):
+                fallback = os.path.join(SCREENSHOT_DIR, case_id + ".png")
+                if os.path.exists(fallback):
+                    import base64
+                    with open(fallback, "rb") as _f:
+                        result["screenshot_b64"] = base64.b64encode(_f.read()).decode("ascii")
 
     return result
 
