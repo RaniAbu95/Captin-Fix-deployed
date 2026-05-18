@@ -183,9 +183,11 @@ LOCATORS:
 - Priority: ID > Name > CSS Selector > XPath with visible text.
 - For non-Latin text (Hebrew etc.), match the exact visible text from the HTML.
 - For href XPath, use the FULL href value from the HTML (e.g. contains(@href, 'myactivity.google.com/privacyadvisor') — not a guessed substring).
-- For clickable nav/menu links: ALWAYS use By.PARTIAL_LINK_TEXT with the visible text from the HTML. This is MANDATORY — do not use href-based selectors to locate nav links you intend to click. NEVER use By.LINK_TEXT — it requires an exact full-text match and breaks when links contain nested spans or extra whitespace. By.PARTIAL_LINK_TEXT is always safer.
-- Only fall back to CSS_SELECTOR "a[href*='/fragment']" when the link has NO stable visible text (e.g. icon-only links).
-- NEVER combine href with a class condition (e.g. NEVER "a[href*='x'][class*='nav_link']"). Class names vary between renders; visible text is stable.
+- For ANY clickable link that has visible text: ALWAYS use By.PARTIAL_LINK_TEXT. This is NON-NEGOTIABLE. NEVER use href, title, or class attributes to locate a link you intend to click — the rendered href often differs from the HTML snapshot (absolute vs relative, redirects, query params). Visible text is always stable.
+- NEVER use By.LINK_TEXT — it breaks on nested spans or extra whitespace. By.PARTIAL_LINK_TEXT only.
+- NEVER write CSS selectors like a[href='...'] or a[href*='...'][title='...'] for clickable links. These fail whenever the rendered href differs from the static HTML.
+- Only fall back to CSS_SELECTOR on href when the link has NO visible text at all (e.g. icon-only links).
+- NEVER combine href with any other attribute (class, title, etc.) in a selector.
 - For data-test / data-testid use By.CSS_SELECTOR, "[data-testid='x']" — there is no By.DATA_TESTID.
 - Allowed By strategies only: ID, NAME, CLASS_NAME, TAG_NAME, CSS_SELECTOR, XPATH, LINK_TEXT, PARTIAL_LINK_TEXT.
 - NEVER assert button/input value attributes — they vary by locale.
