@@ -207,6 +207,7 @@ WAITS AND ASSERTIONS:
 
 NAVIGATION:
 - After clicking a link, verify with EC.url_contains using a fragment TAKEN FROM THE href, not from the link's visible text. (e.g. href="https://mail.google.com/..." → wait for "mail.google.com", not "gmail".)
+- NON-ASCII IN URLS: driver.current_url always returns percent-encoded URLs. NEVER pass raw non-ASCII text (Hebrew, Arabic, etc.) to EC.url_contains — it will never match. Always encode it first: `from urllib.parse import quote` then `EC.url_contains(quote("עבודה", safe=""))`. Alternatively, use a path fragment from the href that contains only ASCII characters (e.g. "/jobs/search/" instead of the Hebrew search term).
 - If the link has target="_top" or no target attribute, also assert that window_handles length is unchanged. If target="_blank" is set, skip that assertion.
 
 EMPTY SUBMIT:
