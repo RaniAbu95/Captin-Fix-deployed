@@ -169,8 +169,7 @@ SYSTEM_PROMPT_TEMPLATE = """You are a senior QA automation engineer. Generate ON
 OUTPUT FORMAT — follow exactly:
 1. Module-level imports (selenium, WebDriverWait, By, EC, time; add ActionChains or Keys only if needed).
 2. A single `def run(driver):` function containing ALL test steps. No try/except inside run() — let exceptions propagate naturally.
-3. Append this block verbatim at the end (do not modify it):
-{main_block}
+3. STOP after the closing line of def run(). Do NOT write an if __name__ == "__main__": block — it is appended automatically by the backend.
 
 The backend calls run(driver) with an already-configured driver. NEVER call webdriver.Chrome(), driver.quit(), or driver.close() inside run().
 - Call driver.get("{website}") exactly ONCE at the start of run().
@@ -328,30 +327,40 @@ def _strip_code_fences(text: str) -> str:
 
 
 def _fix_syntax(code: str, llm, cached_system, case_id: str):
-    """Return code if it compiles, or ask Claude once to fix syntax errors.
-    Returns None if the code is still broken after one retry."""
-    try:
-        compile(code, f"{case_id}.py", "exec")
-        return code
-    except SyntaxError as e:
-        print(f"[syntax] {case_id} has syntax error: {e} — asking Claude to fix.")
+    """Return code if valid, or ask Claude once to fix it.
+    Checks both syntax (compile) and structure (def run present).
+    Returns None if still broken after one retry."""
     import sys as _sys, time as _t
     from langchain_core.messages import HumanMessage
+
+    def _check(c):
+        if not c or "def run(" not in c and "def run (" not in c:
+            return "missing def run(driver) function"
+        try:
+            compile(c, f"{case_id}.py", "exec")
+        except SyntaxError as e:
+            return str(e)
+        return None
+
+    error = _check(code)
+    if error is None:
+        return code
+
+    print(f"[syntax] {case_id} invalid ({error}) — asking Claude to fix.")
     fix_prompt = HumanMessage(content=(
-        f"The following Python script has a syntax error:\n\n```python\n{code}\n```\n\n"
+        f"The following Python script is invalid ({error}):\n\n```python\n{code}\n```\n\n"
         f"Return ONLY the corrected Python script with no explanation and no markdown fences."
     ))
     try:
         print(f"[anthropic] _fix_syntax.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
-        fixed = llm.invoke([cached_system, fix_prompt]).content.strip()
-        fixed = _strip_code_fences(fixed)
-        compile(fixed, f"{case_id}.py", "exec")
-        return fixed
-    except SyntaxError as e2:
-        print(f"[syntax] {case_id} still broken after fix attempt: {e2}")
+        fixed = _strip_code_fences(llm.invoke([cached_system, fix_prompt]).content.strip())
+        error2 = _check(fixed)
+        if error2 is None:
+            return fixed
+        print(f"[syntax] {case_id} still invalid after fix: {error2}")
         return None
-    except Exception as e3:
-        print(f"[syntax] {case_id} fix request failed: {e3}")
+    except Exception as e:
+        print(f"[syntax] {case_id} fix request failed: {e}")
         return None
 
 
@@ -390,7 +399,16 @@ def generate_test_files(plan):
         response = llm.invoke(messages)
         code = _strip_code_fences(response.content.strip())
 
-        # Validate syntax; ask Claude to fix it once if broken.
+        # Strip any __main__ block Claude added despite instructions — we append
+        # the correct one below so the standalone runner is always complete.
+        if "if __name__" in code:
+            code = code[:code.index("if __name__")].rstrip()
+
+        # Always append the canonical __main__ block so the file works both
+        # as a standalone script and via exec() in the subprocess runner.
+        code = code + "\n\n" + _MAIN_BLOCK_TEMPLATE
+
+        # Validate structure + syntax; ask Claude to fix once if broken.
         code = _fix_syntax(code, llm, cached_system, case_id)
         if code is None:
             print(f"[generate_test_files] Skipping {case_id}: could not produce valid Python after retry.")
