@@ -215,6 +215,15 @@ NAVIGATION:
 EMPTY SUBMIT:
 - Clicking submit/search WITHOUT entering input does not navigate. Do NOT use any url_* condition. Instead wait that the form input is still visible.
 
+COLLAPSIBLE / HAMBURGER NAVIGATION:
+- Before clicking any link inside a navigation menu, inspect the HTML to check whether the nav is inside a collapsible element (hamburger button, "MENU" toggle, aria-expanded, aria-controls, or a button that controls a nav panel).
+- If such a toggle exists, ALWAYS click it first to open the nav, then wait for the nav links to become visible, THEN click the target link. Skipping the toggle open step will cause a TimeoutException because the links are hidden.
+- Example pattern:
+      menu_toggle = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-controls='nav'], .hamburger, [class*='menu-toggle']")))
+      menu_toggle.click()
+      WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "nav a")))
+      # now click the target link
+
 HOVER DROPDOWNS:
 - Nav items that are <a> with real hrefs are usually BOTH a link and a hover trigger. Clicking navigates and destroys the dropdown.
 - For "verify dropdown / submenu / subcategories" steps, hover with ActionChains — do NOT click. Also dispatch a JS mouseover as a backup, because synthetic mouse moves in headless Chrome don't always trip CSS :hover:
