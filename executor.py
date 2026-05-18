@@ -149,7 +149,6 @@ if __name__ == "__main__":
         if (!window.chrome.runtime) window.chrome.runtime = {};
     """})
     _driver.set_script_timeout(50)
-    _driver.set_page_load_timeout(50)
     _orig = _driver.get
     def _pg(url):
         _orig(url)
@@ -479,7 +478,6 @@ def run_test_file(case_id, file_path):
                 # wall-clock (60s) so the inner except has room to write
                 # the screenshot before SIGKILL.
                 driver.set_script_timeout(50)
-                driver.set_page_load_timeout(50)
                 # Comprehensive stealth: patch every property sites use to detect headless Chrome.
                 driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {{"source": '''
                     Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
