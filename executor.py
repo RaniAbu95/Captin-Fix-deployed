@@ -190,7 +190,9 @@ LOCATORS:
 - NEVER assert button/input value attributes — they vary by locale.
 
 WAITS AND ASSERTIONS:
-- For interactions use EC.element_to_be_clickable; for read/assert use EC.visibility_of_element_located.
+- Default timeout for ALL WebDriverWait calls is 20 seconds. Never use less than 20.
+- For the INITIAL page-load check (verifying the page opened): use EC.presence_of_element_located — the element only needs to be in the DOM, not yet painted.
+- For interactions use EC.element_to_be_clickable; for subsequent read/assert steps use EC.visibility_of_element_located.
 - Never pair EC.presence_of_element_located with a stronger condition on the same element — use only the strongest.
 - FORBIDDEN dead waits: WebDriverWait for By.TAG_NAME 'body' or 'html'. Both always exist.
 - After every click/submit, wait for a SPECIFIC element that reflects what changed (the destination heading, an updated form, the same input still visible if no navigation expected).
@@ -210,7 +212,7 @@ HOVER DROPDOWNS:
 - For "verify dropdown / submenu / subcategories" steps, hover with ActionChains — do NOT click. Also dispatch a JS mouseover as a backup, because synthetic mouse moves in headless Chrome don't always trip CSS :hover:
       ActionChains(driver).move_to_element(link).pause(0.5).perform()
       driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('mouseover', {{bubbles: true}}));", link)
-      WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".dropdown")))
+      WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".dropdown")))
 - Click the nav <a> only when the step explicitly says to navigate to that destination page.
 - For headless Chrome, call driver.set_window_size(1440, 900) BEFORE driver.get() so the server returns the desktop (hover-menu) layout, not the mobile hamburger.
 
@@ -221,8 +223,8 @@ VERIFY-LOAD ECONOMY:
       WebDriverWait(...).until(EC.visibility_of(...header_content...))
       WebDriverWait(...).until(EC.visibility_of(...header_strip...))
       [...7 more...]
-- GOOD (one decisive check):
-      WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#page-header-navigation")))
+- GOOD (one decisive check — presence_of for initial load, 20s timeout):
+      WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#page-header-navigation")))
 
 ERROR HANDLING:
 - Wrap the entire test body in try/except.
