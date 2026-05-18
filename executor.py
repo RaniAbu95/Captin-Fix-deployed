@@ -198,7 +198,8 @@ WAITS AND ASSERTIONS:
 - NEVER use assert element.is_displayed() on <img> elements for the same reason.
 - For page title checks: use `assert "keyword" in driver.title` with a SHORT unique keyword, never the full exact title string (titles vary by locale, A/B test, or dash character encoding).
 - Never pair EC.presence_of_element_located with a stronger condition on the same element — use only the strongest.
-- FORBIDDEN dead waits: WebDriverWait for By.TAG_NAME 'body' or 'html'. Both always exist.
+- FORBIDDEN dead waits: WebDriverWait for By.TAG_NAME 'body', 'html', or 'main' — these tags may not exist and add no signal after a URL check.
+- FORBIDDEN redundant DOM check after url_contains: once EC.url_contains() passes, the page navigation is confirmed. Do NOT add another WebDriverWait for a generic element (main, div, section) immediately after — it adds failure surface with no benefit.
 - After every click/submit, wait for a SPECIFIC element that reflects what changed (the destination heading, an updated form, the same input still visible if no navigation expected).
 - NO REDUNDANT ASSERTS: WebDriverWait IS the assertion. Do not write `assert driver.title == "X"` after `EC.title_is("X")` — same for url_contains, visibility_of, etc.
 - Use plain `assert` ONLY for .text / .get_attribute() content that no EC checks.
