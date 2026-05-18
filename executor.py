@@ -697,13 +697,30 @@ def run_test_file(case_id, file_path):
 
     result = {"id": case_id, "status": "Pass", "error": None, "screenshot": None}
     with _chrome_lock:
+        proc = None
         try:
-            proc = subprocess.run(
+            # start_new_session=True puts the runner in its own process group so
+            # killpg() can kill Chrome's child processes too — they otherwise keep
+            # the stdout pipe open and block communicate() after timeout.
+            proc = subprocess.Popen(
                 [sys.executable, "-c", runner],
-                capture_output=True, text=True, timeout=120
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, start_new_session=True,
             )
-            time.sleep(2)  # ensure Chrome OS cleanup finishes before the next test
-            combined = proc.stdout + "\n" + proc.stderr
+            try:
+                stdout, stderr = proc.communicate(timeout=120)
+            except subprocess.TimeoutExpired:
+                import signal as _signal, os as _os
+                try:
+                    _os.killpg(_os.getpgid(proc.pid), _signal.SIGKILL)
+                except Exception:
+                    proc.kill()
+                stdout, stderr = proc.communicate(timeout=10)
+                result["status"] = "Fail"
+                result["error"] = "Test timed out after 120 seconds"
+
+            time.sleep(2)
+            combined = stdout + "\n" + stderr
             for line in combined.splitlines():
                 if line.startswith("SCREENSHOT_B64:"):
                     result["screenshot_b64"] = line[len("SCREENSHOT_B64:"):]
@@ -713,13 +730,15 @@ def run_test_file(case_id, file_path):
                     result["status"] = "Fail"
                     result["error"] = line[len("RESULT:Fail:"):].strip()
             if result["status"] == "Fail" and not result.get("error"):
-                result["error"] = (proc.stderr or proc.stdout or "Unknown error").strip()
-        except subprocess.TimeoutExpired:
-            result["status"] = "Fail"
-            result["error"] = "Test timed out after 120 seconds"
+                result["error"] = (stderr or stdout or "Unknown error").strip()
         except Exception as e:
             result["status"] = "Fail"
             result["error"] = str(e)
+            if proc:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
         finally:
             # Always try the disk fallback when no screenshot was captured via
             # stdout — covers normal failures where the exception handler's
