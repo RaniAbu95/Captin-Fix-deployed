@@ -569,6 +569,11 @@ def generate_test_files(plan):
 def run_test_file(case_id, file_path, website=""):
     import subprocess, sys, textwrap
 
+    # Pre-compute locale values so f-string expressions below need no backslashes
+    # (backslashes inside f-string {} are a SyntaxError on Python < 3.12).
+    _israeli = _is_israeli_site(website)
+    _nav_langs = "['he-IL', 'he', 'en-US', 'en']" if _israeli else "['en-US', 'en']"
+
     # Build a self-contained runner script so Chrome runs in its own process,
     # completely isolated from the gunicorn worker (avoids "Chrome instance exited").
     runner = textwrap.dedent(f"""
@@ -584,7 +589,7 @@ def run_test_file(case_id, file_path, website=""):
         opts = Options()
         if _os.environ.get("HEADLESS", "true").lower() != "false":
             opts.add_argument("--headless=new")
-        _israeli = {repr(_is_israeli_site(website))}
+        _israeli = {_israeli}
         _base_args = [
             "--no-sandbox", "--disable-dev-shm-usage",
             "--disable-gpu", "--disable-extensions",
@@ -625,7 +630,7 @@ def run_test_file(case_id, file_path, website=""):
                     Object.defineProperty(navigator, 'mimeTypes', {{get: () => [
                         {{type:'application/pdf', suffixes:'pdf', description:''}}
                     ]}});
-                    Object.defineProperty(navigator, 'languages', {{get: () => {'[\'he-IL\', \'he\', \'en-US\', \'en\']' if _is_israeli_site(website) else '[\'en-US\', \'en\']'}}});
+                    Object.defineProperty(navigator, 'languages', {{get: () => {_nav_langs}}});
                     Object.defineProperty(navigator, 'platform', {{get: () => 'Win32'}});
                     const _origPerms = navigator.permissions.query.bind(navigator.permissions);
                     navigator.permissions.query = (p) =>
