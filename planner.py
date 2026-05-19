@@ -153,6 +153,15 @@ EXPECTED FORMAT — must be ONE of these concrete, checkable forms:
   - "The dropdown/menu with items [...] is visible"
   DO NOT write vague expectations like "the page loads correctly" or "the user sees the result".
 
+PAGE TITLE ASSERTIONS — locale safety (strictly enforced):
+  - The browser may render the site in a non-English locale (Hebrew, Arabic, etc.) depending on language settings.
+  - NEVER assert a translated word as the title keyword (e.g. NEVER "Search - Microsoft Bing" — on a Hebrew browser it becomes "חיפוש - Microsoft Bing").
+  - ALWAYS use the brand name or a part of the title that does NOT change across locales.
+  - GOOD: "The page title contains 'Bing'"  ← brand name, same in every language
+  - GOOD: "The page title contains 'Google'" ← brand name, same in every language
+  - BAD:  "The page title contains 'Search - Microsoft Bing'" ← 'Search' is translated
+  - BAD:  "The page title contains 'Home - My Site'" ← 'Home' is translated
+
 ---
 
 HTML RULES (strictly enforced):
