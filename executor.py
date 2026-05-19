@@ -612,16 +612,24 @@ def run_test_file(case_id, file_path, website=""):
         opts.add_experimental_option("prefs", {{"intl.accept_languages": _lang_pref}})
         opts.page_load_strategy = 'none'
 
-        _browserless_token = {repr(os.environ.get("BROWSERLESS_TOKEN", ""))}
-        _browserless_url = {repr(os.environ.get("BROWSERLESS_URL", "https://chrome.browserless.io"))}
+        _lt_username = {repr(os.environ.get("LT_USERNAME", ""))}
+        _lt_access_key = {repr(os.environ.get("LT_ACCESS_KEY", ""))}
 
-        if _browserless_token:
-            # Remote browser via Browserless — no local Chrome process, no OOM risk.
-            _endpoint = _browserless_url.rstrip("/") + "/webdriver?token=" + _browserless_token
-            driver = webdriver.Remote(command_executor=_endpoint, options=opts)
+        if _lt_username and _lt_access_key:
+            # Remote browser via LambdaTest — no local Chrome, no OOM on Render.
+            opts.set_capability("LT:Options", {{
+                "username": _lt_username,
+                "accessKey": _lt_access_key,
+                "build": "CaptainFix",
+                "name": {repr(case_id)},
+                "headless": True,
+                "w3c": True,
+            }})
+            _lt_endpoint = "https://" + _lt_username + ":" + _lt_access_key + "@hub.lambdatest.com/wd/hub"
+            driver = webdriver.Remote(command_executor=_lt_endpoint, options=opts)
             driver.set_script_timeout(30)
         else:
-            # Local Chrome fallback (development / no token configured).
+            # Local Chrome fallback (development / no LambdaTest credentials set).
             driver = None
             for attempt in range(3):
                 try:
