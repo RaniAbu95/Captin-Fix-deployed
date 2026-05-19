@@ -183,7 +183,8 @@ LOCATORS:
 - For non-Latin text (Hebrew etc.), match the exact visible text from the HTML.
 - For href XPath, use the FULL href value from the HTML (e.g. contains(@href, 'myactivity.google.com/privacyadvisor') — not a guessed substring).
 - For ANY clickable link that has visible text: ALWAYS use By.PARTIAL_LINK_TEXT. This is NON-NEGOTIABLE. NEVER use href, title, or class attributes to locate a link you intend to click — the rendered href often differs from the HTML snapshot (absolute vs relative, redirects, query params). Visible text is always stable.
-- NEVER use By.LINK_TEXT — it breaks on nested spans or extra whitespace. By.PARTIAL_LINK_TEXT only.
+- NAVIGATION BAR LINKS — IMPORTANT EXCEPTION: By.PARTIAL_LINK_TEXT only matches <a> anchor tags. Sites served from non-local IPs (e.g. a US cloud server) may render nav items as <li>, <span>, or <div> instead of <a>, causing PARTIAL_LINK_TEXT to time out. When the link is inside a known container (e.g. #headerMenu, .nav, #mainNav), ALWAYS use XPath scoped to that container instead: `(By.XPATH, "//*[@id='headerMenu']//*[contains(., 'כל הקטגוריות')][not(.//*[contains(., 'כל הקטגוריות')])]")`. The `[not(.//*[...])]` predicate selects the innermost element with the text, which is the one to click.
+- NEVER use By.LINK_TEXT — it breaks on nested spans or extra whitespace. By.PARTIAL_LINK_TEXT only (or XPath for nav-bar items as above).
 - NEVER write CSS selectors like a[href='...'] or a[href*='...'][title='...'] for clickable links. These fail whenever the rendered href differs from the static HTML.
 - NEVER use a[title='...'] as a selector for a clickable link — title attributes are unreliable in the rendered DOM. ALWAYS use By.PARTIAL_LINK_TEXT with the visible text instead. BAD: `(By.CSS_SELECTOR, "#headerMenu a[title='כל הקטגוריות']")` — GOOD: `(By.PARTIAL_LINK_TEXT, "כל הקטגוריות")`.
 - NEVER combine a parent container ID with a href selector (e.g. NEVER "#headerMenu a[href='/categories.aspx']"). The href is absolute in the rendered DOM even when the HTML shows a relative path.
@@ -213,6 +214,11 @@ NAVIGATION:
 - After clicking a link, verify with EC.url_contains using a fragment TAKEN FROM THE href, not from the link's visible text. (e.g. href="https://mail.google.com/..." → wait for "mail.google.com", not "gmail".)
 - NON-ASCII IN URLS: driver.current_url always returns percent-encoded URLs. NEVER pass raw non-ASCII text (Hebrew, Arabic, etc.) to EC.url_contains — it will never match. Always encode it first: `from urllib.parse import quote` then `EC.url_contains(quote("עבודה", safe=""))`. Alternatively, use a path fragment from the href that contains only ASCII characters (e.g. "/jobs/search/" instead of the Hebrew search term).
 - If the link has target="_top" or no target attribute, also assert that window_handles length is unchanged. If target="_blank" is set, skip that assertion.
+
+URL VERIFICATION AFTER NAV CLICK:
+- After clicking a nav link, NEVER hard-code the exact URL path from the HTML snapshot (e.g. NEVER `EC.url_contains("categories.aspx")`). The deployed server may be in a different region or IP, causing the site to redirect to a different URL variant (e.g. "/categories/" instead of "/categories.aspx").
+- Instead, capture the URL before the click and verify that it changed: `original_url = driver.current_url` then `WebDriverWait(driver, 20).until(lambda d: d.current_url != original_url)`.
+- If a partial keyword check is needed (to confirm you landed on the right section), use a very short stem that covers all URL variants: e.g. `EC.url_contains("categor")` covers both "categories.aspx" and "/categories/".
 
 EMPTY SUBMIT:
 - Clicking submit/search WITHOUT entering input does not navigate. Do NOT use any url_* condition. Instead wait that the form input is still visible.
