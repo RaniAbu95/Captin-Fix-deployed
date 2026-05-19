@@ -480,7 +480,7 @@ def run_test_file(case_id, file_path):
                 # Internal Selenium timeouts intentionally < subprocess
                 # wall-clock (60s) so the inner except has room to write
                 # the screenshot before SIGKILL.
-                driver.set_script_timeout(50)
+                driver.set_script_timeout(8)
                 # Comprehensive stealth: patch every property sites use to detect headless Chrome.
                 driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {{"source": '''
                     Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
@@ -667,11 +667,14 @@ def run_test_file(case_id, file_path):
             print("RESULT:Pass")
         except Exception as e:
             try:
-                driver.save_screenshot(screenshot_path)
+                _err_t = _threading.Thread(target=lambda: driver.save_screenshot(screenshot_path), daemon=True)
+                _err_t.start()
+                _err_t.join(timeout=8)
                 import base64 as _b64
-                with open(screenshot_path, "rb") as _sf:
-                    _b64data = _b64.b64encode(_sf.read()).decode("ascii")
-                print(f"SCREENSHOT_B64:{{_b64data}}")
+                if _os.path.exists(screenshot_path):
+                    with open(screenshot_path, "rb") as _sf:
+                        _b64data = _b64.b64encode(_sf.read()).decode("ascii")
+                    print(f"SCREENSHOT_B64:{{_b64data}}")
             except Exception:
                 pass
             err_msg = str(e).replace("\\n", " ").replace("\\r", "").strip()
@@ -718,7 +721,10 @@ def run_test_file(case_id, file_path):
                     _os.killpg(_os.getpgid(proc.pid), _signal.SIGKILL)
                 except Exception:
                     proc.kill()
-                stdout, stderr = proc.communicate(timeout=10)
+                try:
+                    stdout, stderr = proc.communicate(timeout=10)
+                except subprocess.TimeoutExpired:
+                    stdout, stderr = "", ""  # orphaned Chrome children keep pipe open — move on
                 result["status"] = "Fail"
                 result["error"] = "Test timed out after 120 seconds"
 

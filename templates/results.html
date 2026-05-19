@@ -327,8 +327,8 @@
           }
           const jobId = startJson.job_id;
 
-          // Step 2: poll /test-status/<job_id> every 4 seconds (max 3 min)
-          const deadline = Date.now() + 180000;
+          // Step 2: poll /test-status/<job_id> every 4 seconds (max 150s — backend kills at 120s)
+          const deadline = Date.now() + 150000;
           let elapsed = 0;
           while (Date.now() < deadline) {
             await new Promise(r => setTimeout(r, 4000));
@@ -344,7 +344,7 @@
             }
           }
           if (Date.now() >= deadline) {
-            resultDiv.innerHTML = `<div class="result-output result-fail">❌ Timed out waiting for test result after 3 minutes.</div>`;
+            resultDiv.innerHTML = `<div class="result-output result-fail">❌ Timed out waiting for test result after 150 seconds.</div>`;
           }
         } catch (e) {
           resultDiv.innerHTML = `<div class="result-output result-err">Network error: ${e.message}</div>`;
