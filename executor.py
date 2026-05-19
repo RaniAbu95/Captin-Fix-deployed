@@ -217,7 +217,13 @@ NAVIGATION:
 
 URL VERIFICATION AFTER NAV CLICK:
 - After clicking a nav link, NEVER hard-code the exact URL path from the HTML snapshot (e.g. NEVER `EC.url_contains("categories.aspx")`). The deployed server may be in a different region or IP, causing the site to redirect to a different URL variant (e.g. "/categories/" instead of "/categories.aspx").
-- Instead, capture the URL before the click and verify that it changed: `original_url = driver.current_url` then `WebDriverWait(driver, 20).until(lambda d: d.current_url != original_url)`.
+- NEW TAB WARNING: If the HTML shows `target` other than `_self` or empty (e.g. `target="self"`, `target="_blank"`, `target="main"`), the click may open a new tab and `driver.current_url` will NOT change in the original window. ALWAYS capture window handles before the click and switch to the new tab if one appears:
+    original_handles = driver.window_handles
+    original_url = driver.current_url
+    link.click()
+    WebDriverWait(driver, 20).until(lambda d: d.current_url != original_url or len(d.window_handles) > len(original_handles))
+    if len(driver.window_handles) > len(original_handles):
+        driver.switch_to.window(driver.window_handles[-1])
 - If a partial keyword check is needed (to confirm you landed on the right section), use a very short stem that covers all URL variants: e.g. `EC.url_contains("categor")` covers both "categories.aspx" and "/categories/".
 
 EMPTY SUBMIT:
