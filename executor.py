@@ -138,21 +138,24 @@ if __name__ == "__main__":
         "--disable-blink-features=AutomationControlled",
         "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
         "--window-size=1440,900",
+        "--lang=he-IL",
     ]:
         opts.add_argument(_arg)
     opts.add_experimental_option("excludeSwitches", ["enable-automation"])
     opts.add_experimental_option("useAutomationExtension", False)
+    opts.add_experimental_option("prefs", {"intl.accept_languages": "he,he-IL,en-US,en"})
     _driver = webdriver.Chrome(options=opts)
     _driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
         Object.defineProperty(navigator, \'webdriver\', {get: () => undefined});
         if (!window.chrome) window.chrome = {};
         if (!window.chrome.runtime) window.chrome.runtime = {};
     """})
+    _driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {"latitude": 31.7683, "longitude": 35.2137, "accuracy": 100})
     _driver.set_script_timeout(50)
     _orig = _driver.get
     def _pg(url):
         _orig(url)
-        time.sleep(3)
+        time.sleep(5)
     _driver.get = _pg
     try:
         run(_driver)
@@ -481,10 +484,12 @@ def run_test_file(case_id, file_path):
             "--disable-blink-features=AutomationControlled",
             "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
             "--window-size=1440,900",
+            "--lang=he-IL",
         ]:
             opts.add_argument(arg)
         opts.add_experimental_option("excludeSwitches", ["enable-automation"])
         opts.add_experimental_option("useAutomationExtension", False)
+        opts.add_experimental_option("prefs", {{"intl.accept_languages": "he,he-IL,en-US,en"}})
         opts.page_load_strategy = 'none'
 
         driver = None
@@ -516,6 +521,9 @@ def run_test_file(case_id, file_path):
                             ? Promise.resolve({{state: 'default', onchange: null}})
                             : _origPerms(p);
                 '''}})
+                driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {{
+                    "latitude": 31.7683, "longitude": 35.2137, "accuracy": 100
+                }})
                 break
             except Exception:
                 if attempt < 2:
@@ -638,7 +646,7 @@ def run_test_file(case_id, file_path):
         def _patched_get(url):
             _orig_get(url)
             # Allow WAF/Cloudflare JS challenges to run before the test starts waiting.
-            time.sleep(3)
+            time.sleep(5)
             _dismiss_cookies(driver)
             # Progress snapshot — run in a thread so a slow Chrome doesn't block navigation.
             import threading as _threading
