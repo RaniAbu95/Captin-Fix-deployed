@@ -596,6 +596,9 @@ def run_test_file(case_id, file_path, website=""):
             "--no-first-run", "--disable-background-networking",
             "--disable-sync", "--disable-default-apps",
             "--disable-blink-features=AutomationControlled",
+            "--blink-settings=imagesEnabled=false",
+            "--disable-software-rasterizer",
+            "--renderer-process-limit=1",
             "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
             "--window-size=1440,900",
         ]
@@ -764,7 +767,7 @@ def run_test_file(case_id, file_path, website=""):
         def _patched_get(url):
             _orig_get(url)
             # Allow WAF/Cloudflare JS challenges to run before the test starts waiting.
-            time.sleep(5)
+            time.sleep(3)
             _dismiss_cookies(driver)
             # Progress snapshot — run in a thread so a slow Chrome doesn't block navigation.
             import threading as _threading
@@ -830,7 +833,11 @@ def run_test_file(case_id, file_path, website=""):
                 driver.quit()
             except Exception:
                 pass
-            time.sleep(3)  # let Chrome fully exit before subprocess ends
+            # Hard-kill any lingering Chrome processes so they don't accumulate
+            # across tests and exhaust the 512MB memory limit.
+            import subprocess as _sp
+            _sp.run(["pkill", "-9", "-f", "chrome"], capture_output=True)
+            time.sleep(1)
     """)
 
     # Remove any stale screenshot from a previous run with the same case_id
