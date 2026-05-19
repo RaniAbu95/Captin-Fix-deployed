@@ -327,9 +327,10 @@
           }
           const jobId = startJson.job_id;
 
-          // Step 2: poll /test-status/<job_id> every 4 seconds (max 150s — backend kills at 120s)
-          const deadline = Date.now() + 150000;
+          // Step 2: poll /test-status/<job_id> every 4 seconds (max 200s — backend kills at 120s + generation time)
+          const deadline = Date.now() + 200000;
           let elapsed = 0;
+          let timedOut = false;
           while (Date.now() < deadline) {
             await new Promise(r => setTimeout(r, 4000));
             elapsed += 4;
@@ -344,7 +345,12 @@
             }
           }
           if (Date.now() >= deadline) {
-            resultDiv.innerHTML = `<div class="result-output result-fail">❌ Timed out waiting for test result after 150 seconds.</div>`;
+            timedOut = true;
+            const caseId = caseData.id || '';
+            const screenshotLink = caseId
+              ? ` <a href="/download/screenshot/${caseId}" class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.75rem">⬇ Screenshot</a>`
+              : '';
+            resultDiv.innerHTML = `<div class="result-output result-fail">❌ Timed out waiting for test result after 200 seconds.${screenshotLink}</div>`;
           }
         } catch (e) {
           resultDiv.innerHTML = `<div class="result-output result-err">Network error: ${e.message}</div>`;
