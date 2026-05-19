@@ -900,6 +900,10 @@ def run_test_file(case_id, file_path, website=""):
 
             time.sleep(2)
             combined = stdout + "\n" + stderr
+            import sys as _sys
+            for line in combined.splitlines():
+                if not line.startswith("SCREENSHOT_B64:"):
+                    print(f"[runner:{case_id}] {line}", flush=True, file=_sys.stderr)
             for line in combined.splitlines():
                 if line.startswith("SCREENSHOT_B64:"):
                     result["screenshot_b64"] = line[len("SCREENSHOT_B64:"):]
