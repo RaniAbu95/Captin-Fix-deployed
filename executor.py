@@ -122,14 +122,17 @@ def _chrome_options():
 # Marked as a cache breakpoint so Anthropic reuses it on every call after the first.
 _MAIN_BLOCK_TEMPLATE = '''
 if __name__ == "__main__":
-    import os, time
+    import os
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.common.by import By
+    import time
+
     opts = Options()
     opts.page_load_strategy = "none"
     if os.environ.get("HEADLESS", "true").lower() != "false":
         opts.add_argument("--headless=new")
-    for _arg in [
+    for arg in [
         "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
         "--disable-extensions", "--no-first-run", "--disable-background-networking",
         "--disable-sync", "--disable-default-apps",
@@ -138,30 +141,71 @@ if __name__ == "__main__":
         "--window-size=1440,900",
         "--lang=he-IL",
     ]:
-        opts.add_argument(_arg)
+        opts.add_argument(arg)
     opts.add_experimental_option("excludeSwitches", ["enable-automation"])
     opts.add_experimental_option("useAutomationExtension", False)
     opts.add_experimental_option("prefs", {"intl.accept_languages": "he,he-IL,en-US,en"})
-    _driver = webdriver.Chrome(options=opts)
-    _driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
-        Object.defineProperty(navigator, \'webdriver\', {get: () => undefined});
+
+    driver = webdriver.Chrome(options=opts)
+    driver.set_script_timeout(8)
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
         if (!window.chrome) window.chrome = {};
         if (!window.chrome.runtime) window.chrome.runtime = {};
+        Object.defineProperty(navigator, 'plugins', {get: () => [
+            {name:'Chrome PDF Plugin', filename:'internal-pdf-viewer', description:'Portable Document Format'},
+            {name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjai', description:''},
+            {name:'Native Client', filename:'internal-nacl-plugin', description:''}
+        ]});
+        Object.defineProperty(navigator, 'mimeTypes', {get: () => [
+            {type:'application/pdf', suffixes:'pdf', description:''}
+        ]});
+        Object.defineProperty(navigator, 'languages', {get: () => ['he-IL', 'he', 'en-US', 'en']});
+        Object.defineProperty(navigator, 'platform', {get: () => 'Win32'});
+        const _origPerms = navigator.permissions.query.bind(navigator.permissions);
+        navigator.permissions.query = (p) =>
+            p.name === 'notifications'
+                ? Promise.resolve({state: 'default', onchange: null})
+                : _origPerms(p);
     """})
-    _driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {"latitude": 31.7683, "longitude": 35.2137, "accuracy": 100})
-    _driver.set_script_timeout(50)
-    _orig = _driver.get
-    def _pg(url):
-        _orig(url)
+    driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {
+        "latitude": 31.7683, "longitude": 35.2137, "accuracy": 100
+    })
+
+    _orig_get = driver.get
+    def _patched_get(url):
+        _orig_get(url)
         time.sleep(5)
-    _driver.get = _pg
+        for sel in ["#CybotCookiebotDialogBodyButtonClose", ".cky-btn-accept",
+                    "[id*=\'accept-all\']", "[id*=\'acceptAll\']"]:
+            try:
+                els = driver.find_elements(By.CSS_SELECTOR, sel)
+                for el in els:
+                    if el.is_displayed() and el.is_enabled():
+                        el.click()
+                        return
+            except Exception:
+                pass
+        for xpath in [
+            "//*[(self::button or self::a or self::span)][contains(.,\'אישור\')]",
+            "//*[(self::button or self::a or self::span)][contains(.,\'קבל הכל\')]",
+            "//*[(self::button or self::a or self::span)][normalize-space()=\'\xd7\']",
+        ]:
+            try:
+                els = driver.find_elements(By.XPATH, xpath)
+                for el in els:
+                    if el.is_displayed() and el.is_enabled():
+                        el.click()
+                        return
+            except Exception:
+                pass
+    driver.get = _patched_get
+
     try:
-        run(_driver)
+        run(driver)
         print("RESULT: Pass")
-    except Exception as _e:
-        import traceback; traceback.print_exc()
     finally:
-        _driver.quit()
+        driver.quit()
 '''
 
 SYSTEM_PROMPT_TEMPLATE = """You are a senior QA automation engineer writing a Selenium test for a website deployed on a cloud server (Render.com). Pages may be slow to load — use generous timeouts accordingly.
@@ -170,17 +214,20 @@ SYSTEM_PROMPT_TEMPLATE = """You are a senior QA automation engineer writing a Se
 OUTPUT FORMAT (follow exactly)
 ═══════════════════════════════════════
 1. Module-level imports only: selenium, WebDriverWait, By, EC, time. Add ActionChains or Keys only if the test needs them.
-2. A single top-level try/except/finally block. NO functions, NO classes, NO if __name__:
-   try:
-       driver.get("{website}")
-       # all steps here
-   except Exception as e:
-       driver.save_screenshot(f"error_{{int(time.time())}}.png")
-       raise
-   finally:
-       pass
-3. `driver` is already in scope — NEVER call webdriver.Chrome(), driver.quit(), or driver.close().
-4. Call driver.get("{website}") exactly ONCE, as the first statement in the try block.
+2. Wrap ALL test logic in a single function: def run(driver):
+3. `driver` is provided by the runner — NEVER call webdriver.Chrome(), driver.quit(), or driver.close().
+4. Call driver.get("{website}") exactly ONCE, as the FIRST line inside run(driver).
+5. Do NOT add an if __name__ == "__main__": block — it is appended automatically.
+Required structure (follow exactly):
+   def run(driver):
+       try:
+           driver.get("{website}")
+           # all steps here
+       except Exception as e:
+           driver.save_screenshot(f"error_{{int(time.time())}}.png")
+           raise
+       finally:
+           pass
 
 ═══════════════════════════════════════
 STEP FIDELITY
@@ -404,10 +451,10 @@ def _fix_syntax(code: str, llm, cached_system, case_id: str):
     def _check(c):
         if not c:
             return "empty code"
-        if "def run(" in c or "def run (" in c:
-            return "unexpected def run() — code must be a flat script"
+        if "def run(" not in c and "def run (" not in c:
+            return "missing def run(driver): — code must define a run() function"
         if "if __name__" in c:
-            return "unexpected if __name__ block — code must be a flat script"
+            return "unexpected if __name__ block — it is appended automatically, do not include it"
         try:
             compile(c, f"{case_id}.py", "exec")
         except SyntaxError as e:
@@ -421,8 +468,8 @@ def _fix_syntax(code: str, llm, cached_system, case_id: str):
     print(f"[syntax] {case_id} invalid ({error}) — asking Claude to fix.")
     fix_prompt = HumanMessage(content=(
         f"The following Python script is invalid ({error}):\n\n```python\n{code}\n```\n\n"
-        f"Return ONLY the corrected Python script. Requirements: flat script (no def, no class, no if __name__), "
-        f"starts with imports then a single try/except/finally block, uses `driver` variable already in scope. "
+        f"Return ONLY the corrected Python script. Requirements: define a single def run(driver): function "
+        f"containing a try/except/finally block; driver is provided by caller; no if __name__ block. "
         f"No markdown fences, no explanation."
     ))
     try:
@@ -473,10 +520,9 @@ def generate_test_files(plan):
         response = llm.invoke(messages)
         code = _strip_code_fences(response.content.strip())
 
-        # Strip any def run() / __main__ block Claude added despite instructions.
-        for marker in ("def run(", "if __name__"):
-            if marker in code:
-                code = code[:code.index(marker)].rstrip()
+        # Strip any __main__ block Claude added despite instructions (we append our own).
+        if "if __name__" in code:
+            code = code[:code.index("if __name__")].rstrip()
 
         # Validate structure + syntax; ask Claude to fix once if broken.
         code = _fix_syntax(code, llm, cached_system, case_id)
@@ -486,7 +532,7 @@ def generate_test_files(plan):
 
         file_path = os.path.join(OUTPUT_DIR, f"{case_id}.py")
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(code)
+            f.write(code + "\n" + _MAIN_BLOCK_TEMPLATE)
 
         test_files.append((case_id, file_path))
 
@@ -722,6 +768,7 @@ def run_test_file(case_id, file_path):
             code = open({repr(file_path)}).read()
             _ns = {{'__name__': 'captainfix_runner', 'driver': driver}}
             exec(code, _ns)
+            _ns['run'](_ns['driver'])
             print("RESULT:Pass")
         except Exception as e:
             try:
