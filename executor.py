@@ -615,7 +615,7 @@ def run_test_file(case_id, file_path, website=""):
         _lt_username = {repr(os.environ.get("LT_USERNAME", ""))}
         _lt_access_key = {repr(os.environ.get("LT_ACCESS_KEY", ""))}
 
-        print(f"[driver] LT_USERNAME={'set' if _lt_username else 'MISSING'} LT_ACCESS_KEY={'set' if _lt_access_key else 'MISSING'}", flush=True)
+        print("[driver] LT_USERNAME=" + ("set" if _lt_username else "MISSING") + " LT_ACCESS_KEY=" + ("set" if _lt_access_key else "MISSING"), flush=True)
 
         if _lt_username and _lt_access_key:
             print("[driver] Using LambdaTest remote browser", flush=True)
