@@ -235,7 +235,7 @@ def run_test():
                 return
             with open(file_path, 'r', encoding='utf-8') as f:
                 code = f.read()
-            result = run_test_file(case_id, file_path)
+            result = run_test_file(case_id, file_path, website=website)
             with _jobs_lock:
                 _jobs[job_id] = {"state": "done", "code": code, "result": result}
         except Exception as e:

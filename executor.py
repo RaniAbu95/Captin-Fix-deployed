@@ -120,7 +120,25 @@ def _chrome_options():
 
 # System portion — static across all cases in a run (instructions, website, HTML).
 # Marked as a cache breakpoint so Anthropic reuses it on every call after the first.
-_MAIN_BLOCK_TEMPLATE = '''
+def _make_main_block(website: str) -> str:
+    """Return the if __name__ block tailored to the website's locale."""
+    israeli = _is_israeli_site(website)
+    lang_arg = '        "--lang=he-IL",' if israeli else ""
+    lang_pref = (
+        '    opts.add_experimental_option("prefs", {"intl.accept_languages": "he,he-IL,en-US,en"})'
+        if israeli else
+        '    opts.add_experimental_option("prefs", {"intl.accept_languages": "en-US,en"})'
+    )
+    nav_languages = (
+        "['he-IL', 'he', 'en-US', 'en']" if israeli else "['en-US', 'en']"
+    )
+    geolocation = (
+        '''    driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {
+        "latitude": 31.7683, "longitude": 35.2137, "accuracy": 100
+    })'''
+        if israeli else ""
+    )
+    return f'''
 if __name__ == "__main__":
     import os
     from selenium import webdriver
@@ -139,38 +157,36 @@ if __name__ == "__main__":
         "--disable-blink-features=AutomationControlled",
         "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
         "--window-size=1440,900",
-        "--lang=he-IL",
+{lang_arg}
     ]:
         opts.add_argument(arg)
     opts.add_experimental_option("excludeSwitches", ["enable-automation"])
     opts.add_experimental_option("useAutomationExtension", False)
-    opts.add_experimental_option("prefs", {"intl.accept_languages": "he,he-IL,en-US,en"})
+{lang_pref}
 
     driver = webdriver.Chrome(options=opts)
     driver.set_script_timeout(8)
-    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
-        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-        if (!window.chrome) window.chrome = {};
-        if (!window.chrome.runtime) window.chrome.runtime = {};
-        Object.defineProperty(navigator, 'plugins', {get: () => [
-            {name:'Chrome PDF Plugin', filename:'internal-pdf-viewer', description:'Portable Document Format'},
-            {name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjai', description:''},
-            {name:'Native Client', filename:'internal-nacl-plugin', description:''}
-        ]});
-        Object.defineProperty(navigator, 'mimeTypes', {get: () => [
-            {type:'application/pdf', suffixes:'pdf', description:''}
-        ]});
-        Object.defineProperty(navigator, 'languages', {get: () => ['he-IL', 'he', 'en-US', 'en']});
-        Object.defineProperty(navigator, 'platform', {get: () => 'Win32'});
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {{"source": """
+        Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
+        if (!window.chrome) window.chrome = {{}};
+        if (!window.chrome.runtime) window.chrome.runtime = {{}};
+        Object.defineProperty(navigator, 'plugins', {{get: () => [
+            {{name:'Chrome PDF Plugin', filename:'internal-pdf-viewer', description:'Portable Document Format'}},
+            {{name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjai', description:''}},
+            {{name:'Native Client', filename:'internal-nacl-plugin', description:''}}
+        ]}});
+        Object.defineProperty(navigator, 'mimeTypes', {{get: () => [
+            {{type:'application/pdf', suffixes:'pdf', description:''}}
+        ]}});
+        Object.defineProperty(navigator, 'languages', {{get: () => {nav_languages}}});
+        Object.defineProperty(navigator, 'platform', {{get: () => 'Win32'}});
         const _origPerms = navigator.permissions.query.bind(navigator.permissions);
         navigator.permissions.query = (p) =>
             p.name === 'notifications'
-                ? Promise.resolve({state: 'default', onchange: null})
+                ? Promise.resolve({{state: 'default', onchange: null}})
                 : _origPerms(p);
-    """})
-    driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {
-        "latitude": 31.7683, "longitude": 35.2137, "accuracy": 100
-    })
+    """}})
+{geolocation}
 
     _orig_get = driver.get
     def _patched_get(url):
@@ -187,9 +203,9 @@ if __name__ == "__main__":
             except Exception:
                 pass
         for xpath in [
-            "//*[(self::button or self::a or self::span)][contains(.,\'אישור\')]",
-            "//*[(self::button or self::a or self::span)][contains(.,\'קבל הכל\')]",
-            "//*[(self::button or self::a or self::span)][normalize-space()=\'\xd7\']",
+            "//*[(self::button or self::a or self::span)][contains(.,\'\\u05d0\\u05d9\\u05e9\\u05d5\\u05e8\')]",
+            "//*[(self::button or self::a or self::span)][contains(.,\'\\u05e7\\u05d1\\u05dc \\u05d4\\u05db\\u05dc\')]",
+            "//*[(self::button or self::a or self::span)][normalize-space()=\'\\xd7\']",
         ]:
             try:
                 els = driver.find_elements(By.XPATH, xpath)
@@ -378,11 +394,20 @@ def _clean_html(html: str, max_chars: int = 30000) -> str:
     html = re.sub(r'\s+', ' ', html).strip()
     return html[:max_chars]
 
+def _is_israeli_site(url: str) -> bool:
+    from urllib.parse import urlparse
+    host = urlparse(url).hostname or ""
+    return host.endswith(".il")
+
 def extract_full_html(url: str) -> str:
     if url in _html_cache:
         return _html_cache[url]
     import requests as _requests
-    resp = _requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+    lang = "he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7" if _is_israeli_site(url) else "en-US,en;q=0.9"
+    resp = _requests.get(url, timeout=15, headers={
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+        "Accept-Language": lang,
+    })
     resp.raise_for_status()
     html = _clean_html(resp.text)
     _html_cache[url] = html
@@ -532,7 +557,7 @@ def generate_test_files(plan):
 
         file_path = os.path.join(OUTPUT_DIR, f"{case_id}.py")
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(code + "\n" + _MAIN_BLOCK_TEMPLATE)
+            f.write(code + "\n" + _make_main_block(website))
 
         test_files.append((case_id, file_path))
 
@@ -541,7 +566,7 @@ def generate_test_files(plan):
 # -----------------------------
 # 3. Run generated Selenium tests
 # -----------------------------
-def run_test_file(case_id, file_path):
+def run_test_file(case_id, file_path, website=""):
     import subprocess, sys, textwrap
 
     # Build a self-contained runner script so Chrome runs in its own process,
@@ -559,7 +584,8 @@ def run_test_file(case_id, file_path):
         opts = Options()
         if _os.environ.get("HEADLESS", "true").lower() != "false":
             opts.add_argument("--headless=new")
-        for arg in [
+        _israeli = {repr(_is_israeli_site(website))}
+        _base_args = [
             "--no-sandbox", "--disable-dev-shm-usage",
             "--disable-gpu", "--disable-extensions",
             "--no-first-run", "--disable-background-networking",
@@ -567,12 +593,15 @@ def run_test_file(case_id, file_path):
             "--disable-blink-features=AutomationControlled",
             "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
             "--window-size=1440,900",
-            "--lang=he-IL",
-        ]:
+        ]
+        if _israeli:
+            _base_args.append("--lang=he-IL")
+        for arg in _base_args:
             opts.add_argument(arg)
         opts.add_experimental_option("excludeSwitches", ["enable-automation"])
         opts.add_experimental_option("useAutomationExtension", False)
-        opts.add_experimental_option("prefs", {{"intl.accept_languages": "he,he-IL,en-US,en"}})
+        _lang_pref = "he,he-IL,en-US,en" if _israeli else "en-US,en"
+        opts.add_experimental_option("prefs", {{"intl.accept_languages": _lang_pref}})
         opts.page_load_strategy = 'none'
 
         driver = None
@@ -596,7 +625,7 @@ def run_test_file(case_id, file_path):
                     Object.defineProperty(navigator, 'mimeTypes', {{get: () => [
                         {{type:'application/pdf', suffixes:'pdf', description:''}}
                     ]}});
-                    Object.defineProperty(navigator, 'languages', {{get: () => ['he-IL', 'he', 'en-US', 'en']}});
+                    Object.defineProperty(navigator, 'languages', {{get: () => {'[\'he-IL\', \'he\', \'en-US\', \'en\']' if _is_israeli_site(website) else '[\'en-US\', \'en\']'}}});
                     Object.defineProperty(navigator, 'platform', {{get: () => 'Win32'}});
                     const _origPerms = navigator.permissions.query.bind(navigator.permissions);
                     navigator.permissions.query = (p) =>
@@ -604,9 +633,10 @@ def run_test_file(case_id, file_path):
                             ? Promise.resolve({{state: 'default', onchange: null}})
                             : _origPerms(p);
                 '''}})
-                driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {{
-                    "latitude": 31.7683, "longitude": 35.2137, "accuracy": 100
-                }})
+                if _israeli:
+                    driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {{
+                        "latitude": 31.7683, "longitude": 35.2137, "accuracy": 100
+                    }})
                 break
             except Exception:
                 if attempt < 2:
@@ -877,12 +907,13 @@ def main():
 
     # 1. Generate Selenium test files from AI
     test_files = generate_test_files(plan)
+    website = plan.get("website", "")
 
     # 2. Execute all test files and collect results
     results = []
     for case_id, file_path in test_files:
         print(f"▶ Running test {case_id} ...")
-        result = run_test_file(case_id, file_path)
+        result = run_test_file(case_id, file_path, website=website)
         results.append(result)
         print(f"✔ {case_id} → {result['status']}")
 
