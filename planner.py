@@ -103,58 +103,98 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     )
 
     template = ChatPromptTemplate.from_template("""
-        You are an expert QA engineer.
-        Here is the FULL HTML of the target website:
-        {page_html}
+You are an expert QA automation engineer. Your job is to generate a structured, logical, and fully verifiable test plan based ONLY on the HTML provided below.
 
-        Generate a structured test plan in JSON with:
-        - Suites: Smoke, Navigation, Forms
-        - Each test case must include: id, suite, steps, expected, priority, negative (boolean).
-        - Generate a total of EXACTLY {num_tests} test cases — no more, no fewer.
-        - Keep steps concise — maximum 4 steps per test case.
-        - Make steps clear and actionable (like clicking buttons, filling inputs).
+HTML OF THE TARGET PAGE:
+{page_html}
 
-        HTML RULES (strictly enforced):
-        - Base EVERY test case ONLY on elements visible in the provided HTML above.
-        - Before writing a step, verify the element (button, link, input, image) exists in the HTML.
-        - Do NOT use prior knowledge about the website — ignore anything you know about it from training.
-        - Do NOT reference id="hplogo" or any element ID/class/text that does not appear in the HTML.
-        - If an element is not in the HTML, do not write a test step about it.
-        - NEVER assume a link opens in a new tab unless the HTML explicitly shows target="_blank".
-          If the HTML shows target="_top" or no target attribute, the link opens in the SAME tab — say so in the expected result.
+---
 
-        NAVIGATION STEP RULES:
-        - Every test case that clicks a link MUST include a final step that verifies the destination URL.
-        - The verification step must state the exact domain or path fragment taken from the link's href attribute in the HTML.
-        - NEVER use the link's visible text as the URL fragment — always use the href value.
-        - Example: if the HTML shows <a href="https://mail.google.com/mail/...">Gmail</a>,
-          the verification step must say: "Verify the page URL contains 'mail.google.com'".
-        - Example: if the HTML shows <a href="/imghp?hl=en">Images</a>,
-          the verification step must say: "Verify the page URL contains 'imghp'".
-        - This URL verification step counts toward the 4-step maximum.
+OUTPUT FORMAT
+Return only valid JSON. Each test case must have:
+  "id"       — unique string, e.g. "TC001"
+  "suite"    — one of: Smoke | Navigation | Interaction
+  "steps"    — ordered list of 3–6 steps (see STEP FORMAT below)
+  "expected" — a single, concrete, machine-checkable outcome (see EXPECTED FORMAT below)
+  "priority" — High | Medium | Low
+  "negative" — true only for intentional error/failure tests (see NEGATIVE TESTS)
 
-        UNIQUENESS RULES (strictly enforced):
-        - Every test case must test a DIFFERENT feature, interaction, or user flow.
-        - No two test cases may have the same steps or the same expected result, even if worded differently.
-        - Do NOT generate variations of the same action (e.g. two test cases that both search for a term and click Google Search are duplicates — generate only ONE).
-        - Before finalising each test case, check it is not already covered by a previous one.
-        - If you run out of distinct features to test, reduce the number of test cases rather than creating duplicates.
+Generate EXACTLY {num_tests} test cases.
 
-        NEGATIVE TEST RULES:
-        - A negative test is a test that deliberately tries to crash the website or force it to
-          return an error message (e.g. HTTP 404/500, validation error, "Something went wrong",
-          server-side error page, unhandled exception).
-        - Examples: submitting a form with missing required fields so the server shows a
-          validation error; navigating to a URL that does not exist to get a 404;
-          entering malformed or oversized input that triggers a server error.
-        - ONLY include negative tests when the HTML contains functionality that can realistically
-          produce a crash or an error response (forms, search inputs, login fields, etc.).
-        - If the page has NO such functionality, set "negative": false on EVERY test case.
-        - When negative tests ARE applicable, include at most {max_negative} of them.
-        - Set "negative": true only on cases that fit the crash/error definition above.
-        - ALL other test cases must have "negative": false.
+---
 
-        Return only valid JSON.
+STEP FORMAT — each step must be a complete sentence that states:
+  1. The ACTION (navigate, click, type, hover, submit)
+  2. The TARGET — the exact visible text, label, or HTML attribute that identifies the element
+  3. The OUTCOME to observe immediately after (optional but preferred)
+
+Good step examples:
+  - "Navigate to the website homepage"
+  - "Click the link with visible text 'Sign In'"
+  - "Type 'test@example.com' into the email input field"
+  - "Click the submit button labelled 'Search'"
+  - "Verify the page URL contains the path from the href attribute of the clicked link"
+  - "Verify the heading 'Results' is visible on the page"
+
+Bad step examples (too vague — NEVER write these):
+  - "Click the menu"                ← which menu? which element?
+  - "Check the page"                ← check what exactly?
+  - "Navigate somewhere"            ← where?
+  - "Verify it works"               ← verify what specifically?
+
+---
+
+EXPECTED FORMAT — must be ONE of these concrete, checkable forms:
+  - "The page URL contains '<fragment from href>'"
+  - "The element with text '<text>' is visible on the page"
+  - "The page title contains '<keyword>'"
+  - "A validation error message is displayed"
+  - "The form field '<name>' shows an error state"
+  - "The dropdown/menu with items [...] is visible"
+  DO NOT write vague expectations like "the page loads correctly" or "the user sees the result".
+
+---
+
+HTML RULES (strictly enforced):
+- Base EVERY test case ONLY on elements that actually appear in the provided HTML.
+- Before writing a step, confirm the element (button, link, input, heading) exists in the HTML.
+- Do NOT use prior knowledge about the website — ignore anything you know from training.
+- If an element does not appear in the HTML, do not write a step about it.
+- NEVER assume a link opens in a new tab unless the HTML explicitly shows target="_blank".
+
+---
+
+NAVIGATION RULES:
+- Every test case that clicks a navigation link MUST end with a URL verification step.
+- The URL fragment MUST come from the href attribute in the HTML — never from the link's visible text.
+  Example: HTML shows <a href="/about-us">About</a> → step says "Verify the URL contains '/about-us'"
+- If the href is an external domain, verify that domain: <a href="https://shop.example.com/"> → "Verify the URL contains 'shop.example.com'"
+
+---
+
+UNIQUENESS RULES (strictly enforced):
+- Every test case must test a DIFFERENT feature, interaction, or user flow.
+- No two test cases may duplicate steps or expected results, even if worded differently.
+- If you run out of distinct features, generate fewer test cases rather than duplicating.
+
+---
+
+SUITE ASSIGNMENT:
+- Smoke     — critical page-load and core element visibility checks (does the page open? are key elements present?)
+- Navigation — clicking links and menu items, verifying URL changes or new pages
+- Interaction — forms, search inputs, buttons that trigger actions, hover menus, dropdowns
+
+---
+
+NEGATIVE TESTS:
+- A negative test deliberately triggers an error response: validation error, 404, server error, empty required field.
+- Only write negative tests when the HTML contains inputs, forms, or search fields that can realistically fail.
+- If no such functionality exists, set "negative": false on every case.
+- Maximum negative tests allowed: {max_negative}
+
+---
+
+Return only valid JSON. No markdown, no explanation, no code fences.
     """)
 
     prompt = template.format_messages(page_html=page_html, num_tests=num_tests,
