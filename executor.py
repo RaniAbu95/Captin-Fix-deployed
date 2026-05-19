@@ -586,8 +586,9 @@ def run_test_file(case_id, file_path, website=""):
         import time
 
         import os as _os
+        _using_lambdatest = bool({repr(os.environ.get("LT_USERNAME", ""))} and {repr(os.environ.get("LT_ACCESS_KEY", ""))})
         opts = Options()
-        if _os.environ.get("HEADLESS", "true").lower() != "false":
+        if not _using_lambdatest and _os.environ.get("HEADLESS", "true").lower() != "false":
             opts.add_argument("--headless=new")
         _israeli = {_israeli}
         _base_args = [
@@ -625,7 +626,7 @@ def run_test_file(case_id, file_path, website=""):
                 "accessKey": _lt_access_key,
                 "build": "CaptainFix",
                 "name": {repr(case_id)},
-                "headless": True,
+                "headless": False,
                 "w3c": True,
             }})
             _lt_endpoint = "https://" + _lt_username + ":" + _lt_access_key + "@hub.lambdatest.com/wd/hub"
