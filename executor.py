@@ -612,45 +612,57 @@ def run_test_file(case_id, file_path, website=""):
         opts.add_experimental_option("prefs", {{"intl.accept_languages": _lang_pref}})
         opts.page_load_strategy = 'none'
 
-        driver = None
-        for attempt in range(3):
-            try:
-                driver = webdriver.Chrome(options=opts)
-                # Internal Selenium timeouts intentionally < subprocess
-                # wall-clock (60s) so the inner except has room to write
-                # the screenshot before SIGKILL.
-                driver.set_script_timeout(8)
-                # Comprehensive stealth: patch every property sites use to detect headless Chrome.
-                driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {{"source": '''
-                    Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
-                    if (!window.chrome) window.chrome = {{}};
-                    if (!window.chrome.runtime) window.chrome.runtime = {{}};
-                    Object.defineProperty(navigator, 'plugins', {{get: () => [
-                        {{name:'Chrome PDF Plugin', filename:'internal-pdf-viewer', description:'Portable Document Format'}},
-                        {{name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjai', description:''}},
-                        {{name:'Native Client', filename:'internal-nacl-plugin', description:''}}
-                    ]}});
-                    Object.defineProperty(navigator, 'mimeTypes', {{get: () => [
-                        {{type:'application/pdf', suffixes:'pdf', description:''}}
-                    ]}});
-                    Object.defineProperty(navigator, 'languages', {{get: () => {_nav_langs}}});
-                    Object.defineProperty(navigator, 'platform', {{get: () => 'Win32'}});
-                    const _origPerms = navigator.permissions.query.bind(navigator.permissions);
-                    navigator.permissions.query = (p) =>
-                        p.name === 'notifications'
-                            ? Promise.resolve({{state: 'default', onchange: null}})
-                            : _origPerms(p);
-                '''}})
-                if _israeli:
-                    driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {{
-                        "latitude": 31.7683, "longitude": 35.2137, "accuracy": 100
-                    }})
-                break
-            except Exception:
-                if attempt < 2:
-                    time.sleep(5)
-                else:
-                    raise
+        _browserless_token = {repr(os.environ.get("BROWSERLESS_TOKEN", ""))}
+        _browserless_url = {repr(os.environ.get("BROWSERLESS_URL", "https://chrome.browserless.io"))}
+
+        if _browserless_token:
+            # Remote browser via Browserless — no local Chrome process, no OOM risk.
+            _endpoint = _browserless_url.rstrip("/") + "/webdriver?token=" + _browserless_token
+            driver = webdriver.Remote(command_executor=_endpoint, options=opts)
+            driver.set_script_timeout(30)
+        else:
+            # Local Chrome fallback (development / no token configured).
+            driver = None
+            for attempt in range(3):
+                try:
+                    driver = webdriver.Chrome(options=opts)
+                    driver.set_script_timeout(8)
+                    break
+                except Exception:
+                    if attempt < 2:
+                        time.sleep(5)
+                    else:
+                        raise
+
+        # Stealth CDP patches — supported by both local Chrome and Browserless.
+        _cdp_stealth = '''
+            Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
+            if (!window.chrome) window.chrome = {{}};
+            if (!window.chrome.runtime) window.chrome.runtime = {{}};
+            Object.defineProperty(navigator, 'plugins', {{get: () => [
+                {{name:'Chrome PDF Plugin', filename:'internal-pdf-viewer', description:'Portable Document Format'}},
+                {{name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjai', description:''}},
+                {{name:'Native Client', filename:'internal-nacl-plugin', description:''}}
+            ]}});
+            Object.defineProperty(navigator, 'mimeTypes', {{get: () => [
+                {{type:'application/pdf', suffixes:'pdf', description:''}}
+            ]}});
+            Object.defineProperty(navigator, 'languages', {{get: () => {_nav_langs}}});
+            Object.defineProperty(navigator, 'platform', {{get: () => 'Win32'}});
+            const _origPerms = navigator.permissions.query.bind(navigator.permissions);
+            navigator.permissions.query = (p) =>
+                p.name === 'notifications'
+                    ? Promise.resolve({{state: 'default', onchange: null}})
+                    : _origPerms(p);
+        '''
+        try:
+            driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {{"source": _cdp_stealth}})
+            if _israeli:
+                driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {{
+                    "latitude": 31.7683, "longitude": 35.2137, "accuracy": 100
+                }})
+        except Exception:
+            pass  # Remote drivers may not support CDP; stealth is best-effort
 
         # Auto-dismiss cookie banners after every navigation so tests don't
         # have to know about them. Covers OneTrust, TrustArc, and generic
