@@ -198,10 +198,12 @@ TIMEOUTS — DEPLOYED SITE (important)
 ═══════════════════════════════════════
 PAGE LOAD CHECK
 ═══════════════════════════════════════
-- After driver.get(), verify the page loaded with ONE WebDriverWait using EC.presence_of_element_located.
-- Use a broad structural selector that is always present: "header", "nav", "main", or a class pattern like "[class*='header']".
-- NEVER use a hard-coded element ID as the page-load signal — it may not exist on the live site.
-- NEVER add redundant waits for wrapper/container divs after the page-load check.
+- After driver.get(), ALWAYS verify the page is ready with this exact JS readyState check — it works on every site regardless of DOM structure:
+    WebDriverWait(driver, 30).until(
+        lambda d: d.execute_script("return document.readyState") in ("interactive", "complete")
+    )
+- This is the ONLY guaranteed page-load check. NEVER use EC.presence_of_element_located on "header", "nav", "main", or any structural element as the primary page-load signal — these elements may not exist or may be injected late by JavaScript.
+- After the readyState check passes, you may add ONE additional wait for a specific element that the test actually needs (e.g. a nav link before clicking it). Do not add redundant waits.
 
 ═══════════════════════════════════════
 LOCATORS — how to find elements
