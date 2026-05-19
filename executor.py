@@ -169,12 +169,20 @@ if __name__ == "__main__":
 SYSTEM_PROMPT_TEMPLATE = """You are a senior QA automation engineer. Generate ONE Python Selenium script implementing all steps of this test case.
 
 OUTPUT FORMAT — follow exactly:
-1. Module-level imports (selenium, WebDriverWait, By, EC, time; add ActionChains or Keys only if needed).
-2. A single `def run(driver):` function containing ALL test steps. No try/except inside run() — let exceptions propagate naturally.
-3. STOP after the closing line of def run(). Do NOT write an if __name__ == "__main__": block — it is appended automatically by the backend.
+1. Module-level imports only (selenium, WebDriverWait, By, EC, time; add ActionChains or Keys only if needed).
+2. Then a single top-level try/except/finally block — NO function definition, NO class, NO if __name__ block:
+   try:
+       driver.get("{website}")
+       # all test steps here
+   except Exception as e:
+       driver.save_screenshot(f"error_{{int(time.time())}}.png")
+       raise
+   finally:
+       pass
+3. The variable `driver` is already available — do NOT create a new WebDriver instance.
 
-The backend calls run(driver) with an already-configured driver. NEVER call webdriver.Chrome(), driver.quit(), or driver.close() inside run().
-- Call driver.get("{website}") exactly ONCE at the start of run().
+NEVER define a run() function. NEVER write def, class, or if __name__. NEVER call webdriver.Chrome(), driver.quit(), or driver.close().
+- Call driver.get("{website}") exactly ONCE, as the first statement inside the try block.
 
 STEP FIDELITY (most important):
 - The Steps list is authoritative. Implement EXACTLY those steps, in order, with their stated intent.
@@ -263,8 +271,8 @@ VERIFY-LOAD ECONOMY:
       WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#page-header-navigation")))
 
 ERROR HANDLING:
-- Wrap the entire test body in try/except.
-- On any exception, save a screenshot to "error_{{int(time.time())}}.png", then re-raise. Do not swallow exceptions.
+- The entire test body is already inside the top-level try block (see OUTPUT FORMAT).
+- In the except block: save a screenshot to "error_{{int(time.time())}}.png", then re-raise. Never swallow exceptions.
 
 BROWSER MODE: {headless}
 - HTML below was fetched using {headless}. Only use locators that exist in this HTML.
@@ -366,8 +374,12 @@ def _fix_syntax(code: str, llm, cached_system, case_id: str):
     from langchain_core.messages import HumanMessage
 
     def _check(c):
-        if not c or "def run(" not in c and "def run (" not in c:
-            return "missing def run(driver) function"
+        if not c:
+            return "empty code"
+        if "def run(" in c or "def run (" in c:
+            return "unexpected def run() — code must be a flat script"
+        if "if __name__" in c:
+            return "unexpected if __name__ block — code must be a flat script"
         try:
             compile(c, f"{case_id}.py", "exec")
         except SyntaxError as e:
@@ -381,7 +393,9 @@ def _fix_syntax(code: str, llm, cached_system, case_id: str):
     print(f"[syntax] {case_id} invalid ({error}) — asking Claude to fix.")
     fix_prompt = HumanMessage(content=(
         f"The following Python script is invalid ({error}):\n\n```python\n{code}\n```\n\n"
-        f"Return ONLY the corrected Python script with no explanation and no markdown fences."
+        f"Return ONLY the corrected Python script. Requirements: flat script (no def, no class, no if __name__), "
+        f"starts with imports then a single try/except/finally block, uses `driver` variable already in scope. "
+        f"No markdown fences, no explanation."
     ))
     try:
         print(f"[anthropic] _fix_syntax.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
@@ -431,14 +445,10 @@ def generate_test_files(plan):
         response = llm.invoke(messages)
         code = _strip_code_fences(response.content.strip())
 
-        # Strip any __main__ block Claude added despite instructions — we append
-        # the correct one below so the standalone runner is always complete.
-        if "if __name__" in code:
-            code = code[:code.index("if __name__")].rstrip()
-
-        # Always append the canonical __main__ block so the file works both
-        # as a standalone script and via exec() in the subprocess runner.
-        code = code + "\n\n" + _MAIN_BLOCK_TEMPLATE
+        # Strip any def run() / __main__ block Claude added despite instructions.
+        for marker in ("def run(", "if __name__"):
+            if marker in code:
+                code = code[:code.index(marker)].rstrip()
 
         # Validate structure + syntax; ask Claude to fix once if broken.
         code = _fix_syntax(code, llm, cached_system, case_id)
@@ -683,9 +693,8 @@ def run_test_file(case_id, file_path):
 
         try:
             code = open({repr(file_path)}).read()
-            _ns = {{'__name__': 'captainfix_runner'}}
+            _ns = {{'__name__': 'captainfix_runner', 'driver': driver}}
             exec(code, _ns)
-            _ns['run'](driver)
             print("RESULT:Pass")
         except Exception as e:
             try:
