@@ -355,6 +355,13 @@ FORM / SEARCH SUBMIT
 - Clicking submit WITHOUT input does not navigate. Do NOT use any url_* condition. Wait for the form input to still be visible.
 
 ═══════════════════════════════════════
+PACING — VIDEO CLARITY
+═══════════════════════════════════════
+- After every user interaction (click, send_keys, submit), add time.sleep(1.5) so the video recording shows each step clearly.
+- After a navigation that changes the URL, add time.sleep(2) instead.
+- Do NOT add sleeps inside WebDriverWait lambdas or polling loops.
+
+═══════════════════════════════════════
 COOKIE BANNERS
 ═══════════════════════════════════════
 - The test runner auto-dismisses cookie/consent banners after every driver.get(). Do NOT write code for this.
@@ -597,12 +604,11 @@ def run_test_file(case_id, file_path, website=""):
             "--no-first-run", "--disable-background-networking",
             "--disable-sync", "--disable-default-apps",
             "--disable-blink-features=AutomationControlled",
-            "--blink-settings=imagesEnabled=false",
-            "--disable-software-rasterizer",
-            "--renderer-process-limit=1",
             "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
             "--window-size=1440,900",
         ]
+        if not _using_lambdatest:
+            _base_args += ["--blink-settings=imagesEnabled=false", "--disable-software-rasterizer", "--renderer-process-limit=1"]
         if _israeli:
             _base_args.append("--lang=he-IL")
         for arg in _base_args:
