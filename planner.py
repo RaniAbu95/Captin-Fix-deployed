@@ -153,6 +153,14 @@ EXPECTED FORMAT — must be ONE of these concrete, checkable forms:
   - "The dropdown/menu with items [...] is visible"
   DO NOT write vague expectations like "the page loads correctly" or "the user sees the result".
 
+ELEMENT AVAILABILITY — strictly enforced:
+  - Only test elements that are ALWAYS present regardless of: login state, geographic region, server IP, or A/B test.
+  - NEVER test elements that require the user to be logged in (e.g. account menus, rewards widgets, personalized content).
+  - NEVER test elements that are region-specific or only shown to certain IP ranges (e.g. Microsoft Rewards, regional banners, country-specific promotions).
+  - NEVER test elements that are shown only on first visit or behind feature flags.
+  - GOOD elements to test: search inputs, navigation links, logo, footer, main content area.
+  - BAD elements to test: rewards widgets, login-state UI, regional offers, personalized recommendations.
+
 LOCALE SAFETY — strictly enforced for ALL text assertions:
   - The browser may render the site in a non-English locale (Hebrew, Arabic, etc.).
   - ALL visible UI text — button labels, link text, headings, placeholders — may be translated.
