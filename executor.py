@@ -138,7 +138,7 @@ def _make_main_block(website: str) -> str:
     })'''
         if israeli else ""
     )
-    return f'''
+    return '''
 if __name__ == "__main__":
     import os
     from selenium import webdriver
@@ -157,43 +157,43 @@ if __name__ == "__main__":
         "--disable-blink-features=AutomationControlled",
         "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
         "--window-size=1440,900",
-{lang_arg}
+%(lang_arg)s
     ]:
         opts.add_argument(arg)
     opts.add_experimental_option("excludeSwitches", ["enable-automation"])
     opts.add_experimental_option("useAutomationExtension", False)
-{lang_pref}
+%(lang_pref)s
 
     driver = webdriver.Chrome(options=opts)
     driver.set_script_timeout(8)
-    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {{"source": """
-        Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
-        if (!window.chrome) window.chrome = {{}};
-        if (!window.chrome.runtime) window.chrome.runtime = {{}};
-        Object.defineProperty(navigator, 'plugins', {{get: () => [
-            {{name:'Chrome PDF Plugin', filename:'internal-pdf-viewer', description:'Portable Document Format'}},
-            {{name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjai', description:''}},
-            {{name:'Native Client', filename:'internal-nacl-plugin', description:''}}
-        ]}});
-        Object.defineProperty(navigator, 'mimeTypes', {{get: () => [
-            {{type:'application/pdf', suffixes:'pdf', description:''}}
-        ]}});
-        Object.defineProperty(navigator, 'languages', {{get: () => {nav_languages}}});
-        Object.defineProperty(navigator, 'platform', {{get: () => 'Win32'}});
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        if (!window.chrome) window.chrome = {};
+        if (!window.chrome.runtime) window.chrome.runtime = {};
+        Object.defineProperty(navigator, 'plugins', {get: () => [
+            {name:'Chrome PDF Plugin', filename:'internal-pdf-viewer', description:'Portable Document Format'},
+            {name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjai', description:''},
+            {name:'Native Client', filename:'internal-nacl-plugin', description:''}
+        ]});
+        Object.defineProperty(navigator, 'mimeTypes', {get: () => [
+            {type:'application/pdf', suffixes:'pdf', description:''}
+        ]});
+        Object.defineProperty(navigator, 'languages', {get: () => %(nav_languages)s});
+        Object.defineProperty(navigator, 'platform', {get: () => 'Win32'});
         const _origPerms = navigator.permissions.query.bind(navigator.permissions);
         navigator.permissions.query = (p) =>
             p.name === 'notifications'
-                ? Promise.resolve({{state: 'default', onchange: null}})
+                ? Promise.resolve({state: 'default', onchange: null})
                 : _origPerms(p);
-    """}})
-{geolocation}
+    """})
+%(geolocation)s
 
     _orig_get = driver.get
     def _patched_get(url):
         _orig_get(url)
         time.sleep(5)
         for sel in ["#CybotCookiebotDialogBodyButtonClose", ".cky-btn-accept",
-                    "[id*=\'accept-all\']", "[id*=\'acceptAll\']"]:
+                    "[id*='accept-all']", "[id*='acceptAll']"]:
             try:
                 els = driver.find_elements(By.CSS_SELECTOR, sel)
                 for el in els:
@@ -203,9 +203,9 @@ if __name__ == "__main__":
             except Exception:
                 pass
         for xpath in [
-            "//*[(self::button or self::a or self::span)][contains(.,\'\\u05d0\\u05d9\\u05e9\\u05d5\\u05e8\')]",
-            "//*[(self::button or self::a or self::span)][contains(.,\'\\u05e7\\u05d1\\u05dc \\u05d4\\u05db\\u05dc\')]",
-            "//*[(self::button or self::a or self::span)][normalize-space()=\'\\xd7\']",
+            "//*[(self::button or self::a or self::span)][contains(.,'אישור')]",
+            "//*[(self::button or self::a or self::span)][contains(.,'קבל הכל')]",
+            "//*[(self::button or self::a or self::span)][normalize-space()='\xd7']",
         ]:
             try:
                 els = driver.find_elements(By.XPATH, xpath)
@@ -222,7 +222,7 @@ if __name__ == "__main__":
         print("RESULT: Pass")
     finally:
         driver.quit()
-'''
+''' % dict(lang_arg=lang_arg, lang_pref=lang_pref, nav_languages=nav_languages, geolocation=geolocation)
 
 SYSTEM_PROMPT_TEMPLATE = """You are a senior QA automation engineer writing a Selenium test for a website deployed on a cloud server (Render.com). Pages may be slow to load — use generous timeouts accordingly.
 
@@ -524,7 +524,7 @@ def generate_test_files(plan):
         website=website,
         html=page_html,
         headless="headless Chrome" if HEADLESS else "regular Chrome",
-        main_block=_MAIN_BLOCK_TEMPLATE,
+        main_block=_make_main_block(website),
     )
     cached_system = SystemMessage(content=[{
         "type": "text",
