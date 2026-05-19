@@ -36,7 +36,6 @@ def _chrome_options():
     opts.add_argument("--disable-background-networking")
     opts.add_argument("--disable-sync")
     opts.add_argument("--disable-default-apps")
-    opts.add_argument("--blink-settings=imagesEnabled=false")
     opts.add_argument("--disable-blink-features=AutomationControlled")
     opts.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36")
     opts.add_argument("--window-size=1440,900")
@@ -134,7 +133,6 @@ if __name__ == "__main__":
         "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
         "--disable-extensions", "--no-first-run", "--disable-background-networking",
         "--disable-sync", "--disable-default-apps",
-        "--blink-settings=imagesEnabled=false",
         "--disable-blink-features=AutomationControlled",
         "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
         "--window-size=1440,900",
@@ -193,6 +191,7 @@ LOCATORS:
 - Priority: ID > Name > CSS Selector > XPath with visible text.
 - For non-Latin text (Hebrew etc.), match the exact visible text from the HTML.
 - For href XPath, use the FULL href value from the HTML (e.g. contains(@href, 'myactivity.google.com/privacyadvisor') — not a guessed substring).
+- NON-ASCII IN XPATH @href: XPath @href reads the raw HTML attribute value — Hebrew, Arabic and other non-ASCII characters appear as-is (e.g. `/דרושים-הייטק/`), NOT percent-encoded. NEVER use percent-encoded sequences like `%D7%93` inside XPath @href expressions — they will never match. Always use the original Hebrew/non-ASCII characters directly: `contains(@href, 'דרושים-הייטק')` not `contains(@href, '%D7%93...')`.
 - For ANY clickable link that has visible text: ALWAYS use By.PARTIAL_LINK_TEXT. This is NON-NEGOTIABLE. NEVER use href, title, or class attributes to locate a link you intend to click — the rendered href often differs from the HTML snapshot (absolute vs relative, redirects, query params). Visible text is always stable.
 - NAVIGATION BAR LINKS — IMPORTANT EXCEPTION: By.PARTIAL_LINK_TEXT only matches <a> anchor tags. Nav items often use UI frameworks (Vuetify, MUI) where the <a> wraps multiple inner <span>s that have `pointer-events: none` in CSS — so element_to_be_clickable on an inner span always fails even though it is visible. The ONLY reliable pattern: target the <a> element itself using XPath with `contains(@href, 'keyword')` scoped to the nav container. XPath @href reads the raw HTML attribute (e.g. "/categories.aspx"), NOT the browser-resolved absolute URL, so it is stable. Use a short path stem that covers all URL variants: `(By.XPATH, "//*[@id='navContainerID']//a[contains(@href, 'path-stem')]")`. Example: `(By.XPATH, "//*[@id='headerMenu']//a[contains(@href, 'categor')]")` matches both /categories.aspx and /categories/. NEVER target inner <span>s inside a nav <a> — they are not independently clickable.
 - NEVER use By.LINK_TEXT — it breaks on nested spans or extra whitespace. By.PARTIAL_LINK_TEXT only (or XPath for nav-bar items as above).
@@ -268,7 +267,11 @@ VERIFY-LOAD ECONOMY:
       WebDriverWait(...).until(EC.visibility_of(...header_strip...))
       [...7 more...]
 - GOOD (one decisive check — presence_of for initial load, 20s timeout):
-      WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#page-header-navigation")))
+      WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "header, nav, [class*='header'], [class*='nav']")))
+- NEVER use `#page-header-navigation` or any hard-coded ID as the page-load signal — it may not exist on the live site. Use a broad structural selector (header, nav, or a class pattern) that is always present.
+
+COOKIE BANNERS:
+- The test runner automatically dismisses cookie/consent banners after every driver.get() call. Do NOT write any code to handle cookie banners — it is already done for you.
 
 ERROR HANDLING:
 - The entire test body is already inside the top-level try block (see OUTPUT FORMAT).
@@ -490,7 +493,6 @@ def run_test_file(case_id, file_path):
             "--disable-gpu", "--disable-extensions",
             "--no-first-run", "--disable-background-networking",
             "--disable-sync", "--disable-default-apps",
-            "--blink-settings=imagesEnabled=false",
             "--disable-blink-features=AutomationControlled",
             "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
             "--window-size=1440,900",
