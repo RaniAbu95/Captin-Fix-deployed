@@ -231,7 +231,10 @@ UNIQUENESS RULES (strictly enforced):
 SUITE ASSIGNMENT:
 - Smoke      — 1 test only: navigate to homepage, verify the page loads and key elements are present. No clicks.
 - Navigation — click an <a href="..."> link in the page body, verify the URL changes to the expected destination. MUST include a click step.
-- Forms      — fill and SUBMIT a form that exists in the HTML: a search box with a submit/search button, a login form, a contact form, a filter form, etc. MUST include typing into an input AND clicking the submit button. Only generate Forms tests if the HTML contains a <form> element or a visible input+button combination that a user would submit.
+- Forms      — fill and SUBMIT a form that exists in the HTML. MUST include typing into an input AND clicking the submit button.
+  SEARCH BOX PRIORITY: if the page has a search input (type="search", type="text" inside a form, or an input with id/name containing "search", "query", "q"), ALWAYS generate at least one Forms test that types a realistic search query and submits it. The search box is the most important interaction on search/portal/job/classifieds sites — never skip it.
+  Other Forms targets: login form, contact form, filter/sort inputs, newsletter signup.
+  Only generate Forms tests if the HTML contains a visible input+button or <form> element — never invent one.
 
 SUITE DISTRIBUTION:
 - Let the content of the HTML determine how many tests belong to each suite.
