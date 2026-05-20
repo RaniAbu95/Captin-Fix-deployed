@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
     opts = Options()
     opts.page_load_strategy = "none"
-    if os.environ.get("HEADLESS", "true").lower() != "false":
+    if os.environ.get("HEADLESS", "false").lower() != "false":
         opts.add_argument("--headless=new")
     for arg in [
         "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
