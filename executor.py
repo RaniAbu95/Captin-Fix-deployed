@@ -391,6 +391,7 @@ PACING — VIDEO CLARITY
 ═══════════════════════════════════════
 - After every user interaction (click, send_keys, submit), add time.sleep(1.5) so the video recording shows each step clearly.
 - After a navigation that changes the URL, add time.sleep(2) instead.
+- After every EC.url_contains(...) wait (URL verification after navigation), add time.sleep(2) immediately after it — before the except block. This gives the page time to settle after the URL change and makes the final state visible in the video recording.
 - Do NOT add sleeps inside WebDriverWait lambdas or polling loops.
 
 ═══════════════════════════════════════
