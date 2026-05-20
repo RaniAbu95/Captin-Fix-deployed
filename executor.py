@@ -367,6 +367,24 @@ HAMBURGER / COLLAPSIBLE NAVIGATION
     WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "nav a")))
 
 ═══════════════════════════════════════
+SEARCH INPUT INSIDE A DRAWER / PANEL
+═══════════════════════════════════════
+- Some sites (e.g. BBC) place the search input inside a hidden drawer or slide-out panel. The input exists in the DOM but has disabled="" or is not interactable until the drawer is opened.
+- NEVER use EC.presence_of_element_located for a search input you intend to type into — it only checks DOM presence, not interactability.
+- If a search input throws ElementNotInteractableException, it is hidden inside a panel. You MUST click the toggle button that opens the panel first, then wait for the input with EC.element_to_be_clickable.
+- Pattern:
+    # 1. Open the panel/drawer that contains the search input
+    menu_toggle = WebDriverWait(driver, 30).until(
+        EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='Open menu']"))
+    )
+    menu_toggle.click()
+    time.sleep(1.5)
+    # 2. Now wait for the input to be truly interactable
+    search_input = WebDriverWait(driver, 30).until(
+        EC.element_to_be_clickable((By.XPATH, "//*[@data-testid='search-input-field']"))
+    )
+
+═══════════════════════════════════════
 HOVER DROPDOWNS
 ═══════════════════════════════════════
 - To reveal a dropdown without navigating: hover with ActionChains AND dispatch a JS mouseover event (headless Chrome does not always fire CSS :hover from synthetic moves):
