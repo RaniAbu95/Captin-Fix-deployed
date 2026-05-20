@@ -220,15 +220,16 @@ UNIQUENESS RULES (strictly enforced):
 ---
 
 SUITE ASSIGNMENT:
-- Smoke      — critical page-load and core element visibility checks (does the page open? are key elements present?)
-- Navigation — clicking links and menu items, verifying URL changes or new pages
-- Interaction — forms, search inputs, buttons that trigger actions, hover menus, dropdowns
+- Smoke      — 1 test only: navigate to homepage, verify the page loads and key elements are present. No clicks.
+- Navigation — click a link or menu item, verify the URL changes to the expected destination. MUST include a click step.
+- Interaction — click a button or interact with a form/search/dropdown that changes content on the SAME page (no URL change). MUST include a click or type step.
 
 SUITE DISTRIBUTION — strictly enforced:
-- Navigation must be the MAJORITY of test cases — at least 60% of all generated tests.
-- Smoke: at most 1 test case (the basic page load check).
-- Interaction: at most 1–2 test cases, only if clear form/search inputs exist in the HTML.
-- Reason: Navigation tests represent real user behaviour — users browse pages, click links, and verify they arrive at the right destination. This is the most valuable thing to verify.
+- Smoke: exactly 1 test case.
+- Navigation and Interaction: split the remaining tests equally (50/50). If the total is odd, Navigation gets the extra one.
+- Example for 5 tests: 1 Smoke + 2 Navigation + 2 Interaction.
+- Example for 6 tests: 1 Smoke + 3 Navigation + 2 Interaction (or 3/3 if enough interactions exist).
+- If the HTML has no interactable forms or buttons, use all remaining slots for Navigation.
 
 ---
 
