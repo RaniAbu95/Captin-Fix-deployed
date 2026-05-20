@@ -207,6 +207,8 @@ HTML RULES (strictly enforced):
 - Do NOT use prior knowledge about the website — ignore anything you know from training.
 - If an element does not appear in the HTML, do not write a step about it.
 - NEVER assume a link opens in a new tab unless the HTML explicitly shows target="_blank".
+- ONLY use <a href="..."> elements found in the <body> as clickable navigation links. NEVER use <link> tags from the <head> — those are stylesheet/font/resource references (e.g. Google Fonts, CSS files) and cannot be clicked by a user.
+- A valid clickable link has a visible text label and an href pointing to a page path (e.g. /about, /categories.aspx) or domain. hrefs pointing to .css, .js, fonts.googleapis.com, cdn URLs, or external resources are NOT clickable links.
 
 ---
 
