@@ -233,9 +233,6 @@ SUITE ASSIGNMENT:
 - Forms      — fill and SUBMIT a form that exists in the HTML: a search box with a submit/search button, a login form, a contact form, a filter form, etc. MUST include typing into an input AND clicking the submit button. Only generate Forms tests if the HTML contains a <form> element or a visible input+button combination that a user would submit.
 
 SUITE DISTRIBUTION:
-- Smoke: at most 1 test case.
-- Forms: only generate Forms tests if the HTML contains submittable forms (search box, login, contact, filter). Do NOT invent Forms tests if no form exists.
-- Navigation: use for all remaining clickable links in the page body.
 - Let the content of the HTML determine how many tests belong to each suite.
 
 ---
