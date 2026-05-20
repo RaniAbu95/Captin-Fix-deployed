@@ -116,7 +116,7 @@ HTML OF THE TARGET PAGE:
 OUTPUT FORMAT
 Return only valid JSON. Each test case must have:
   "id"       — unique string, e.g. "TC001"
-  "suite"    — one of: Smoke | Navigation | Interaction
+  "suite"    — one of: Smoke | Navigation | Forms
   "steps"    — ordered list of 3–6 steps (see STEP FORMAT below)
   "expected" — a single, concrete, machine-checkable outcome (see EXPECTED FORMAT below)
   "priority" — High | Medium | Low
@@ -133,9 +133,9 @@ STEP FORMAT — each step must be a complete sentence that states:
 
 CLICK REQUIREMENT — strictly enforced:
   - Every Navigation test MUST contain at least one step that says "Click the link with href '<href>'" or "Click the anchor with id '<id>'". Scan the HTML for <a href="..."> elements and pick one to click.
-  - Every Interaction test MUST contain at least one step that says "Click the button with id '<id>'" or "Type '<value>' into the input with id '<id>'" or "Click the element with id '<id>'". Scan the HTML for <button>, <input type="submit">, <input type="search">, or interactive <div>/<span> elements and pick one to click.
-  - A test that only verifies element presence without any click or type action is NOT a valid Navigation or Interaction test. It belongs to Smoke — and there is only 1 Smoke slot.
-  - If you cannot find a clickable element in the HTML for a Navigation or Interaction test, do not generate that test case.
+  - Every Forms test MUST contain: (1) a step that types a value into an input field, AND (2) a step that clicks the submit/search button to submit the form. Both steps are required — a Forms test without a submit action is invalid.
+  - A test that only verifies element presence without any click or type action is NOT a valid Navigation or Forms test. It belongs to Smoke — and there is only 1 Smoke slot.
+  - If you cannot find a submittable form in the HTML, do not generate a Forms test — generate a Navigation test instead.
 
 Good step examples:
   - "Navigate to the website homepage at '<url>'"
@@ -229,15 +229,16 @@ UNIQUENESS RULES (strictly enforced):
 
 SUITE ASSIGNMENT:
 - Smoke      — 1 test only: navigate to homepage, verify the page loads and key elements are present. No clicks.
-- Navigation — click a link or menu item, verify the URL changes to the expected destination. MUST include a click step.
-- Interaction — click a button or interact with a form/search/dropdown that changes content on the SAME page (no URL change). MUST include a click or type step.
+- Navigation — click an <a href="..."> link in the page body, verify the URL changes to the expected destination. MUST include a click step.
+- Forms      — fill and SUBMIT a form that exists in the HTML: a search box with a submit/search button, a login form, a contact form, a filter form, etc. MUST include typing into an input AND clicking the submit button. Only generate Forms tests if the HTML contains a <form> element or a visible input+button combination that a user would submit.
 
 SUITE DISTRIBUTION — strictly enforced:
 - Smoke: exactly 1 test case.
-- Navigation and Interaction: split the remaining tests equally (50/50). If the total is odd, Navigation gets the extra one.
-- Example for 5 tests: 1 Smoke + 2 Navigation + 2 Interaction.
-- Example for 6 tests: 1 Smoke + 3 Navigation + 2 Interaction (or 3/3 if enough interactions exist).
-- If the HTML has no interactable forms or buttons, use all remaining slots for Navigation.
+- Forms: only generate Forms tests if the HTML contains submittable forms (search box, login, contact, filter). Count how many distinct forms exist — generate at most that many Forms tests.
+- Navigation: fill ALL remaining slots that are not taken by Smoke or Forms.
+- If NO submittable forms exist in the HTML: 1 Smoke + all remaining = Navigation. Do NOT invent Forms tests.
+- Example for 5 tests with 1 form: 1 Smoke + 1 Forms + 3 Navigation.
+- Example for 5 tests with no forms: 1 Smoke + 4 Navigation.
 
 ---
 
