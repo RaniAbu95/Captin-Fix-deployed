@@ -362,6 +362,12 @@ HOVER DROPDOWNS
 ═══════════════════════════════════════
 FORM / SEARCH SUBMIT
 ═══════════════════════════════════════
+- ALWAYS submit search forms using Keys.ENTER on the input field — never by clicking the search button. In headless Chrome, the autocomplete dropdown covers the search button after typing, making it unclickable. Keys.ENTER works in both headless and non-headless.
+  from selenium.webdriver.common.keys import Keys
+  search_input.send_keys("query text")
+  time.sleep(1.5)
+  search_input.send_keys(Keys.ENTER)
+- For non-search forms (login, contact, filters): click the submit button normally.
 - Clicking submit WITHOUT input does not navigate. Do NOT use any url_* condition. Wait for the form input to still be visible.
 
 ═══════════════════════════════════════
