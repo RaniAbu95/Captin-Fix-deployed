@@ -128,22 +128,28 @@ Generate EXACTLY {num_tests} test cases.
 
 STEP FORMAT — each step must be a complete sentence that states:
   1. The ACTION (navigate, click, type, hover, submit)
-  2. The TARGET — the exact visible text, label, or HTML attribute that identifies the element
+  2. The TARGET — the exact id, href, or visible attribute that identifies the element
   3. The OUTCOME to observe immediately after (optional but preferred)
 
-Good step examples:
-  - "Navigate to the website homepage"
-  - "Click the link with visible text 'Sign In'"
-  - "Type 'test@example.com' into the email input field"
-  - "Click the submit button labelled 'Search'"
-  - "Verify the page URL contains the path from the href attribute of the clicked link"
-  - "Verify the heading 'Results' is visible on the page"
+CLICK REQUIREMENT — strictly enforced:
+  - Every Navigation test MUST contain at least one step that says "Click the link with href '<href>'" or "Click the anchor with id '<id>'". Scan the HTML for <a href="..."> elements and pick one to click.
+  - Every Interaction test MUST contain at least one step that says "Click the button with id '<id>'" or "Type '<value>' into the input with id '<id>'" or "Click the element with id '<id>'". Scan the HTML for <button>, <input type="submit">, <input type="search">, or interactive <div>/<span> elements and pick one to click.
+  - A test that only verifies element presence without any click or type action is NOT a valid Navigation or Interaction test. It belongs to Smoke — and there is only 1 Smoke slot.
+  - If you cannot find a clickable element in the HTML for a Navigation or Interaction test, do not generate that test case.
 
-Bad step examples (too vague — NEVER write these):
-  - "Click the menu"                ← which menu? which element?
-  - "Check the page"                ← check what exactly?
-  - "Navigate somewhere"            ← where?
-  - "Verify it works"               ← verify what specifically?
+Good step examples:
+  - "Navigate to the website homepage at '<url>'"
+  - "Click the anchor element with href '/categories.aspx' inside the element with id 'headerMenu'"
+  - "Click the button with id 'search-btn'"
+  - "Type 'מנהל' into the input element with id 'searchKeyword'"
+  - "Verify the page URL contains '/categories.aspx'"
+  - "Verify the element with id 'search-results' is visible on the page"
+
+Bad step examples (NEVER write these):
+  - "Verify the element with id 'app' is present"         ← no click, belongs to Smoke
+  - "Verify the logo is visible"                          ← no click, belongs to Smoke
+  - "Click the menu"                                      ← which element? must name id or href
+  - "Verify it works"                                     ← too vague
 
 ---
 
