@@ -232,13 +232,11 @@ SUITE ASSIGNMENT:
 - Navigation — click an <a href="..."> link in the page body, verify the URL changes to the expected destination. MUST include a click step.
 - Forms      — fill and SUBMIT a form that exists in the HTML: a search box with a submit/search button, a login form, a contact form, a filter form, etc. MUST include typing into an input AND clicking the submit button. Only generate Forms tests if the HTML contains a <form> element or a visible input+button combination that a user would submit.
 
-SUITE DISTRIBUTION — strictly enforced:
-- Smoke: exactly 1 test case.
-- Forms: only generate Forms tests if the HTML contains submittable forms (search box, login, contact, filter). Count how many distinct forms exist — generate at most that many Forms tests.
-- Navigation: fill ALL remaining slots that are not taken by Smoke or Forms.
-- If NO submittable forms exist in the HTML: 1 Smoke + all remaining = Navigation. Do NOT invent Forms tests.
-- Example for 5 tests with 1 form: 1 Smoke + 1 Forms + 3 Navigation.
-- Example for 5 tests with no forms: 1 Smoke + 4 Navigation.
+SUITE DISTRIBUTION:
+- Smoke: at most 1 test case.
+- Forms: only generate Forms tests if the HTML contains submittable forms (search box, login, contact, filter). Do NOT invent Forms tests if no form exists.
+- Navigation: use for all remaining clickable links in the page body.
+- Let the content of the HTML determine how many tests belong to each suite.
 
 ---
 
