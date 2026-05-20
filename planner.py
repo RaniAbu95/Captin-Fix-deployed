@@ -105,6 +105,9 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     template = ChatPromptTemplate.from_template("""
 You are an expert QA automation engineer. Your job is to generate a structured, logical, and fully verifiable test plan based ONLY on the HTML provided below.
 
+CAPTCHA / BOT-DETECTION GUARD — check first:
+If the HTML contains any of: ShieldSquare, h-captcha, hcaptcha, recaptcha, "Are you for real", "robot-captcha", "captcha-mid", or any bot-detection page — the site is BLOCKING automated access. In this case return an empty cases array: {{"website": "", "cases": []}} — do NOT generate tests for the captcha page itself.
+
 HTML OF THE TARGET PAGE:
 {page_html}
 
@@ -146,11 +149,12 @@ Bad step examples (too vague — NEVER write these):
 
 EXPECTED FORMAT — must be ONE of these concrete, checkable forms:
   - "The page URL contains '<fragment from href>'"
-  - "The element with text '<text>' is visible on the page"
-  - "The page title contains '<keyword>'"
+  - "The element with id '<id>' is visible on the page"
+  - "The element with aria-label '<label>' is visible on the page"
   - "A validation error message is displayed"
   - "The form field '<name>' shows an error state"
   - "The dropdown/menu with items [...] is visible"
+  NEVER use page title as an expected result — titles are locale-dependent and unreliable.
   DO NOT write vague expectations like "the page loads correctly" or "the user sees the result".
 
 ELEMENT AVAILABILITY — strictly enforced:

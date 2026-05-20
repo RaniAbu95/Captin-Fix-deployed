@@ -271,17 +271,24 @@ PAGE LOAD CHECK
 ═══════════════════════════════════════
 LOCATORS — how to find elements
 ═══════════════════════════════════════
-Priority order: ID → Name → CSS Selector → XPath
+Priority order: ID → Name → XPath → PARTIAL_LINK_TEXT
+NEVER use CSS selectors (By.CSS_SELECTOR) — they are fragile, resolve hrefs to absolute URLs, and break on dynamic class names. Use XPath or By.ID/NAME/PARTIAL_LINK_TEXT exclusively.
+
+BY.ID — always first choice when element has a unique id:
+    WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "search-btn")))
+
+BY.NAME — for form inputs with a name attribute:
+    WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "q")))
+
+XPATH — for everything else. Always scope to a container when possible:
+    (By.XPATH, "//div[@id='headerMenu']//a[contains(@href, '/categories.aspx')]")
+    (By.XPATH, "//*[@id='submit-btn']")
+    (By.XPATH, "//input[@type='submit']")
+    (By.XPATH, "//*[@data-testid='search-input']")
 
 LINKS WITH VISIBLE TEXT:
-- Use By.PARTIAL_LINK_TEXT with the exact visible text from the HTML. This is the most stable locator.
-- NEVER use href, title, or class to locate a clickable link.
-
-NAV BAR LINKS (exception to above):
-- UI frameworks often wrap nav links in <span> children with pointer-events:none. PARTIAL_LINK_TEXT on a span always fails.
-- For nav links, use XPath scoped to the nav container: (By.XPATH, "//nav//a[contains(@href, 'path-stem')]")
-- Use a short path stem so it matches URL variants: contains(@href, 'about') matches /about, /about-us, /about/team.
-- XPath @href reads the raw HTML attribute — use it as written, never percent-encoded.
+- Use By.PARTIAL_LINK_TEXT with the exact visible text from the HTML.
+- For nav links use XPath scoped to the nav container with @href: (By.XPATH, "//nav//a[contains(@href, 'path-stem')]")
 
 NON-ASCII IN HREF (Hebrew, Arabic, etc.):
 - XPath @href reads the raw attribute value as-is. Use the original characters: contains(@href, '/about-us')
@@ -295,10 +302,7 @@ NON-ASCII IN URLS:
 - If an ASCII path stem exists in the href, use that instead.
 
 OTHER LOCATOR RULES:
-- NEVER use CSS [href='...'] or [href*='...'] for clickable links — CSS resolves to absolute URLs, XPath does not.
 - NEVER use a[title='...'] — title attributes are unreliable in the live DOM.
-- NEVER combine href with class or title in any selector.
-- For data-testid: (By.CSS_SELECTOR, "[data-testid='value']")
 - NEVER assert button/input value attributes — they vary by locale.
 - When asserting any .get_attribute() value: use `in`, never `==`. Attributes may be None or slightly different across environments.
 
@@ -310,7 +314,7 @@ WAITS AND ASSERTIONS
 - EC.element_to_be_clickable — element is ready to click (use before every click)
 - NEVER use visibility_of on <img> — images have 0×0 size in headless mode. Use presence_of and check .get_attribute("src") or .get_attribute("alt").
 - NEVER use assert element.is_displayed() on images.
-- For title checks: assert "keyword" in driver.title — use a short keyword, never the full title string.
+- For title checks: assert "keyword" in driver.title — use ONLY a locale-stable fragment: the brand name in its original script, a TLD like "IL", or a non-translatable abbreviation. NEVER use an English transliteration of a non-English brand (e.g. NEVER "drushim" when the title is in Hebrew "דרושים"). The browser renders the title in the site's locale — English words that are translations will NOT appear.
 - WebDriverWait IS the assertion — do not add a redundant assert after an EC condition checks the same thing.
 - Use plain assert ONLY for .text or .get_attribute() values not covered by any EC.
 - FORBIDDEN: EC.url_changes, EC.url_to_be — use EC.url_contains(fragment) instead.
