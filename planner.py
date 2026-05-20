@@ -168,23 +168,25 @@ TEST VALUE — every test case must check something that matters to a real user:
   - Each test must represent a complete user action with a meaningful, observable outcome.
 
 LOCALE SAFETY — strictly enforced for ALL text assertions:
-  - The browser may render the site in a non-English locale (Hebrew, Arabic, etc.).
-  - ALL visible UI text — button labels, link text, headings, placeholders — may be translated.
-  - NEVER assert the visible text of a UI element (e.g. NEVER check that a button says "Sign in" — it may say "היכנס" in Hebrew).
-  - NEVER assert a translated word in the page title (e.g. NEVER "Search - Microsoft Bing" — becomes "חיפוש - Microsoft Bing" in Hebrew).
-  - ALWAYS verify element PRESENCE or VISIBILITY using a locale-stable attribute: element ID, aria-label, data-testid, CSS class, or href.
-  - For page titles: use ONLY the brand name or a non-translatable part.
+  - The browser renders the site in its native locale. For Israeli sites (.co.il, .org.il, .net.il, etc.) ALL visible text — titles, headings, buttons, links — will be in HEBREW.
+  - NEVER assert any English word that is a translation of Hebrew content. The Hebrew page will never contain it.
+  - NEVER assert the visible text of any UI element — it will be in Hebrew.
+  - NEVER use an English transliteration of a Hebrew brand name in a title check (e.g. NEVER "drushim" — the title says "דרושים". NEVER "ynet" if the title says "ynet" only if it literally appears that way in the HTML title tag).
+  - For page title assertions: look at the actual <title> tag value in the HTML. Use ONLY a fragment that appears exactly as-is in that tag — a TLD abbreviation like "IL", a Latin brand name that appears in the title as-is, or a number. If the title is entirely in Hebrew with no Latin fragment, DO NOT assert the title at all — verify a URL fragment instead.
+  - ALWAYS verify element PRESENCE or VISIBILITY using locale-stable attributes: element ID, aria-label, data-testid, CSS class, or href.
+  - For URL assertions: URL paths are always in Latin characters regardless of locale — these are safe to assert.
 
   GOOD expected results (locale-safe):
-    - "The element with id 'id_l' is visible on the page"
+    - "The element with id 'headerMenu' is visible on the page"
     - "The element with aria-label 'search' is visible"
-    - "The page URL contains '/login'"
-    - "The page title contains 'Bing'"
+    - "The page URL contains '/companies.aspx'"
+    - "The page title contains 'IL'" ← only if 'IL' literally appears in the <title> tag
 
   BAD expected results (locale-broken):
-    - "The element with text 'Sign in' is visible" ← text is translated
-    - "The button labelled 'Search' is visible"    ← text is translated
-    - "The page title contains 'Search - Microsoft Bing'" ← word translated
+    - "The element with text 'Sign in' is visible"         ← Hebrew site, text is in Hebrew
+    - "The button labelled 'Search' is visible"            ← Hebrew site, text is in Hebrew
+    - "The page title contains 'drushim'"                  ← title is "דרושים IL", not "drushim"
+    - "The page title contains 'Jobs'"                     ← title is in Hebrew, no English word
 
 ---
 
