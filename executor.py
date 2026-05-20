@@ -274,7 +274,7 @@ LOCATORS — how to find elements
 Priority order: ID → Name → XPath → PARTIAL_LINK_TEXT
 NEVER use CSS selectors (By.CSS_SELECTOR) — they are fragile, resolve hrefs to absolute URLs, and break on dynamic class names. Use XPath or By.ID/NAME/PARTIAL_LINK_TEXT exclusively.
 
-BY.ID — always first choice when element has a unique id:
+BY.ID — only when the id is a human-readable, semantic name (e.g. "search-btn", "headerMenu", "flashBell"). NEVER use By.ID for ids that look randomly generated — strings of random alphanumeric characters like "r1w2KWYLVsyGg" or "HJH3YbK84ikMe" are build-time dynamic ids that change on every deployment and will break the test. When in doubt, prefer XPath @href for links.
     WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "search-btn")))
 
 BY.NAME — for form inputs with a name attribute:
@@ -289,6 +289,22 @@ XPATH — for everything else. Always scope to a container when possible:
 LINKS WITH VISIBLE TEXT:
 - Use By.PARTIAL_LINK_TEXT with the exact visible text from the HTML.
 - For nav links use XPath scoped to the nav container with @href: (By.XPATH, "//nav//a[contains(@href, 'path-stem')]")
+
+NAVIGATION LINKS — <a href> elements MUST be located by href, never by id:
+- Many sites (React, Next.js, Angular) generate random ids on <a> elements at build time. These ids look like "r1w2KWYLVsyGg" — they are NOT stable and MUST NOT be used.
+- ALWAYS locate <a href> navigation links using XPath @href or, when duplicates may exist, a find_elements lambda:
+    # When the link appears once (or the first DOM match is the visible nav):
+    link = WebDriverWait(driver, 30).until(
+        EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/economy')]"))
+    )
+    # When the same href appears in multiple places (visible nav + hidden mobile nav + footer):
+    link = WebDriverWait(driver, 30).until(
+        lambda d: next(
+            (el for el in d.find_elements(By.XPATH, "//a[contains(@href, '/economy')]")
+             if el.is_displayed() and el.is_enabled()), None
+        )
+    )
+- Use the find_elements lambda pattern whenever the HTML contains more than one <a> with the same href (e.g. main nav + mobile nav + footer). EC.element_to_be_clickable on a single XPath will block on the first (possibly hidden) match.
 
 NON-ASCII IN HREF (Hebrew, Arabic, etc.):
 - XPath @href reads the raw attribute value as-is. Use the original characters: contains(@href, '/about-us')

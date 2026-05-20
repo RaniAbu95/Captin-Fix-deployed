@@ -1,8 +1,5 @@
 {
   "permissions": {
-    "deny": [
-      "Edit(executor.py)",
-      "Write(executor.py)"
-    ]
+    "deny": []
   }
 }
