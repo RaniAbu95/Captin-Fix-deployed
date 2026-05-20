@@ -327,6 +327,12 @@ NAVIGATION
 - After clicking a link, verify arrival with EC.url_contains using a fragment from the href value — not the link's visible text.
 - NEVER hard-code the exact URL path (e.g. "/page.aspx") — deployed sites may redirect to a different variant ("/page/"). Use a short stem: contains("page") matches both.
 - ONLY wait for a URL change when the href actually points to a different page. If the link points to the current page (e.g. logo → "/"), do not wait for a URL change — verify a page element instead.
+- NEVER click or wait for elements that have style="display:none" in the HTML — they are invisible and cannot be interacted with.
+- SIGN-IN / AUTH BUTTONS: clicking a sign-in button may open an inline panel OR redirect to an external login page. Always accept both outcomes: wait for either the panel element to become visible OR the URL to contain 'login'/'signin'/'account'. Example:
+    WebDriverWait(driver, 30).until(
+        lambda d: (d.find_elements(By.ID, "panel_id") and d.find_element(By.ID, "panel_id").is_displayed())
+            or any(k in d.current_url.lower() for k in ["login", "signin", "account"])
+    )
 - NEW TAB: If the HTML shows target="_blank", the click opens a new tab. Capture handles before the click and switch:
     original_handles = driver.window_handles
     link.click()

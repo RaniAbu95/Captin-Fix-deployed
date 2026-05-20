@@ -169,6 +169,7 @@ ELEMENT AVAILABILITY — strictly enforced:
   - NEVER test elements that are region-specific or only shown to certain IP ranges (e.g. Microsoft Rewards, regional banners, country-specific promotions).
   - NEVER test elements that are shown only on first visit or behind feature flags.
   - NEVER test third-party or ad-injected elements — these include Google Publisher Tag slots (e.g. gpt-*, GPT slots), Outbrain (ob_iframe, ob_holder), Taboola, or any element injected by external ad/analytics scripts. Their presence depends on external services and they will not load in automated test environments.
+  - NEVER test elements that have style="display:none" or style="visibility:hidden" in the HTML — they are invisible to the user and cannot be reliably clicked in automated tests.
   - NEVER test mobile-only UI elements: hamburger buttons, side drawers, mobile navigation menus, bottom navigation bars, or any element whose id/class contains 'mobile', 'hamburger', 'drawer', 'side-toolbar', 'offcanvas', or 'nav-toggle'. The browser runs at 1440×900 desktop resolution — mobile elements are hidden or irrelevant.
   - GOOD elements to test: search inputs, desktop navigation links, logo, footer, main content area, forms, headings, images that are part of the page HTML.
   - BAD elements to test: rewards widgets, login-state UI, regional offers, personalized recommendations, ad slots, third-party iframes injected after page load, mobile menus, hamburger icons, side drawers.
