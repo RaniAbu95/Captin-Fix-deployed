@@ -136,7 +136,7 @@ CLICK REQUIREMENT — strictly enforced:
   - Every Navigation test MUST have at least one step AFTER the URL verification that interacts with or verifies something on the destination page — this is REQUIRED, not optional.
   - Every Forms test MUST contain: (1) a step that types a value into an input field, AND (2) a step that clicks the submit/search button to submit the form, AND (3) a step that verifies the result. All three steps are required — a Forms test without a submit and outcome verification is invalid.
   - A test that only verifies element presence without any click or type action is NOT a valid Navigation or Forms test. It belongs to Smoke — and there is only 1 Smoke slot.
-  - If you cannot find a submittable form in the HTML, do not generate a Forms test — generate a Navigation test instead (but cap Navigation at 4 total).
+  - If no form exists on the homepage, check navigation links: if any href points to /contact/, /search/, /apply/, /careers/, /register/ — generate a Forms test that navigates there first. Only skip Forms entirely if the HTML has zero forms AND zero navigation links suggesting a form page.
 
 Good step examples:
   - "Navigate to the website homepage at '<url>'"
@@ -145,16 +145,24 @@ Good step examples:
   - "Type 'מנהל' into the input element with id 'searchKeyword'"
   - "Verify the page URL contains '/categories.aspx'"
   - "Verify the element with id 'search-results' is visible on the page"
+  - "Click the link with href '/about-us/' and verify the page URL contains '/about-us/'"
+  - "Click the secondary link with href '/team/' visible on the /about-us/ page"
+  - "Type 'test query' into the search input and click the submit button"
 
 Bad step examples (NEVER write these):
-  - "Verify the element with id 'app' is present"         ← no click, belongs to Smoke
-  - "Verify the logo is visible"                          ← no click, belongs to Smoke
-  - "Click the menu"                                      ← which element? must name id or href
-  - "Verify it works"                                     ← too vague
-  - "Click on any available navigation link"              ← FORBIDDEN: must name a specific href or id
-  - "Click any link in the navigation"                    ← FORBIDDEN: must name a specific href or id
-  - "Click on one of the navigation links"                ← FORBIDDEN: must name a specific href or id
+  - "Verify the element with id 'app' is present"                     ← no click, belongs to Smoke
+  - "Verify the logo is visible"                                        ← no click, belongs to Smoke
+  - "Click the menu"                                                    ← which element? must name id or href
+  - "Verify it works"                                                   ← too vague
+  - "Click on any available navigation link"                            ← FORBIDDEN: must name a specific href or id
+  - "Click any link in the navigation"                                  ← FORBIDDEN: must name a specific href or id
+  - "Click on one of the navigation links"                              ← FORBIDDEN: must name a specific href or id
+  - "Verify the main heading element h1 or h2 is visible"               ← FORBIDDEN: too generic, every page has h1/h2. Must name a specific id, class, or text fragment.
+  - "Verify the element with class 'container' is visible"              ← FORBIDDEN: 'container' exists on every page. Must name a content-specific id or class.
+  - "Verify the element with class 'main' is visible"                   ← FORBIDDEN: too generic. Same rule applies.
+  - "Verify the element with class 'wrapper' is visible"                ← FORBIDDEN: too generic.
   Every navigation step MUST target ONE specific element identified by its exact href or id. Steps using "any", "available", or "one of" are never acceptable.
+  Every post-navigation verification MUST name a SPECIFIC, CONTENT-MEANINGFUL element — never a structural wrapper like container, main, wrapper, section, or a generic tag like h1/h2 without an id or class.
 
 ---
 
@@ -245,11 +253,18 @@ SUITE ASSIGNMENT:
     Step N+1: "Verify the [heading/banner/form/landmark element with id '...'] is visible on the destination page"
     Step N+2: (optional) interact with something on the destination page — click a secondary link, fill a field, or hover a menu item
   A Navigation test that ends at URL verification only is INVALID.
-- Forms      — fill and SUBMIT a form that exists in the HTML. MUST include: (1) typing into an input, (2) clicking the submit button, (3) verifying the result (success message, URL change, or validation error). A Forms test that stops before verifying the outcome is INVALID.
-  SEARCH BOX PRIORITY: if the page has a search input (type="search", type="text" inside a form, or an input with id/name containing "search", "query", "q"), ALWAYS generate at least one Forms test that types a realistic search query and submits it.
-  FORMS DETECTION — scan the HTML carefully for ALL of these: <input>, <textarea>, <form>, <button type="submit">, or any element with id/class containing "search", "contact", "subscribe", "newsletter", "query", "email", "name". If ANY of these exist, generate a Forms test.
-  Other Forms targets: login form, contact form, filter/sort inputs, newsletter signup, search bar.
-  Only generate Forms tests if the HTML contains a visible input+button or <form> element — never invent one.
+- Forms      — fill and SUBMIT a form. MUST include: (1) navigate to the page containing the form (could be the homepage OR a linked page like /contact/), (2) type a value into an input field, (3) click the submit/search button, (4) verify the result (success message, URL change, or validation error). A Forms test that stops before verifying the outcome is INVALID.
+  FORMS ON LINKED PAGES (very important): if the homepage HTML does NOT have a visible form but it has navigation links to pages that likely contain forms (e.g. href contains 'contact', 'search', 'subscribe', 'apply', 'register', 'login', 'careers', 'newsletter'), generate a Forms test that:
+    Step 1: Navigate to the homepage
+    Step 2: Click the link with href '/contact/' (or whatever the href is)
+    Step 3: Verify the page URL contains '/contact/'
+    Step 4: Type a value into the input/textarea on that page (use a realistic value)
+    Step 5: Click the submit button
+    Step 6: Verify the result (form submission confirmation message, or URL change, or validation error if fields left empty)
+  SEARCH BOX PRIORITY: if the page has a search input (type="search", type="text" inside a form, or an input with id/name/class containing "search", "query", "q"), ALWAYS generate at least one Forms test that types a realistic search query and submits it.
+  FORMS DETECTION — scan the HTML carefully for ALL of these: <input>, <textarea>, <form>, <button type="submit">, or any element with id/class/href containing "search", "contact", "subscribe", "newsletter", "query", "email", "apply", "register", "careers". If ANY of these exist in the homepage HTML OR as a navigation href, generate a Forms test.
+  NEGATIVE FORMS: generate at least one Forms test where you submit the form with EMPTY required fields and verify a validation error appears — this is a highly valuable negative test.
+  Only generate Forms tests if the HTML or navigation links suggest a form exists — never completely invent one.
 
 TEST DIVERSITY — strictly enforced:
 - No two Navigation tests may click the same link or verify the same URL fragment.
@@ -257,6 +272,15 @@ TEST DIVERSITY — strictly enforced:
 - Navigation tests must target DIFFERENT pages/sections of the site.
 - NEVER generate more than 4 Navigation tests regardless of how many nav links exist — pick only the 3-4 most important ones.
 - At least 2 tests per run must go DEEPER than a single click: e.g. navigate to a page then verify a specific element on that page, interact with a form, select a dropdown, or verify a content section is populated.
+
+NAVIGATION PATTERN VARIETY — strictly enforced:
+Each Navigation test MUST use a DIFFERENT post-navigation pattern. Assign one pattern per test, never repeat the same pattern:
+  Pattern A — Secondary click: navigate to page X → verify URL → click a visible secondary link on page X → verify the new URL
+  Pattern B — Form interaction: navigate to page X → verify URL → find an input/form on that page → type into it or click submit
+  Pattern C — Content section check: navigate to page X → verify URL → verify a SPECIFIC named content element (by a meaningful id or class like 'hero-section', 'team-grid', 'job-listings', 'pricing-table', NOT generic wrappers)
+  Pattern D — Scroll/anchor: navigate to page X → verify URL → click an anchor link (href starting with '#') on that page → verify the anchor fragment is in the URL
+
+Do NOT assign the same pattern to two different Navigation tests. If you have 4 Navigation tests, use 4 different patterns.
 
 SUITE DISTRIBUTION — strictly enforced:
 - EXACTLY 1 Smoke test.
