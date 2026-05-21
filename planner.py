@@ -150,6 +150,10 @@ Bad step examples (NEVER write these):
   - "Verify the logo is visible"                          ← no click, belongs to Smoke
   - "Click the menu"                                      ← which element? must name id or href
   - "Verify it works"                                     ← too vague
+  - "Click on any available navigation link"              ← FORBIDDEN: must name a specific href or id
+  - "Click any link in the navigation"                    ← FORBIDDEN: must name a specific href or id
+  - "Click on one of the navigation links"                ← FORBIDDEN: must name a specific href or id
+  Every navigation step MUST target ONE specific element identified by its exact href or id. Steps using "any", "available", or "one of" are never acceptable.
 
 ---
 
