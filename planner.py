@@ -233,7 +233,7 @@ NAVIGATION RULES:
 - The URL fragment MUST come from the href attribute in the HTML — never from the link's visible text.
   Example: HTML shows <a href="/about-us">About</a> → step says "Verify the URL contains '/about-us'"
 - If the href is an external domain, verify that domain: <a href="https://shop.example.com/"> → "Verify the URL contains 'shop.example.com'"
-- After verifying the URL, ALWAYS add: "Verify the [element] with [id/class/tag] '[value]' is visible on the destination page" — pick any visible landmark from the destination page HTML or infer a safe element (main heading, article section, footer, etc.).
+- After verifying the URL, ALWAYS add: "Verify the page heading (h1 or h2) is visible on the destination page" — use the generic heading tag, NOT a CSS class you invented. You only have the homepage HTML; you do NOT know the destination page's class names. NEVER write a step like "Verify the element with class 'section-head' is visible" for a page you have not seen — that class may not exist. Safe post-navigation assertions: h1, h2, footer, nav — these exist on every page.
 - If the destination page likely has a form or interactive element, add a step that interacts with it (type into a search box, click a secondary link, expand an accordion).
 
 ---
