@@ -357,11 +357,32 @@ NAVIGATION
 ═══════════════════════════════════════
 HAMBURGER / COLLAPSIBLE NAVIGATION
 ═══════════════════════════════════════
-- If the nav is inside a collapsible panel (hamburger, MENU toggle, aria-expanded button), click the toggle first, wait for the links to appear, then click the target link.
-- Pattern:
-    toggle = WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[aria-controls], [class*='menu-toggle'], [class*='hamburger']")))
-    toggle.click()
-    WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "nav a")))
+Many sites (IMDB, BBC, etc.) hide ALL navigation links inside a collapsible drawer behind a hamburger/MENU toggle. These links exist in the DOM but are NOT interactable until the drawer is opened — EC.element_to_be_clickable on the nav link will time out if you skip this step.
+
+MANDATORY 3-STEP PATTERN for any navigation link that lives inside a drawer:
+  Step 1 — Open the menu. Use By.ID if the toggle has a stable semantic id, otherwise By.CSS_SELECTOR:
+    # Prefer By.ID when available:
+    menu_btn = WebDriverWait(driver, 30).until(
+        EC.element_to_be_clickable((By.ID, "imdbHeader-navDrawerOpen--desktop"))
+    )
+    # Fallback to CSS selector:
+    menu_btn = WebDriverWait(driver, 30).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "label[for*='navDrawerOpen'], [aria-label*='Menu'], [class*='hamburger'], [class*='menu-toggle']"))
+    )
+    menu_btn.click()
+    time.sleep(1.5)
+
+  Step 2 — Locate the nav link now that the drawer is open (XPath @href):
+    nav_link = WebDriverWait(driver, 30).until(
+        EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/target-path')]"))
+    )
+
+  Step 3 — Click it:
+    nav_link.click()
+    time.sleep(2)
+
+HOW TO DETECT a hidden nav: if the HTML shows a `<label for="...navDrawer...">`, `<button aria-label="Menu">`, `<button aria-label="Open menu">`, or any toggle with `aria-expanded`, the nav links are inside a drawer — always apply the 3-step pattern.
+NEVER attempt to click a nav link directly without opening the drawer first on these sites.
 
 ═══════════════════════════════════════
 SEARCH INPUT INSIDE A DRAWER / PANEL
