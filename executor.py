@@ -399,7 +399,13 @@ FORM / SEARCH SUBMIT
   search_input.send_keys("query text")
   time.sleep(1.5)
   search_input.send_keys(Keys.ENTER)
-- For non-search forms (login, contact, filters): click the submit button normally.
+- For non-search forms (login, contact, filters): scroll the submit button into view, then use a JS click to avoid ElementClickInterceptedException from sticky headers or overlays:
+  submit_btn = WebDriverWait(driver, 30).until(
+      EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='submit'], button[type='submit']"))
+  )
+  driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", submit_btn)
+  time.sleep(0.5)
+  driver.execute_script("arguments[0].click();", submit_btn)
 - Clicking submit WITHOUT input does not navigate. Do NOT use any url_* condition. Wait for the form input to still be visible.
 
 ═══════════════════════════════════════
