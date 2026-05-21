@@ -297,19 +297,11 @@ LINKS WITH VISIBLE TEXT:
 
 NAVIGATION LINKS — <a href> elements MUST be located by href, never by id:
 - Many sites (React, Next.js, Angular) generate random ids on <a> elements at build time. These ids look like "r1w2KWYLVsyGg" — they are NOT stable and MUST NOT be used.
-- ALWAYS locate <a href> navigation links using XPath @href or, when duplicates may exist, a find_elements lambda:
-    # When the link appears once (or the first DOM match is the visible nav):
+- ALWAYS locate <a href> navigation links using a simple EC.element_to_be_clickable call. Scope the XPath to the nav container to avoid matching hidden duplicates in mobile nav or footer:
     link = WebDriverWait(driver, 30).until(
-        EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/economy')]"))
+        EC.element_to_be_clickable((By.XPATH, "//nav//a[contains(@href, '/economy')]"))
     )
-    # When the same href appears in multiple places (visible nav + hidden mobile nav + footer):
-    link = WebDriverWait(driver, 30).until(
-        lambda d: next(
-            (el for el in d.find_elements(By.XPATH, "//a[contains(@href, '/economy')]")
-             if el.is_displayed() and el.is_enabled()), None
-        )
-    )
-- Use the find_elements lambda pattern whenever the HTML contains more than one <a> with the same href (e.g. main nav + mobile nav + footer). EC.element_to_be_clickable on a single XPath will block on the first (possibly hidden) match.
+- NEVER use lambda+next+find_elements patterns — they are hard to debug and unnecessary when the XPath is scoped correctly.
 
 NON-ASCII IN HREF (Hebrew, Arabic, etc.):
 - XPath @href reads the raw attribute value as-is. Use the original characters: contains(@href, '/about-us')
