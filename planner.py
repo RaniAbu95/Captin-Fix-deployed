@@ -274,13 +274,48 @@ TEST DIVERSITY — strictly enforced:
 - At least 2 tests per run must go DEEPER than a single click: e.g. navigate to a page then verify a specific element on that page, interact with a form, select a dropdown, or verify a content section is populated.
 
 NAVIGATION PATTERN VARIETY — strictly enforced:
-Each Navigation test MUST use a DIFFERENT post-navigation pattern. Assign one pattern per test, never repeat the same pattern:
-  Pattern A — Secondary click: navigate to page X → verify URL → click a visible secondary link on page X → verify the new URL
-  Pattern B — Form interaction: navigate to page X → verify URL → find an input/form on that page → type into it or click submit
-  Pattern C — Content section check: navigate to page X → verify URL → verify a SPECIFIC named content element (by a meaningful id or class like 'hero-section', 'team-grid', 'job-listings', 'pricing-table', NOT generic wrappers)
-  Pattern D — Scroll/anchor: navigate to page X → verify URL → click an anchor link (href starting with '#') on that page → verify the anchor fragment is in the URL
+Each Navigation test MUST use a DIFFERENT post-navigation pattern. Assign one pattern per test, never repeat the same pattern across two tests. If you have 4 Navigation tests, use 4 different patterns.
 
-Do NOT assign the same pattern to two different Navigation tests. If you have 4 Navigation tests, use 4 different patterns.
+  Pattern A — Scroll + lazy content reveal:
+    Step 1: Navigate to the homepage
+    Step 2: Click the nav link with href '<href>'
+    Step 3: Verify the page URL contains '<path>'
+    Step 4: Verify the page heading (h1) is visible on the destination page
+    Step 5: Scroll down 800px to trigger lazy-loaded content
+    Step 6: Verify a content section heading (h2) is visible
+    Use when: the destination page has content sections below the fold (blog, careers, services, products pages)
+
+  Pattern B — Secondary link click within page content:
+    Step 1: Navigate to the homepage
+    Step 2: Click the nav link with href '<href>'
+    Step 3: Verify the page URL contains '<path>'
+    Step 4: Verify the page heading (h1) is visible
+    Step 5: Scroll down to reveal page content
+    Step 6: Click a secondary link visible inside the main content area (NOT in the nav or footer) — pick a sub-page link whose href is a deeper path under the current page
+    Step 7: Verify the page URL changed to the sub-page path
+    Use when: the destination page contains links to sub-pages (about-us with team/csr links, blog with article links, solutions with product sub-pages)
+
+  Pattern C — In-page anchor navigation:
+    Step 1: Navigate to the homepage
+    Step 2: Click the nav link with href '<href>'
+    Step 3: Verify the page URL contains '<path>'
+    Step 4: Verify the page heading (h1) is visible
+    Step 5: Scroll down to reveal anchor links on the page
+    Step 6: Click an anchor link whose href starts with '#' (section jump link, table-of-contents entry, tab)
+    Step 7: Verify the URL now contains '#' (anchor fragment appended)
+    Use when: the destination page uses section anchors, tabs, or a table of contents (long-form pages, FAQs, feature pages)
+
+  Pattern D — Hover dropdown → sub-page → footer verification:
+    Step 1: Navigate to the homepage
+    Step 2: Hover over the parent nav item to reveal the dropdown menu
+    Step 3: Click the sub-page link with href '<sub-href>' inside the dropdown
+    Step 4: Verify the page URL contains '<sub-path>'
+    Step 5: Verify the page heading (h1 or h2) is visible
+    Step 6: Scroll to the footer
+    Step 7: Verify the footer element is visible
+    Use when: the nav has a multi-level dropdown with sub-pages (About Us > CSR, Products > Feature X)
+
+  FORBIDDEN pattern (never use): navigate → verify URL → stop. Every Navigation test must continue past the URL check.
 
 SUITE DISTRIBUTION — strictly enforced:
 - EXACTLY 1 Smoke test.
