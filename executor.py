@@ -295,10 +295,18 @@ WAITS AND ASSERTIONS
 - NEVER use assert element.is_displayed() on images.
 - For title checks: assert "keyword" in driver.title — use ONLY a locale-stable fragment: the brand name in its original script, a TLD like "IL", or a non-translatable abbreviation. NEVER use an English transliteration of a non-English brand (e.g. NEVER "drushim" when the title is in Hebrew "דרושים"). The browser renders the title in the site's locale — English words that are translations will NOT appear.
 - WebDriverWait IS the assertion — do not add a redundant assert after an EC condition checks the same thing.
+  FORBIDDEN:  el = WebDriverWait(...).until(EC.visibility_of_element_located(...)); assert el.is_displayed()  ← is_displayed() is already guaranteed by visibility_of
+  CORRECT:    WebDriverWait(...).until(EC.visibility_of_element_located(...))  ← the wait itself is the assertion
 - Use plain assert ONLY for .text or .get_attribute() values not covered by any EC.
 - FORBIDDEN: EC.url_changes, EC.url_to_be — use EC.url_contains(fragment) instead.
 - FORBIDDEN: WebDriverWait on body, html, or main tag — these add no signal.
 - FORBIDDEN: redundant DOM check immediately after EC.url_contains passes.
+
+POWERFUL TESTS — go deeper than just clicking a link:
+- For Navigation tests: after verifying the URL, also verify a key element on the destination page is visible (heading, form, button). Example: navigate to /login, verify URL, then also verify the username input is present.
+- For Forms tests: always verify the OUTCOME — success message element, URL change, or error text. A form test that stops at send_keys without verifying the result is incomplete.
+- For Smoke tests: verify at least 2 distinct visible elements, not just one. Use their IDs or stable text.
+- After toggling a checkbox or selecting a dropdown: assert the new state. Example: checkbox.is_selected(), select option value.
 
 ═══════════════════════════════════════
 NAVIGATION

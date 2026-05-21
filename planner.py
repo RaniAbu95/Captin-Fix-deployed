@@ -235,15 +235,22 @@ UNIQUENESS RULES (strictly enforced):
 ---
 
 SUITE ASSIGNMENT:
-- Smoke      — 1 test only: navigate to homepage, verify the page loads and key elements are present. No clicks.
-- Navigation — click an <a href="..."> link in the page body, verify the URL changes to the expected destination. MUST include a click step.
-- Forms      — fill and SUBMIT a form that exists in the HTML. MUST include typing into an input AND clicking the submit button.
-  SEARCH BOX PRIORITY: if the page has a search input (type="search", type="text" inside a form, or an input with id/name containing "search", "query", "q"), ALWAYS generate at least one Forms test that types a realistic search query and submits it. The search box is the most important interaction on search/portal/job/classifieds sites — never skip it.
+- Smoke      — 1 test only: navigate to homepage, verify the page loads and key elements are present. No clicks. Verify at least 2 distinct elements (heading, logo, nav link, etc.).
+- Navigation — click an <a href="..."> link in the page body, verify the URL changes to the expected destination. MUST include a click step. POWER-UP: after navigating, also verify a key element on the destination page is visible (e.g. a heading, form, or landmark element) — not just the URL.
+- Forms      — fill and SUBMIT a form that exists in the HTML. MUST include: (1) typing into an input, (2) clicking the submit button, (3) verifying the result (success message, URL change, or error). A Forms test that stops before verifying the outcome is invalid.
+  SEARCH BOX PRIORITY: if the page has a search input (type="search", type="text" inside a form, or an input with id/name containing "search", "query", "q"), ALWAYS generate at least one Forms test that types a realistic search query and submits it.
   Other Forms targets: login form, contact form, filter/sort inputs, newsletter signup.
   Only generate Forms tests if the HTML contains a visible input+button or <form> element — never invent one.
 
+TEST DIVERSITY — strictly enforced:
+- No two Navigation tests may click the same link or verify the same URL fragment.
+- No two tests may share the same expected result.
+- Navigation tests must target DIFFERENT pages/sections of the site — never generate 3+ tests that all just click a link and check the URL with no further interaction.
+- At least one test per run must go DEEPER than a single click: e.g. navigate to a page then interact with an element on that page (toggle a checkbox, select a dropdown option, verify a table row, submit a form).
+
 SUITE DISTRIBUTION:
 - Let the content of the HTML determine how many tests belong to each suite.
+- Aim for variety: if the site has forms, at least 1 Forms test. If the site has 5+ navigation links, pick the 2-3 most important ones, not all of them.
 
 ---
 
@@ -416,4 +423,4 @@ def run_planner(target: str, num_tests: int, depth: int, email: str = "", pm: st
 
 
 if __name__ == "__main__":
-    run_planner('https://www.il.kayak.com/',5,1)
+    run_planner('https://the-internet.herokuapp.com',5,1)
