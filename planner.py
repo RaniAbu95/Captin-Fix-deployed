@@ -117,7 +117,7 @@ OUTPUT FORMAT
 Return only valid JSON. Each test case must have:
   "id"       — unique string, e.g. "TC001"
   "suite"    — one of: Smoke | Navigation | Forms
-  "steps"    — ordered list of 3–6 steps (see STEP FORMAT below)
+  "steps"    — ordered list of 3–8 steps (see STEP FORMAT below). Navigation tests should have 5–7 steps (navigate → click → verify URL → verify element on destination → optional interaction). Forms tests should have 4–6 steps (navigate → find form → type → submit → verify outcome).
   "expected" — a single, concrete, machine-checkable outcome (see EXPECTED FORMAT below)
   "priority" — High | Medium | Low
   "negative" — true only for intentional error/failure tests (see NEGATIVE TESTS)
@@ -133,9 +133,10 @@ STEP FORMAT — each step must be a complete sentence that states:
 
 CLICK REQUIREMENT — strictly enforced:
   - Every Navigation test MUST contain at least one step that says "Click the link with href '<href>'" or "Click the anchor with id '<id>'". Scan the HTML for <a href="..."> elements and pick one to click.
-  - Every Forms test MUST contain: (1) a step that types a value into an input field, AND (2) a step that clicks the submit/search button to submit the form. Both steps are required — a Forms test without a submit action is invalid.
+  - Every Navigation test MUST have at least one step AFTER the URL verification that interacts with or verifies something on the destination page — this is REQUIRED, not optional.
+  - Every Forms test MUST contain: (1) a step that types a value into an input field, AND (2) a step that clicks the submit/search button to submit the form, AND (3) a step that verifies the result. All three steps are required — a Forms test without a submit and outcome verification is invalid.
   - A test that only verifies element presence without any click or type action is NOT a valid Navigation or Forms test. It belongs to Smoke — and there is only 1 Smoke slot.
-  - If you cannot find a submittable form in the HTML, do not generate a Forms test — generate a Navigation test instead.
+  - If you cannot find a submittable form in the HTML, do not generate a Forms test — generate a Navigation test instead (but cap Navigation at 4 total).
 
 Good step examples:
   - "Navigate to the website homepage at '<url>'"
@@ -220,10 +221,12 @@ HTML RULES (strictly enforced):
 ---
 
 NAVIGATION RULES:
-- Every test case that clicks a navigation link MUST end with a URL verification step.
+- Every Navigation test MUST have a URL verification step followed by at least one more step on the destination page. A Navigation test that ends at URL verification is INVALID.
 - The URL fragment MUST come from the href attribute in the HTML — never from the link's visible text.
   Example: HTML shows <a href="/about-us">About</a> → step says "Verify the URL contains '/about-us'"
 - If the href is an external domain, verify that domain: <a href="https://shop.example.com/"> → "Verify the URL contains 'shop.example.com'"
+- After verifying the URL, ALWAYS add: "Verify the [element] with [id/class/tag] '[value]' is visible on the destination page" — pick any visible landmark from the destination page HTML or infer a safe element (main heading, article section, footer, etc.).
+- If the destination page likely has a form or interactive element, add a step that interacts with it (type into a search box, click a secondary link, expand an accordion).
 
 ---
 
@@ -235,22 +238,32 @@ UNIQUENESS RULES (strictly enforced):
 ---
 
 SUITE ASSIGNMENT:
-- Smoke      — 1 test only: navigate to homepage, verify the page loads and key elements are present. No clicks. Verify at least 2 distinct elements (heading, logo, nav link, etc.).
-- Navigation — click an <a href="..."> link in the page body, verify the URL changes to the expected destination. MUST include a click step. POWER-UP: after navigating, also verify a key element on the destination page is visible (e.g. a heading, form, or landmark element) — not just the URL.
-- Forms      — fill and SUBMIT a form that exists in the HTML. MUST include: (1) typing into an input, (2) clicking the submit button, (3) verifying the result (success message, URL change, or error). A Forms test that stops before verifying the outcome is invalid.
+- Smoke      — EXACTLY 1 test only: navigate to homepage, verify the page loads and key elements are present. No clicks. Verify at least 2 distinct elements (heading, logo, nav link, etc.).
+- Navigation — click an <a href="..."> link in the page body, verify the URL changes to the expected destination. MUST include a click step.
+  REQUIRED DEPTH: every Navigation test MUST have at least 2 steps on the destination page AFTER the URL verification:
+    Step N:   "Verify the page URL contains '/target-path'"
+    Step N+1: "Verify the [heading/banner/form/landmark element with id '...'] is visible on the destination page"
+    Step N+2: (optional) interact with something on the destination page — click a secondary link, fill a field, or hover a menu item
+  A Navigation test that ends at URL verification only is INVALID.
+- Forms      — fill and SUBMIT a form that exists in the HTML. MUST include: (1) typing into an input, (2) clicking the submit button, (3) verifying the result (success message, URL change, or validation error). A Forms test that stops before verifying the outcome is INVALID.
   SEARCH BOX PRIORITY: if the page has a search input (type="search", type="text" inside a form, or an input with id/name containing "search", "query", "q"), ALWAYS generate at least one Forms test that types a realistic search query and submits it.
-  Other Forms targets: login form, contact form, filter/sort inputs, newsletter signup.
+  FORMS DETECTION — scan the HTML carefully for ALL of these: <input>, <textarea>, <form>, <button type="submit">, or any element with id/class containing "search", "contact", "subscribe", "newsletter", "query", "email", "name". If ANY of these exist, generate a Forms test.
+  Other Forms targets: login form, contact form, filter/sort inputs, newsletter signup, search bar.
   Only generate Forms tests if the HTML contains a visible input+button or <form> element — never invent one.
 
 TEST DIVERSITY — strictly enforced:
 - No two Navigation tests may click the same link or verify the same URL fragment.
 - No two tests may share the same expected result.
-- Navigation tests must target DIFFERENT pages/sections of the site — never generate 3+ tests that all just click a link and check the URL with no further interaction.
-- At least one test per run must go DEEPER than a single click: e.g. navigate to a page then interact with an element on that page (toggle a checkbox, select a dropdown option, verify a table row, submit a form).
+- Navigation tests must target DIFFERENT pages/sections of the site.
+- NEVER generate more than 4 Navigation tests regardless of how many nav links exist — pick only the 3-4 most important ones.
+- At least 2 tests per run must go DEEPER than a single click: e.g. navigate to a page then verify a specific element on that page, interact with a form, select a dropdown, or verify a content section is populated.
 
-SUITE DISTRIBUTION:
-- Let the content of the HTML determine how many tests belong to each suite.
-- Aim for variety: if the site has forms, at least 1 Forms test. If the site has 5+ navigation links, pick the 2-3 most important ones, not all of them.
+SUITE DISTRIBUTION — strictly enforced:
+- EXACTLY 1 Smoke test.
+- MAXIMUM 4 Navigation tests — even if the site has 20 nav links, pick only the 3-4 most important. Do not fill remaining slots with more navigation tests.
+- MINIMUM 2 Forms tests if the site has ANY form, input, or search box in the HTML. If the site has multiple forms (search + contact + newsletter), generate one test per form type.
+- If you cannot find 2 Forms-worthy elements, use Navigation tests for the remaining slots — but still cap Navigation at 4.
+- Target distribution for {num_tests} total tests: 1 Smoke, up to 4 Navigation, and the remaining slots as Forms tests. Example: for 10 tests → 1 Smoke + 4 Navigation + 5 Forms. For 5 tests → 1 Smoke + 2 Navigation + 2 Forms. Always total exactly {num_tests}.
 
 ---
 
@@ -423,4 +436,4 @@ def run_planner(target: str, num_tests: int, depth: int, email: str = "", pm: st
 
 
 if __name__ == "__main__":
-    run_planner('https://the-internet.herokuapp.com',5,1)
+    run_planner('https://www.igaming.com/',10,1)
