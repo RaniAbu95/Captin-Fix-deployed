@@ -271,18 +271,23 @@ PAGE LOAD CHECK
 ═══════════════════════════════════════
 LOCATORS — how to find elements
 ═══════════════════════════════════════
-Priority order: ID → Name → XPath → PARTIAL_LINK_TEXT
-NEVER use CSS selectors (By.CSS_SELECTOR) — they are fragile, resolve hrefs to absolute URLs, and break on dynamic class names. Use XPath or By.ID/NAME/PARTIAL_LINK_TEXT exclusively.
+Priority order (most reliable → least reliable): ID → Name → CSS Selector → XPath
+Always use the highest-priority locator that works for the element. Only fall back to a lower-priority strategy when a higher one is not available in the HTML.
 
-BY.ID — only when the id is a human-readable, semantic name (e.g. "search-btn", "headerMenu", "flashBell"). NEVER use By.ID for ids that look randomly generated — strings of random alphanumeric characters like "r1w2KWYLVsyGg" or "HJH3YbK84ikMe" are build-time dynamic ids that change on every deployment and will break the test. When in doubt, prefer XPath @href for links.
+BY.ID — always prefer By.ID when a stable, semantic id is present. Only use it when the id is a human-readable, semantic name (e.g. "search-btn", "headerMenu", "flashBell"). NEVER use By.ID for ids that look randomly generated — strings of random alphanumeric characters like "r1w2KWYLVsyGg" or "HJH3YbK84ikMe" are build-time dynamic ids that change on every deployment and will break the test.
     WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "search-btn")))
 
 BY.NAME — for form inputs with a name attribute:
     WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "q")))
 
-XPATH — for everything else. Always scope to a container when possible:
+BY.CSS_SELECTOR — use when no stable id or name exists but a stable CSS selector is available (e.g. data-testid, aria-label, class, tag+attribute combos). Prefer attribute selectors over class names when classes may be dynamic:
+    (By.CSS_SELECTOR, "[data-testid='search-input']")
+    (By.CSS_SELECTOR, "button[aria-label='Search']")
+    (By.CSS_SELECTOR, "input[name='q']")
+    (By.CSS_SELECTOR, "#headerMenu a")
+
+XPATH — use only when ID, Name, and CSS Selector are not suitable (e.g. locating by visible text, contains(@href), or complex DOM traversal). Always scope to a container when possible:
     (By.XPATH, "//div[@id='headerMenu']//a[contains(@href, '/categories.aspx')]")
-    (By.XPATH, "//*[@id='submit-btn']")
     (By.XPATH, "//input[@type='submit']")
     (By.XPATH, "//*[@data-testid='search-input']")
 
