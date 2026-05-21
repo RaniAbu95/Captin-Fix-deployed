@@ -363,7 +363,7 @@ MANDATORY 3-STEP PATTERN for any navigation link that lives inside a drawer:
   Step 1 — Open the menu. Use By.ID if the toggle has a stable semantic id, otherwise By.CSS_SELECTOR:
     # Prefer By.ID when available:
     menu_btn = WebDriverWait(driver, 30).until(
-        EC.element_to_be_clickable((By.ID, "imdbHeader-navDrawerOpen--desktop"))
+        EC.element_to_be_clickable((By.ID, "imdbHeader-navDrawerOpen"))
     )
     # Fallback to CSS selector:
     menu_btn = WebDriverWait(driver, 30).until(
