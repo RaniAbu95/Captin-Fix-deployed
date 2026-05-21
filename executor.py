@@ -260,7 +260,8 @@ LINKS WITH VISIBLE TEXT:
 
 NAVIGATION LINKS — <a href> elements MUST be located by href, never by id:
 - Many sites (React, Next.js, Angular) generate random ids on <a> elements at build time. These ids look like "r1w2KWYLVsyGg" — they are NOT stable and MUST NOT be used.
-- ALWAYS locate <a href> navigation links using a simple EC.element_to_be_clickable call. Scope the XPath to the nav container to avoid matching hidden duplicates in mobile nav or footer:
+- ALWAYS locate <a href> navigation links with visibility check first, then element_to_be_clickable. Scope the XPath to the nav container to avoid matching hidden duplicates in mobile nav or footer:
+    WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.XPATH, "//nav//a[contains(@href, '/economy')]")))
     link = WebDriverWait(driver, 30).until(
         EC.element_to_be_clickable((By.XPATH, "//nav//a[contains(@href, '/economy')]"))
     )
@@ -285,12 +286,17 @@ OTHER LOCATOR RULES:
 ═══════════════════════════════════════
 WAITS AND ASSERTIONS
 ═══════════════════════════════════════
-- INTERACTION RULE: before ANY click, send_keys, or clear() — ALWAYS use EC.element_to_be_clickable. NEVER use EC.presence_of_element_located or EC.visibility_of_element_located for an element you are about to interact with — presence/visibility does not guarantee the element accepts input.
-    CORRECT:   WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "country-picker-search")))
-    INCORRECT: WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "country-picker-search")))
+- INTERACTION RULE: before ANY click, send_keys, or clear() — ALWAYS first wait for EC.visibility_of_element_located, then wait for EC.element_to_be_clickable on the same locator. The visibility check confirms the element is actually rendered on screen before you attempt to interact with it. NEVER skip the visibility check.
+    CORRECT pattern:
+        WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, "submit-btn")))
+        WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "submit-btn"))).click()
+    INCORRECT (no visibility check first):
+        WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "submit-btn"))).click()
+    INCORRECT (presence only):
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "submit-btn")))
 - EC.presence_of_element_located — element is in the DOM (use ONLY for images and read-only checks, never before interaction)
-- EC.visibility_of_element_located — element is visible (use ONLY for assertion steps that verify something is shown, never before interaction)
-- EC.element_to_be_clickable — element is ready to click (use before every click)
+- EC.visibility_of_element_located — element is visible on screen (REQUIRED before every interaction AND for assertion steps)
+- EC.element_to_be_clickable — element is ready to click (REQUIRED immediately after visibility check, before every click)
 - NEVER use visibility_of on <img> — images have 0×0 size in headless mode. Use presence_of and check .get_attribute("src") or .get_attribute("alt").
 - NEVER use assert element.is_displayed() on images.
 - For title checks: assert "keyword" in driver.title — use ONLY a locale-stable fragment: the brand name in its original script, a TLD like "IL", or a non-translatable abbreviation. NEVER use an English transliteration of a non-English brand (e.g. NEVER "drushim" when the title is in Hebrew "דרושים"). The browser renders the title in the site's locale — English words that are translations will NOT appear.
