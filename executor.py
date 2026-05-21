@@ -703,6 +703,7 @@ def run_test_file(case_id, file_path, website=""):
                 "name": {repr(case_id)},
                 "headless": False,
                 "w3c": True,
+                "platformName": "macOS Sequoia",
                 "geoLocation": "IL" if _israeli else "",
             }})
             _lt_endpoint = "https://" + _lt_username + ":" + _lt_access_key + "@hub.lambdatest.com/wd/hub"
