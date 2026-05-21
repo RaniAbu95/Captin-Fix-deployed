@@ -240,6 +240,10 @@ BY.ID — always prefer By.ID when a stable, semantic id is present. Only use it
 BY.NAME — for form inputs with a name attribute:
     WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "q")))
 
+BY.TAG_NAME — ONLY for standard HTML tags (div, nav, footer, header, main, section, h1, h2, etc.). NEVER use By.TAG_NAME for custom elements with hyphens (e.g. "footer-2025", "nav-bar", "app-root") — Selenium's tag name strategy does not support hyphenated custom elements. Use By.CSS_SELECTOR instead:
+    CORRECT for custom element:   (By.CSS_SELECTOR, "footer-2025")
+    INCORRECT:                    (By.TAG_NAME, "footer-2025")
+
 BY.CSS_SELECTOR — use when no stable id or name exists but a stable CSS selector is available (e.g. data-testid, aria-label, class, tag+attribute combos). Prefer attribute selectors over class names when classes may be dynamic:
     (By.CSS_SELECTOR, "[data-testid='search-input']")
     (By.CSS_SELECTOR, "input[name='q']")
