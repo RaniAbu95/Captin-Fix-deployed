@@ -44,81 +44,7 @@ def _chrome_options():
     opts.page_load_strategy = 'none'
     return opts
 
-# llm is initialised inside generate_selenium_code() to avoid import-time errors
 
-# prompt_template = ChatPromptTemplate.from_template("""
-# You are an expert QA engineer.
-# Convert the following test step into **runnable Python Selenium code**.
-#
-# Rules:
-# - Use `driver` for the WebDriver.
-# - Use `By` from selenium.
-# - Include all necessary imports.
-# - Include driver.quit() if this is the last step.
-# - Do NOT include markdown or backticks.
-# - The step should be executable standalone in a Python file.
-#
-# Step: {step}
-# Expected result: {expected}
-# """)
-
-# prompt_template = ChatPromptTemplate.from_template("""
-# You are an expert QA engineer.
-#
-# Convert the following test step into **runnable Python Selenium code** using the provided `driver`.
-#
-# Rules:
-# - Use the most reliable locator: ID > Name > CSS Selector > XPath.
-# - Use `WebDriverWait` to wait for elements before interacting.
-# - Do NOT re-create the driver; use the existing `driver`.
-# - Include necessary imports if they are missing.
-# - The code must be executable and independent for this step.
-# - Do NOT include markdown or backticks.
-# - Capture a screenshot if the element is not found or an action fails.
-#
-# Step: {step}
-# Expected result: {expected}
-# """)
-
-# Per-step prompt (kept for reference, no longer used in generate_test_files)
-# prompt_template = ChatPromptTemplate.from_template("""
-# You are an expert QA engineer.
-#
-# Convert the following test step into **runnable Python Selenium code** using the provided `driver`.
-#
-# Rules:
-# - If this is the first step in the test case, include:
-#     driver.get("{website}")
-#   before interacting with the page.
-#
-# - You are also given the full HTML of the page. You MUST extract and use the **exact attributes** from the HTML (id, name, placeholder, value, visible text, class if unique).
-# - Do NOT invent or assume element IDs or names. Only use selectors that actually appear in the HTML.
-# - Priority for locators: ID > Name > Placeholder/Text > CSS Selector > XPath.
-# - If no clean locator exists, construct an XPath using visible text or hierarchy from the given HTML.
-# - Only use locators that appear exactly in the provided HTML.
-# - For Hebrew or non‑Latin text, match the exact visible text from the HTML, preserving spaces, punctuation, and case.
-# - When navigating to a file:/// URL, assume Chrome is launched with options to allow local file access and disable web security.
-# - Never call driver.quit(), driver.close(), or end the browser session in any way.
-# - Output only raw Python code, no markdown, no backticks, no explanations.
-# - Use `WebDriverWait` for all element interactions.
-# - Do NOT re-create the driver; use the existing `driver` passed in.
-# - **Never** call driver.quit(), driver.close(), or end the browser session in any way.
-# - Do NOT navigate away from the provided Website URL unless explicitly stated in the step.
-# - Include necessary imports if they are missing.
-# - The code must be executable and independent for this step.
-# - Do NOT include markdown or backticks.
-# - The step should be executable standalone in a Python file.
-# - Capture a screenshot if the element is not found or an action fails, but do not terminate the driver afterwards.
-#
-# Website URL: {website}
-#
-# Full HTML: {html}
-#
-# Step: {step}
-# Expected result: {expected}
-# """)
-
-# System portion — static across all cases in a run (instructions, website, HTML).
 # Marked as a cache breakpoint so Anthropic reuses it on every call after the first.
 def _make_main_block(website: str) -> str:
     """Return the if __name__ block tailored to the website's locale."""
@@ -188,10 +114,8 @@ if __name__ == "__main__":
     """})
 %(geolocation)s
 
-    _orig_get = driver.get
-    def _patched_get(url):
-        _orig_get(url)
-        time.sleep(5)
+    def _dismiss_banner():
+        # Try Selenium click first
         for sel in ["#CybotCookiebotDialogBodyButtonClose", ".cky-btn-accept",
                     "[id*='accept-all']", "[id*='acceptAll']"]:
             try:
@@ -199,10 +123,12 @@ if __name__ == "__main__":
                 for el in els:
                     if el.is_displayed() and el.is_enabled():
                         el.click()
-                        return
+                        return True
             except Exception:
                 pass
         for xpath in [
+            "//*[(self::button or self::a or self::span)][contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'accept all')]",
+            "//*[(self::button or self::a or self::span)][contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'accept cookies')]",
             "//*[(self::button or self::a or self::span)][contains(.,'אישור')]",
             "//*[(self::button or self::a or self::span)][contains(.,'קבל הכל')]",
             "//*[(self::button or self::a or self::span)][normalize-space()='\xd7']",
@@ -212,9 +138,39 @@ if __name__ == "__main__":
                 for el in els:
                     if el.is_displayed() and el.is_enabled():
                         el.click()
-                        return
+                        return True
             except Exception:
                 pass
+        # JS fallback — clicks the button by text even if Selenium can't reach it
+        try:
+            clicked = driver.execute_script("""
+                var buttons = document.querySelectorAll('button, a, span');
+                for (var i = 0; i < buttons.length; i++) {
+                    var t = buttons[i].innerText.trim().toLowerCase();
+                    if (t === 'accept all' || t === 'accept cookies' || t === 'קבל הכל' || t === 'אישור') {
+                        buttons[i].click();
+                        return true;
+                    }
+                }
+                return false;
+            """)
+            if clicked:
+                return True
+        except Exception:
+            pass
+        return False
+
+    _orig_get = driver.get
+    def _patched_get(url):
+        _orig_get(url)
+        time.sleep(5)
+        # Retry dismissal for up to 10 seconds — banner may load after initial paint
+        import time as _t
+        deadline = _t.time() + 10
+        while _t.time() < deadline:
+            if _dismiss_banner():
+                break
+            _t.sleep(0.5)
     driver.get = _patched_get
 
     try:
@@ -246,10 +202,12 @@ Required structure (follow exactly):
            pass
 
 ═══════════════════════════════════════
-STEP FIDELITY
+STEP FIDELITY — CRITICAL RULE
 ═══════════════════════════════════════
-- Implement EXACTLY the steps listed, in order. Do not skip, merge, reorder, or invent steps.
-- One test plan step → one clearly identifiable code block.
+- IMPORTANT: The steps below are the pre-generated test plan. You MUST implement them EXACTLY as written — word for word. Do not paraphrase, substitute, or reinterpret a step.
+- If a step says "element with id 'app'" you MUST use By.ID, "app". If it says "aria-label 'X'" you MUST use that exact aria-label. Never swap one locator type for another.
+- Do not skip, merge, reorder, or invent steps. Every step in the plan must appear as a distinct code block.
+- If you cannot find a locator in the HTML, use exactly what the step specifies anyway — do NOT silently replace it with a different attribute or selector.
 
 ═══════════════════════════════════════
 TIMEOUTS — DEPLOYED SITE (important)
@@ -282,9 +240,14 @@ BY.NAME — for form inputs with a name attribute:
 
 BY.CSS_SELECTOR — use when no stable id or name exists but a stable CSS selector is available (e.g. data-testid, aria-label, class, tag+attribute combos). Prefer attribute selectors over class names when classes may be dynamic:
     (By.CSS_SELECTOR, "[data-testid='search-input']")
-    (By.CSS_SELECTOR, "button[aria-label='Search']")
     (By.CSS_SELECTOR, "input[name='q']")
     (By.CSS_SELECTOR, "#headerMenu a")
+- ARIA-LABEL RULE: when the selector uses aria-label, always wrap the string with single quotes outside and double quotes inside the attribute value:
+    CORRECT:   (By.CSS_SELECTOR, '[aria-label="Open main navigation"]')
+    INCORRECT: (By.CSS_SELECTOR, "[aria-label='Open main navigation']")
+- ARIA-LABEL EXISTENCE RULE: ONLY use aria-label if the element has an aria-label attribute in the HTML. If the element has visible text but NO aria-label attribute (e.g. <span>Ask AI</span>), use XPath text matching instead:
+    CORRECT:   (By.XPATH, "//span[normalize-space()='Ask AI']")
+    INCORRECT: (By.CSS_SELECTOR, '[aria-label="Ask AI"]')  ← aria-label not in HTML, will always fail
 
 XPATH — use only when ID, Name, and CSS Selector are not suitable (e.g. locating by visible text, contains(@href), or complex DOM traversal). Always scope to a container when possible:
     (By.XPATH, "//div[@id='headerMenu']//a[contains(@href, '/categories.aspx')]")
@@ -322,8 +285,11 @@ OTHER LOCATOR RULES:
 ═══════════════════════════════════════
 WAITS AND ASSERTIONS
 ═══════════════════════════════════════
-- EC.presence_of_element_located — element is in the DOM (use for initial page load and images)
-- EC.visibility_of_element_located — element is visible (use for interactions and read steps)
+- INTERACTION RULE: before ANY click, send_keys, or clear() — ALWAYS use EC.element_to_be_clickable. NEVER use EC.presence_of_element_located or EC.visibility_of_element_located for an element you are about to interact with — presence/visibility does not guarantee the element accepts input.
+    CORRECT:   WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "country-picker-search")))
+    INCORRECT: WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "country-picker-search")))
+- EC.presence_of_element_located — element is in the DOM (use ONLY for images and read-only checks, never before interaction)
+- EC.visibility_of_element_located — element is visible (use ONLY for assertion steps that verify something is shown, never before interaction)
 - EC.element_to_be_clickable — element is ready to click (use before every click)
 - NEVER use visibility_of on <img> — images have 0×0 size in headless mode. Use presence_of and check .get_attribute("src") or .get_attribute("alt").
 - NEVER use assert element.is_displayed() on images.
@@ -360,14 +326,19 @@ HAMBURGER / COLLAPSIBLE NAVIGATION
 Many sites (IMDB, BBC, etc.) hide ALL navigation links inside a collapsible drawer behind a hamburger/MENU toggle. These links exist in the DOM but are NOT interactable until the drawer is opened — EC.element_to_be_clickable on the nav link will time out if you skip this step.
 
 MANDATORY 3-STEP PATTERN for any navigation link that lives inside a drawer:
-  Step 1 — Open the menu. Use By.ID if the toggle has a stable semantic id, otherwise By.CSS_SELECTOR:
-    # Prefer By.ID when available:
+  Step 1 — Open the menu. ALWAYS follow ID > Name > CSS priority — check the HTML for an id on the toggle first:
+    # STEP 1a — look for an id attribute on the toggle button in the HTML. If found, use By.ID:
     menu_btn = WebDriverWait(driver, 30).until(
-        EC.element_to_be_clickable((By.ID, "imdbHeader-navDrawerOpen"))
+        EC.element_to_be_clickable((By.ID, "exact-id-from-html"))
     )
-    # Fallback to CSS selector:
+    # STEP 1b — only if no id exists, use this multi-selector CSS fallback. NEVER invent a single aria-label:
     menu_btn = WebDriverWait(driver, 30).until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR, "label[for*='navDrawerOpen'], [aria-label*='Menu'], [class*='hamburger'], [class*='menu-toggle']"))
+        EC.element_to_be_clickable((By.CSS_SELECTOR,
+            "label[for*='navDrawer'], label[for*='nav-drawer'], "
+            "[aria-label*='menu' i], [aria-label*='navigation' i], "
+            "[class*='hamburger'], [class*='menu-toggle'], [class*='nav-toggle'], "
+            "button[aria-expanded]"
+        ))
     )
     menu_btn.click()
     time.sleep(1.5)
@@ -383,6 +354,7 @@ MANDATORY 3-STEP PATTERN for any navigation link that lives inside a drawer:
 
 HOW TO DETECT a hidden nav: if the HTML shows a `<label for="...navDrawer...">`, `<button aria-label="Menu">`, `<button aria-label="Open menu">`, or any toggle with `aria-expanded`, the nav links are inside a drawer — always apply the 3-step pattern.
 NEVER attempt to click a nav link directly without opening the drawer first on these sites.
+NEVER use a single exact aria-label like `button[aria-label='Open main navigation']` for the toggle — different sites use different labels. Always use the multi-selector fallback chain shown above.
 
 ═══════════════════════════════════════
 SEARCH INPUT INSIDE A DRAWER / PANEL
@@ -441,26 +413,31 @@ ERROR HANDLING
 - The test body is already inside the try block (see OUTPUT FORMAT).
 - In the except block: save a screenshot to "error_{{int(time.time())}}.png", then re-raise. Never swallow exceptions.
 
+═══════════════════════════════════════
+HTML EXTRACTION RULES — CRITICAL
+═══════════════════════════════════════
+- You MUST extract and use the EXACT attributes from the HTML below: id, name, placeholder, value, visible text, class (if unique). Do NOT invent or assume any attribute value.
+- Only use locators that exist verbatim in the HTML below. If an attribute is not in the HTML, do not use it.
+- NEVER use `[aria-label='...']` unless that exact aria-label string appears in the HTML. Do not guess or infer aria-labels from brand names or common sense.
+- For Hebrew or non-Latin text: match the exact visible text from the HTML, preserving spaces, punctuation, and case exactly as they appear.
+- Do NOT navigate away from the provided Website URL unless a step explicitly instructs it.
+
 BROWSER MODE: {headless}
-Only use locators that exist in the HTML below — fetched with {headless}.
 
 Website URL: {website}
 
 Full HTML: {html}"""
 
-# Per-case portion — varies per case, NOT cached.
-USER_PROMPT_TEMPLATE = """Steps:
+# Per-case portion — all steps passed at once so the LLM sees the full picture.
+USER_PROMPT_TEMPLATE = """Implement EXACTLY these test steps — one code block per step, in order. Do not add, skip, merge, or reorder any step.
+
+Steps:
 {steps}
 
 Expected result: {expected}"""
 
 
 
-# def generate_selenium_code(step_text, expected_text):
-#     """Generate Python Selenium code for a single step using AI."""
-#     messages = prompt_template.format_messages(step=step_text, expected=expected_text)
-#     response = llm.invoke(messages)
-#     return response.content.strip()
 def _clean_html(html: str, max_chars: int = 30000) -> str:
     import re
     html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
@@ -489,25 +466,19 @@ def extract_full_html(url: str) -> str:
     _html_cache[url] = html
     return html
 
-def generate_selenium_code(step_text, expected_text, website, page_html):
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-6",
-        temperature=0,
-        api_key=ANTHROPIC_API_KEY
-    )
-    messages = prompt_template.format_messages(
-        step=step_text,
-        expected=expected_text,
-        website=website,
-        html=page_html
-    )
-    import sys as _sys, time as _t
-    print(f"[anthropic] generate_selenium_code.invoke at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
-    response = llm.invoke(messages)
-    return response.content.strip()
+# def generate_selenium_code(step_text, expected_text, website, page_html):
+#     """Generate Python Selenium code for a single step using AI."""
+#     llm = ChatAnthropic(model="claude-sonnet-4-6", temperature=0, api_key=ANTHROPIC_API_KEY)
+#     messages = prompt_template.format_messages(
+#         step=step_text, expected=expected_text, website=website, html=page_html
+#     )
+#     import sys as _sys, time as _t
+#     print(f"[anthropic] generate_selenium_code.invoke at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
+#     response = llm.invoke(messages)
+#     return response.content.strip()
 
 # -----------------------------
-# 2. Generate test files from plan
+# 2. Generate test files from plan (old per-step approach, replaced by generate_test_files)
 # -----------------------------
 # def generate_test_files(plan):
 #     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -531,7 +502,6 @@ def generate_selenium_code(step_text, expected_text, website, page_html):
 #         print(f"✅ Generated test file: {file_path}")
 #
 #     return test_files
-
 
 def _strip_code_fences(text: str) -> str:
     if text.startswith("```"):
@@ -587,19 +557,21 @@ def _fix_syntax(code: str, llm, cached_system, case_id: str):
 
 
 def generate_test_files(plan):
+    import sys as _sys, time as _t
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     test_files = []
     website = plan.get("website", "")
-
     page_html = extract_full_html(website)
+    headless_label = "headless Chrome" if HEADLESS else "regular Chrome"
+
     llm = ChatAnthropic(model="claude-sonnet-4-6", temperature=0, api_key=ANTHROPIC_API_KEY)
 
-    # Build the system prompt ONCE per run — same instructions, website, and HTML
-    # are reused for every case, so this whole block is the cache prefix.
+    # Build the system prompt ONCE per run — cached across all cases and steps.
     system_text = SYSTEM_PROMPT_TEMPLATE.format(
         website=website,
         html=page_html,
-        headless="headless Chrome" if HEADLESS else "regular Chrome",
+        headless=headless_label,
         main_block=_make_main_block(website),
     )
     cached_system = SystemMessage(content=[{
@@ -616,26 +588,26 @@ def generate_test_files(plan):
         steps_text = "\n".join(f"{i+1}. {s}" for i, s in enumerate(steps))
         user_text = USER_PROMPT_TEMPLATE.format(steps=steps_text, expected=expected)
         messages = [cached_system, HumanMessage(content=user_text)]
-        import sys as _sys, time as _t
         print(f"[anthropic] generate_test_files.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
         response = llm.invoke(messages)
-        code = _strip_code_fences(response.content.strip())
+        combined = _strip_code_fences(response.content.strip())
 
-        # Strip any __main__ block Claude added despite instructions (we append our own).
-        if "if __name__" in code:
-            code = code[:code.index("if __name__")].rstrip()
+        # Strip any __main__ block Claude added despite instructions.
+        if "if __name__" in combined:
+            combined = combined[:combined.index("if __name__")].rstrip()
 
         # Validate structure + syntax; ask Claude to fix once if broken.
-        code = _fix_syntax(code, llm, cached_system, case_id)
-        if code is None:
+        combined = _fix_syntax(combined, llm, cached_system, case_id)
+        if combined is None:
             print(f"[generate_test_files] Skipping {case_id}: could not produce valid Python after retry.")
             continue
 
         file_path = os.path.join(OUTPUT_DIR, f"{case_id}.py")
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(code + "\n" + _make_main_block(website))
+            f.write(combined + "\n" + _make_main_block(website))
 
         test_files.append((case_id, file_path))
+        print(f"✅ Generated test file: {file_path}")
 
     return test_files
 
@@ -815,7 +787,7 @@ def run_test_file(case_id, file_path, website=""):
             "//*[(self::button or self::a or self::div or self::span)][normalize-space()='ביטול']",
         ]
         def _dismiss_cookies(d):
-            end = time.time() + 3
+            end = time.time() + (8 if _using_lambdatest else 3)
             while time.time() < end:
                 try:
                     for sel in _cookie_css:
@@ -868,7 +840,8 @@ def run_test_file(case_id, file_path, website=""):
         def _patched_get(url):
             _orig_get(url)
             # Allow WAF/Cloudflare JS challenges to run before the test starts waiting.
-            time.sleep(3)
+            # LambdaTest remote sessions have extra latency — consent modals load later.
+            time.sleep(6 if _using_lambdatest else 3)
             _dismiss_cookies(driver)
             # Progress snapshot — run in a thread so a slow Chrome doesn't block navigation.
             import threading as _threading
@@ -1028,7 +1001,10 @@ def main():
 
     # 2. Execute all test files and collect results
     results = []
-    for case_id, file_path in test_files:
+    for i, (case_id, file_path) in enumerate(test_files):
+        if i > 0:
+            print(f"⏳ Waiting 15s before next test so consent banners don't reappear ...")
+            time.sleep(15)
         print(f"▶ Running test {case_id} ...")
         result = run_test_file(case_id, file_path, website=website)
         results.append(result)

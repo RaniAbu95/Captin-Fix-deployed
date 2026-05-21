@@ -160,7 +160,7 @@ Bad step examples (NEVER write these):
 EXPECTED FORMAT — must be ONE of these concrete, checkable forms:
   - "The page URL contains '<fragment from href>'"
   - "The element with id '<id>' is visible on the page"
-  - "The element with aria-label '<label>' is visible on the page"
+  - "The element with aria-label '<label>' is visible on the page" — ONLY if that exact aria-label value appears verbatim in the HTML snippet provided. NEVER infer or guess an aria-label.
   - "A validation error message is displayed"
   - "The form field '<name>' shows an error state"
   - "The dropdown/menu with items [...] is visible"
@@ -214,6 +214,8 @@ HTML RULES (strictly enforced):
 - NEVER assume a link opens in a new tab unless the HTML explicitly shows target="_blank".
 - ONLY use <a href="..."> elements found in the <body> as clickable navigation links. NEVER use <link> tags from the <head> — those are stylesheet/font/resource references (e.g. Google Fonts, CSS files) and cannot be clicked by a user.
 - A valid clickable link has a visible text label and an href pointing to a page path (e.g. /about, /categories.aspx) or domain. hrefs pointing to .css, .js, fonts.googleapis.com, cdn URLs, or external resources are NOT clickable links.
+- IMPORTANT — DIRECT REACHABILITY: Before writing a "Click the link with href '...'" step, ask yourself: is this link directly visible and clickable on the page without any prior interaction? If the link is inside a dropdown, mega-menu, footer accordion, or any container that requires a prior click to expand/reveal it, you MUST include the intermediate step (e.g. "Click the menu button with id '...' to open the dropdown") BEFORE the click step. Never write a click step for a link that is not directly reachable in the initial page state.
+- IMPORTANT — ELEMENTS INSIDE THE NAV DRAWER: Elements such as country pickers, language selectors, or any input/link whose id or class contains 'country', 'language', 'locale', or 'picker' are typically rendered inside the navigation drawer and are NOT directly accessible. You MUST include a step to click the element with aria-label 'Open main navigation' BEFORE any step that interacts with these elements.
 
 ---
 
@@ -414,4 +416,4 @@ def run_planner(target: str, num_tests: int, depth: int, email: str = "", pm: st
 
 
 if __name__ == "__main__":
-    run_planner('https://www.google.com/')
+    run_planner('https://www.il.kayak.com/',5,1)
