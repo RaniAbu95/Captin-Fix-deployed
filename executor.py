@@ -229,11 +229,13 @@ PAGE LOAD CHECK
 ═══════════════════════════════════════
 LOCATORS — how to find elements
 ═══════════════════════════════════════
-Priority order (most reliable → least reliable): ID → Name → CSS Selector → XPath
+Priority order (most reliable → least reliable): ID → Name → XPath → CSS Selector
 Always use the highest-priority locator that works for the element. Only fall back to a lower-priority strategy when a higher one is not available in the HTML.
+IMPORTANT: if a stable, semantic id is present — ALWAYS use By.ID. Do NOT use XPath or CSS when By.ID is available.
 
 BY.ID — always prefer By.ID when a stable, semantic id is present. Only use it when the id is a human-readable, semantic name (e.g. "search-btn", "headerMenu", "flashBell"). NEVER use By.ID for ids that look randomly generated — strings of random alphanumeric characters like "r1w2KWYLVsyGg" or "HJH3YbK84ikMe" are build-time dynamic ids that change on every deployment and will break the test.
-    WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "search-btn")))
+    el = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, "search-btn")))
+    el.click()
 
 BY.NAME — for form inputs with a name attribute:
     WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "q")))
@@ -260,11 +262,9 @@ LINKS WITH VISIBLE TEXT:
 
 NAVIGATION LINKS — <a href> elements MUST be located by href, never by id:
 - Many sites (React, Next.js, Angular) generate random ids on <a> elements at build time. These ids look like "r1w2KWYLVsyGg" — they are NOT stable and MUST NOT be used.
-- ALWAYS locate <a href> navigation links with visibility check first, then element_to_be_clickable. Scope the XPath to the nav container to avoid matching hidden duplicates in mobile nav or footer:
-    WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.XPATH, "//nav//a[contains(@href, '/economy')]")))
-    link = WebDriverWait(driver, 30).until(
-        EC.element_to_be_clickable((By.XPATH, "//nav//a[contains(@href, '/economy')]"))
-    )
+- ALWAYS locate <a href> navigation links using EC.visibility_of_element_located, then call .click() directly. Scope the XPath to the nav container to avoid matching hidden duplicates in mobile nav or footer:
+    link = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.XPATH, "//nav//a[contains(@href, '/economy')]")))
+    link.click()
 - NEVER use lambda+next+find_elements patterns — they are hard to debug and unnecessary when the XPath is scoped correctly.
 
 NON-ASCII IN HREF (Hebrew, Arabic, etc.):
@@ -286,17 +286,20 @@ OTHER LOCATOR RULES:
 ═══════════════════════════════════════
 WAITS AND ASSERTIONS
 ═══════════════════════════════════════
-- INTERACTION RULE: before ANY click, send_keys, or clear() — ALWAYS first wait for EC.visibility_of_element_located, then wait for EC.element_to_be_clickable on the same locator. The visibility check confirms the element is actually rendered on screen before you attempt to interact with it. NEVER skip the visibility check.
+- INTERACTION RULE: before ANY click, send_keys, or clear() — ALWAYS use EC.visibility_of_element_located to get the element, then call .click() / .send_keys() / .clear() on it directly. This confirms the element is rendered on screen before interaction. NEVER use EC.element_to_be_clickable.
     CORRECT pattern:
-        WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, "submit-btn")))
-        WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "submit-btn"))).click()
-    INCORRECT (no visibility check first):
+        el = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, "submit-btn")))
+        el.click()
+    CORRECT for send_keys:
+        inp = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.NAME, "q")))
+        inp.send_keys("search text")
+    INCORRECT (element_to_be_clickable — do not use):
         WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "submit-btn"))).click()
     INCORRECT (presence only):
         WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "submit-btn")))
 - EC.presence_of_element_located — element is in the DOM (use ONLY for images and read-only checks, never before interaction)
-- EC.visibility_of_element_located — element is visible on screen (REQUIRED before every interaction AND for assertion steps)
-- EC.element_to_be_clickable — element is ready to click (REQUIRED immediately after visibility check, before every click)
+- EC.visibility_of_element_located — use for EVERY interaction (click, send_keys, clear) AND for all assertion steps
+- EC.element_to_be_clickable — DO NOT USE. Always use visibility_of_element_located instead.
 - NEVER use visibility_of on <img> — images have 0×0 size in headless mode. Use presence_of and check .get_attribute("src") or .get_attribute("alt").
 - NEVER use assert element.is_displayed() on images.
 - For title checks: assert "keyword" in driver.title — use ONLY a locale-stable fragment: the brand name in its original script, a TLD like "IL", or a non-translatable abbreviation. NEVER use an English transliteration of a non-English brand (e.g. NEVER "drushim" when the title is in Hebrew "דרושים"). The browser renders the title in the site's locale — English words that are translations will NOT appear.
@@ -340,7 +343,7 @@ HAMBURGER / COLLAPSIBLE NAVIGATION
 Many sites (IMDB, BBC, etc.) hide ALL navigation links inside a collapsible drawer behind a hamburger/MENU toggle. These links exist in the DOM but are NOT interactable until the drawer is opened — EC.element_to_be_clickable on the nav link will time out if you skip this step.
 
 MANDATORY 3-STEP PATTERN for any navigation link that lives inside a drawer:
-  Step 1 — Open the menu. ALWAYS follow ID > Name > CSS priority — check the HTML for an id on the toggle first:
+  Step 1 — Open the menu. ALWAYS follow ID > Name > XPATH > CSS priority — check the HTML for an id on the toggle first:
     # STEP 1a — look for an id attribute on the toggle button in the HTML. If found, use By.ID:
     menu_btn = WebDriverWait(driver, 30).until(
         EC.element_to_be_clickable((By.ID, "exact-id-from-html"))
