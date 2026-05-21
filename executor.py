@@ -212,7 +212,7 @@ STEP FIDELITY — CRITICAL RULE
 ═══════════════════════════════════════
 TIMEOUTS — DEPLOYED SITE (important)
 ═══════════════════════════════════════
-- Default timeout for ALL WebDriverWait calls: 30 seconds. Never use less than 30.
+- Default timeout for ALL WebDriverWait calls: 20 seconds. Never use less than 20.
 - The site runs on a cloud server that may have slow cold starts. 30s gives it room to respond.
 - Use ONE wait per page-load check — do NOT chain multiple waits for the same page.
 
@@ -220,7 +220,7 @@ TIMEOUTS — DEPLOYED SITE (important)
 PAGE LOAD CHECK
 ═══════════════════════════════════════
 - After driver.get(), ALWAYS verify the page is ready with this exact JS readyState check — it works on every site regardless of DOM structure:
-    WebDriverWait(driver, 30).until(
+    WebDriverWait(driver, 20).until(
         lambda d: d.execute_script("return document.readyState") in ("interactive", "complete")
     )
 - This is the ONLY guaranteed page-load check. NEVER use EC.presence_of_element_located on "header", "nav", "main", or any structural element as the primary page-load signal — these elements may not exist or may be injected late by JavaScript.
@@ -234,11 +234,11 @@ Always use the highest-priority locator that works for the element. Only fall ba
 IMPORTANT: if a stable, semantic id is present — ALWAYS use By.ID. Do NOT use XPath or CSS when By.ID is available.
 
 BY.ID — always prefer By.ID when a stable, semantic id is present. Only use it when the id is a human-readable, semantic name (e.g. "search-btn", "headerMenu", "flashBell"). NEVER use By.ID for ids that look randomly generated — strings of random alphanumeric characters like "r1w2KWYLVsyGg" or "HJH3YbK84ikMe" are build-time dynamic ids that change on every deployment and will break the test.
-    el = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, "search-btn")))
+    el = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.ID, "search-btn")))
     el.click()
 
 BY.NAME — for form inputs with a name attribute:
-    WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "q")))
+    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.NAME, "q")))
 
 BY.TAG_NAME — ONLY for standard HTML tags (div, nav, footer, header, main, section, h1, h2, etc.). NEVER use By.TAG_NAME for custom elements with hyphens (e.g. "footer-2025", "nav-bar", "app-root") — Selenium's tag name strategy does not support hyphenated custom elements. Use By.CSS_SELECTOR instead:
     CORRECT for custom element:   (By.CSS_SELECTOR, "footer-2025")
@@ -267,7 +267,7 @@ LINKS WITH VISIBLE TEXT:
 NAVIGATION LINKS — <a href> elements MUST be located by href, never by id:
 - Many sites (React, Next.js, Angular) generate random ids on <a> elements at build time. These ids look like "r1w2KWYLVsyGg" — they are NOT stable and MUST NOT be used.
 - ALWAYS locate <a href> navigation links using EC.visibility_of_element_located, then call .click() directly. Scope the XPath to the nav container to avoid matching hidden duplicates in mobile nav or footer:
-    link = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.XPATH, "//nav//a[contains(@href, '/economy')]")))
+    link = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.XPATH, "//nav//a[contains(@href, '/economy')]")))
     link.click()
 - NEVER use lambda+next+find_elements patterns — they are hard to debug and unnecessary when the XPath is scoped correctly.
 
@@ -292,15 +292,15 @@ WAITS AND ASSERTIONS
 ═══════════════════════════════════════
 - INTERACTION RULE: before ANY click, send_keys, or clear() — ALWAYS use EC.visibility_of_element_located to get the element, then call .click() / .send_keys() / .clear() on it directly. This confirms the element is rendered on screen before interaction. NEVER use EC.element_to_be_clickable.
     CORRECT pattern:
-        el = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, "submit-btn")))
+        el = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.ID, "submit-btn")))
         el.click()
     CORRECT for send_keys:
-        inp = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.NAME, "q")))
+        inp = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.NAME, "q")))
         inp.send_keys("search text")
     INCORRECT (element_to_be_clickable — do not use):
-        WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "submit-btn"))).click()
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, "submit-btn"))).click()
     INCORRECT (presence only):
-        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "submit-btn")))
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, "submit-btn")))
 - EC.presence_of_element_located — element is in the DOM (use ONLY for images and read-only checks, never before interaction)
 - EC.visibility_of_element_located — use for EVERY interaction (click, send_keys, clear) AND for all assertion steps
 - EC.element_to_be_clickable — DO NOT USE. Always use visibility_of_element_located instead.
@@ -329,14 +329,14 @@ NAVIGATION
 - ONLY wait for a URL change when the href actually points to a different page. If the link points to the current page (e.g. logo → "/"), do not wait for a URL change — verify a page element instead.
 - NEVER click or wait for elements that have style="display:none" in the HTML — they are invisible and cannot be interacted with.
 - SIGN-IN / AUTH BUTTONS: clicking a sign-in button may open an inline panel OR redirect to an external login page. Always accept both outcomes: wait for either the panel element to become visible OR the URL to contain 'login'/'signin'/'account'. Example:
-    WebDriverWait(driver, 30).until(
+    WebDriverWait(driver, 20).until(
         lambda d: (d.find_elements(By.ID, "panel_id") and d.find_element(By.ID, "panel_id").is_displayed())
             or any(k in d.current_url.lower() for k in ["login", "signin", "account"])
     )
 - NEW TAB: If the HTML shows target="_blank", the click opens a new tab. Capture handles before the click and switch:
     original_handles = driver.window_handles
     link.click()
-    WebDriverWait(driver, 30).until(lambda d: len(d.window_handles) > len(original_handles))
+    WebDriverWait(driver, 20).until(lambda d: len(d.window_handles) > len(original_handles))
     driver.switch_to.window(driver.window_handles[-1])
 - If target is "_top", "_self", or absent: link opens in the same tab. Assert len(driver.window_handles) == 1 after clicking.
 - NEVER use EC.url_contains("/") — every URL contains "/" and this proves nothing.
@@ -349,11 +349,11 @@ Many sites (IMDB, BBC, etc.) hide ALL navigation links inside a collapsible draw
 MANDATORY 3-STEP PATTERN for any navigation link that lives inside a drawer:
   Step 1 — Open the menu. ALWAYS follow ID > Name > XPATH > CSS priority — check the HTML for an id on the toggle first:
     # STEP 1a — look for an id attribute on the toggle button in the HTML. If found, use By.ID:
-    menu_btn = WebDriverWait(driver, 30).until(
+    menu_btn = WebDriverWait(driver, 20).until(
         EC.element_to_be_clickable((By.ID, "exact-id-from-html"))
     )
     # STEP 1b — only if no id exists, use this multi-selector CSS fallback. NEVER invent a single aria-label:
-    menu_btn = WebDriverWait(driver, 30).until(
+    menu_btn = WebDriverWait(driver, 20).until(
         EC.element_to_be_clickable((By.CSS_SELECTOR,
             "label[for*='navDrawer'], label[for*='nav-drawer'], "
             "[aria-label*='menu' i], [aria-label*='navigation' i], "
@@ -365,7 +365,7 @@ MANDATORY 3-STEP PATTERN for any navigation link that lives inside a drawer:
     time.sleep(1.5)
 
   Step 2 — Locate the nav link now that the drawer is open (XPath @href):
-    nav_link = WebDriverWait(driver, 30).until(
+    nav_link = WebDriverWait(driver, 20).until(
         EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/target-path')]"))
     )
 
@@ -385,13 +385,13 @@ SEARCH INPUT INSIDE A DRAWER / PANEL
 - If a search input throws ElementNotInteractableException, it is hidden inside a panel. You MUST click the toggle button that opens the panel first, then wait for the input with EC.element_to_be_clickable.
 - Pattern:
     # 1. Open the panel/drawer that contains the search input
-    menu_toggle = WebDriverWait(driver, 30).until(
+    menu_toggle = WebDriverWait(driver, 20).until(
         EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='Open menu']"))
     )
     menu_toggle.click()
     time.sleep(1.5)
     # 2. Now wait for the input to be truly interactable
-    search_input = WebDriverWait(driver, 30).until(
+    search_input = WebDriverWait(driver, 20).until(
         EC.element_to_be_clickable((By.XPATH, "//*[@data-testid='search-input-field']"))
     )
 
@@ -401,7 +401,7 @@ HOVER DROPDOWNS
 - To reveal a dropdown without navigating: hover with ActionChains AND dispatch a JS mouseover event (headless Chrome does not always fire CSS :hover from synthetic moves):
     ActionChains(driver).move_to_element(el).pause(0.5).perform()
     driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('mouseover', {{bubbles: true}}));", el)
-    WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "[class*='dropdown']")))
+    WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "[class*='dropdown']")))
 - Click a nav link only when the step explicitly navigates to a new page.
 
 ═══════════════════════════════════════
@@ -414,7 +414,7 @@ FORM / SEARCH SUBMIT
   search_input.send_keys(Keys.ENTER)
 - For non-search forms (login, contact, filters): scroll the submit button into view with ActionChains, then click it — this avoids ElementClickInterceptedException from sticky headers or overlays:
   from selenium.webdriver.common.action_chains import ActionChains
-  submit_btn = WebDriverWait(driver, 30).until(
+  submit_btn = WebDriverWait(driver, 20).until(
       EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='submit'], button[type='submit']"))
   )
   ActionChains(driver).scroll_to_element(submit_btn).perform()
@@ -430,11 +430,11 @@ LAZY-LOADED CONTENT — scroll before asserting
     from selenium.webdriver.common.action_chains import ActionChains
     ActionChains(driver).scroll_by_amount(0, 600).perform()
     time.sleep(1)
-    WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".section-head")))
+    WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".section-head")))
 - For footer elements, scroll further:
     ActionChains(driver).scroll_by_amount(0, 3000).perform()
     time.sleep(1)
-    WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".footer-copyright")))
+    WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".footer-copyright")))
 - Rule: any element below the first screenful (hero/header area) needs a scroll_by_amount before its visibility wait.
 
 ═══════════════════════════════════════
