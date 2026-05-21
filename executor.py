@@ -419,6 +419,21 @@ FORM / SEARCH SUBMIT
 - Clicking submit WITHOUT input does not navigate. Do NOT use any url_* condition. Wait for the form input to still be visible.
 
 ═══════════════════════════════════════
+LAZY-LOADED CONTENT — scroll before asserting
+═══════════════════════════════════════
+- Many sites lazy-load sections: they only render when they enter the browser viewport. EC.visibility_of_element_located will time out if the element is below the fold and hasn't been scrolled into view yet.
+- After navigating to a new page and verifying the URL, ALWAYS scroll down before asserting any element that is likely below the fold (content sections, cards, footers):
+    from selenium.webdriver.common.action_chains import ActionChains
+    ActionChains(driver).scroll_by_amount(0, 600).perform()
+    time.sleep(1)
+    WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".section-head")))
+- For footer elements, scroll further:
+    ActionChains(driver).scroll_by_amount(0, 3000).perform()
+    time.sleep(1)
+    WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".footer-copyright")))
+- Rule: any element below the first screenful (hero/header area) needs a scroll_by_amount before its visibility wait.
+
+═══════════════════════════════════════
 PACING — VIDEO CLARITY
 ═══════════════════════════════════════
 - After every user interaction (click, send_keys, submit), add time.sleep(1.5) so the video recording shows each step clearly.
