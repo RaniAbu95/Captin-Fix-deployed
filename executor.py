@@ -1010,9 +1010,6 @@ def main():
     # 2. Execute all test files and collect results
     results = []
     for i, (case_id, file_path) in enumerate(test_files):
-        if i > 0:
-            print(f"⏳ Waiting 15s before next test so consent banners don't reappear ...")
-            time.sleep(15)
         print(f"▶ Running test {case_id} ...")
         result = run_test_file(case_id, file_path, website=website)
         results.append(result)
