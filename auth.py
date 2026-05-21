@@ -4,6 +4,11 @@ from models import db, User
 
 auth = Blueprint('auth', __name__)
 
+ALLOWED_EMAILS = {
+    'rani.aburaia@mail.huji.ac.il',
+    'raniab25@icloud.com',
+}
+
 
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
@@ -12,6 +17,9 @@ def register():
         password = request.form.get('password', '')
         confirm = request.form.get('confirm', '')
 
+        if email not in ALLOWED_EMAILS:
+            flash('Registration is not available.', 'danger')
+            return redirect(url_for('auth.register'))
         if not email or not password:
             flash('Email and password are required.', 'danger')
             return redirect(url_for('auth.register'))
@@ -43,7 +51,7 @@ def login():
         password = request.form.get('password', '')
         user = User.query.filter_by(email=email).first()
 
-        if not user or not user.check_password(password):
+        if email not in ALLOWED_EMAILS or not user or not user.check_password(password):
             flash('Invalid email or password.', 'danger')
             return redirect(url_for('auth.login'))
 
