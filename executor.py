@@ -1,16 +1,10 @@
 import os
 import json
 import threading
-import traceback
-from datetime import datetime
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from langchain_anthropic import ChatAnthropic
 import time
 from config import ANTHROPIC_API_KEY
-
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage
 
 PLAN_FILE = "./output/plan.json"
@@ -163,14 +157,31 @@ if __name__ == "__main__":
     _orig_get = driver.get
     def _patched_get(url):
         _orig_get(url)
-        time.sleep(5)
-        # Retry dismissal for up to 10 seconds — banner may load after initial paint
         import time as _t
-        deadline = _t.time() + 10
-        while _t.time() < deadline:
-            if _dismiss_banner():
-                break
-            _t.sleep(0.5)
+        # Wait up to 4s for page to become interactive, exit early when ready
+        _deadline_load = _t.time() + 4
+        while _t.time() < _deadline_load:
+            try:
+                if driver.execute_script("return document.readyState") in ("interactive", "complete"):
+                    break
+            except Exception:
+                pass
+            _t.sleep(0.3)
+        _t.sleep(1)  # brief settle for banner scripts to inject
+        # Only enter the retry loop if a banner element is actually in the DOM
+        _has_banner = False
+        try:
+            _has_banner = bool(driver.execute_script(
+                'return document.querySelector(arguments[0])',
+                '[id*="cookie"],[class*="cookie"],[id*="consent"],[id*="Cybot"],[class*="cky"],[id*="banner"]'))
+        except Exception:
+            pass
+        if _has_banner:
+            _deadline = _t.time() + 8
+            while _t.time() < _deadline:
+                if _dismiss_banner():
+                    break
+                _t.sleep(0.5)
     driver.get = _patched_get
 
     try:
@@ -212,15 +223,15 @@ STEP FIDELITY — CRITICAL RULE
 ═══════════════════════════════════════
 TIMEOUTS — DEPLOYED SITE (important)
 ═══════════════════════════════════════
-- Default timeout for ALL WebDriverWait calls: 15 seconds. Never use less than 15.
-- The site runs on a cloud server that may have slow cold starts. 30s gives it room to respond.
+- Default timeout for ALL WebDriverWait calls: 10 seconds. Never use less than 10.
+- The site runs on a cloud server that may have slow cold starts. 10s gives it room to respond.
 - Use ONE wait per page-load check — do NOT chain multiple waits for the same page.
 
 ═══════════════════════════════════════
 PAGE LOAD CHECK
 ═══════════════════════════════════════
 - After driver.get(), ALWAYS verify the page is ready with this exact JS readyState check — it works on every site regardless of DOM structure:
-    WebDriverWait(driver, 15).until(
+    WebDriverWait(driver, 5).until(
         lambda d: d.execute_script("return document.readyState") in ("interactive", "complete")
     )
 - This is the ONLY guaranteed page-load check. NEVER use EC.presence_of_element_located on "header", "nav", "main", or any structural element as the primary page-load signal — these elements may not exist or may be injected late by JavaScript.
@@ -234,11 +245,11 @@ Always use the highest-priority locator that works for the element. Only fall ba
 IMPORTANT: if a stable, semantic id is present — ALWAYS use By.ID. Do NOT use XPath or CSS when By.ID is available.
 
 BY.ID — always prefer By.ID when a stable, semantic id is present. Only use it when the id is a human-readable, semantic name (e.g. "search-btn", "headerMenu", "flashBell"). NEVER use By.ID for ids that look randomly generated — strings of random alphanumeric characters like "r1w2KWYLVsyGg" or "HJH3YbK84ikMe" are build-time dynamic ids that change on every deployment and will break the test.
-    el = WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.ID, "search-btn")))
+    el = WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.ID, "search-btn")))
     el.click()
 
 BY.NAME — for form inputs with a name attribute:
-    WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.NAME, "q")))
+    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.NAME, "q")))
 
 BY.TAG_NAME — ONLY for standard HTML tags (div, nav, footer, header, main, section, h1, h2, etc.). NEVER use By.TAG_NAME for custom elements with hyphens (e.g. "footer-2025", "nav-bar", "app-root") — Selenium's tag name strategy does not support hyphenated custom elements. Use By.CSS_SELECTOR instead:
     CORRECT for custom element:   (By.CSS_SELECTOR, "footer-2025")
@@ -264,10 +275,14 @@ LINKS WITH VISIBLE TEXT:
 - Use By.PARTIAL_LINK_TEXT with the exact visible text from the HTML.
 - For nav links use XPath scoped to the nav container with @href: (By.XPATH, "//nav//a[contains(@href, 'path-stem')]")
 
+NAV CLASS — NEVER scope nav links using the nav element's class attribute:
+- WRONG: (By.XPATH, "//nav[@class='nav-2025']//a[contains(@href, '/contact/')]") ← class matching breaks if the class changes
+- CORRECT: (By.XPATH, "//nav//a[contains(@href, '/contact/')]") ← scope to nav tag only, match by href
+
 NAVIGATION LINKS — <a href> elements MUST be located by href, never by id:
 - Many sites (React, Next.js, Angular) generate random ids on <a> elements at build time. These ids look like "r1w2KWYLVsyGg" — they are NOT stable and MUST NOT be used.
 - ALWAYS locate <a href> navigation links using EC.visibility_of_element_located, then call .click() directly. Scope the XPath to the nav container to avoid matching hidden duplicates in mobile nav or footer:
-    link = WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.XPATH, "//nav//a[contains(@href, '/economy')]")))
+    link = WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.XPATH, "//nav//a[contains(@href, '/economy')]")))
     link.click()
 - NEVER use lambda+next+find_elements patterns — they are hard to debug and unnecessary when the XPath is scoped correctly.
 
@@ -292,15 +307,15 @@ WAITS AND ASSERTIONS
 ═══════════════════════════════════════
 - INTERACTION RULE: before ANY click, send_keys, or clear() — ALWAYS use EC.visibility_of_element_located to get the element, then call .click() / .send_keys() / .clear() on it directly. This confirms the element is rendered on screen before interaction. NEVER use EC.element_to_be_clickable.
     CORRECT pattern:
-        el = WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.ID, "submit-btn")))
+        el = WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.ID, "submit-btn")))
         el.click()
     CORRECT for send_keys:
-        inp = WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.NAME, "q")))
+        inp = WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.NAME, "q")))
         inp.send_keys("search text")
     INCORRECT (element_to_be_clickable — do not use):
-        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.ID, "submit-btn"))).click()
+        WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "submit-btn"))).click()
     INCORRECT (presence only):
-        WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.ID, "submit-btn")))
+        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "submit-btn")))
 - EC.presence_of_element_located — element is in the DOM (use ONLY for images and read-only checks, never before interaction)
 - EC.visibility_of_element_located — use for EVERY interaction (click, send_keys, clear) AND for all assertion steps
 - EC.element_to_be_clickable — DO NOT USE. Always use visibility_of_element_located instead.
@@ -329,14 +344,14 @@ NAVIGATION
 - ONLY wait for a URL change when the href actually points to a different page. If the link points to the current page (e.g. logo → "/"), do not wait for a URL change — verify a page element instead.
 - NEVER click or wait for elements that have style="display:none" in the HTML — they are invisible and cannot be interacted with.
 - SIGN-IN / AUTH BUTTONS: clicking a sign-in button may open an inline panel OR redirect to an external login page. Always accept both outcomes: wait for either the panel element to become visible OR the URL to contain 'login'/'signin'/'account'. Example:
-    WebDriverWait(driver, 15).until(
+    WebDriverWait(driver, 5).until(
         lambda d: (d.find_elements(By.ID, "panel_id") and d.find_element(By.ID, "panel_id").is_displayed())
             or any(k in d.current_url.lower() for k in ["login", "signin", "account"])
     )
 - NEW TAB: If the HTML shows target="_blank", the click opens a new tab. Capture handles before the click and switch:
     original_handles = driver.window_handles
     link.click()
-    WebDriverWait(driver, 15).until(lambda d: len(d.window_handles) > len(original_handles))
+    WebDriverWait(driver, 5).until(lambda d: len(d.window_handles) > len(original_handles))
     driver.switch_to.window(driver.window_handles[-1])
 - If target is "_top", "_self", or absent: link opens in the same tab. Assert len(driver.window_handles) == 1 after clicking.
 - NEVER use EC.url_contains("/") — every URL contains "/" and this proves nothing.
@@ -349,12 +364,12 @@ Many sites (IMDB, BBC, etc.) hide ALL navigation links inside a collapsible draw
 MANDATORY 3-STEP PATTERN for any navigation link that lives inside a drawer:
   Step 1 — Open the menu. ALWAYS follow ID > Name > XPATH > CSS priority — check the HTML for an id on the toggle first:
     # STEP 1a — look for an id attribute on the toggle button in the HTML. If found, use By.ID:
-    menu_btn = WebDriverWait(driver, 15).until(
-        EC.element_to_be_clickable((By.ID, "exact-id-from-html"))
+    menu_btn = WebDriverWait(driver, 5).until(
+        EC.visibility_of_element_located((By.ID, "exact-id-from-html"))
     )
     # STEP 1b — only if no id exists, use this multi-selector CSS fallback. NEVER invent a single aria-label:
-    menu_btn = WebDriverWait(driver, 15).until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR,
+    menu_btn = WebDriverWait(driver, 5).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR,
             "label[for*='navDrawer'], label[for*='nav-drawer'], "
             "[aria-label*='menu' i], [aria-label*='navigation' i], "
             "[class*='hamburger'], [class*='menu-toggle'], [class*='nav-toggle'], "
@@ -365,8 +380,8 @@ MANDATORY 3-STEP PATTERN for any navigation link that lives inside a drawer:
     time.sleep(1.5)
 
   Step 2 — Locate the nav link now that the drawer is open (XPath @href):
-    nav_link = WebDriverWait(driver, 15).until(
-        EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/target-path')]"))
+    nav_link = WebDriverWait(driver, 5).until(
+        EC.visibility_of_element_located((By.XPATH, "//a[contains(@href, '/target-path')]"))
     )
 
   Step 3 — Click it:
@@ -385,23 +400,27 @@ SEARCH INPUT INSIDE A DRAWER / PANEL
 - If a search input throws ElementNotInteractableException, it is hidden inside a panel. You MUST click the toggle button that opens the panel first, then wait for the input with EC.element_to_be_clickable.
 - Pattern:
     # 1. Open the panel/drawer that contains the search input
-    menu_toggle = WebDriverWait(driver, 15).until(
-        EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='Open menu']"))
+    menu_toggle = WebDriverWait(driver, 5).until(
+        EC.visibility_of_element_located((By.XPATH, "//button[@aria-label='Open menu']"))
     )
     menu_toggle.click()
     time.sleep(1.5)
-    # 2. Now wait for the input to be truly interactable
-    search_input = WebDriverWait(driver, 15).until(
-        EC.element_to_be_clickable((By.XPATH, "//*[@data-testid='search-input-field']"))
+    # 2. Now wait for the input to be visible
+    search_input = WebDriverWait(driver, 5).until(
+        EC.visibility_of_element_located((By.XPATH, "//*[@data-testid='search-input-field']"))
     )
 
 ═══════════════════════════════════════
 HOVER DROPDOWNS
 ═══════════════════════════════════════
-- To reveal a dropdown without navigating: hover with ActionChains AND dispatch a JS mouseover event (headless Chrome does not always fire CSS :hover from synthetic moves):
+- To reveal a dropdown without navigating: hover with ActionChains only — NEVER use driver.execute_script to dispatch a mouseover event:
     ActionChains(driver).move_to_element(el).pause(0.5).perform()
-    driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('mouseover', {{bubbles: true}}));", el)
-    WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "[class*='dropdown']")))
+    time.sleep(1.5)
+    WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "[class*='dropdown']")))
+- FORBIDDEN: driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('mouseover', ...))") — do not use JS event dispatch for hover. Pure Selenium ActionChains is sufficient and more reliable.
+- FORBIDDEN: driver.execute_script("arguments[0].click();", el) — do not use JS to click elements. Use ActionChains instead:
+    ActionChains(driver).move_to_element(el).click().perform()
+  If the element is not visible, use EC.presence_of_element_located to locate it first, then move_to_element to scroll it into view before clicking.
 - Click a nav link only when the step explicitly navigates to a new page.
 
 ═══════════════════════════════════════
@@ -412,30 +431,57 @@ FORM / SEARCH SUBMIT
   search_input.send_keys("query text")
   time.sleep(1.5)
   search_input.send_keys(Keys.ENTER)
-- For non-search forms (login, contact, filters): scroll the submit button into view with ActionChains, then click it — this avoids ElementClickInterceptedException from sticky headers or overlays:
-  from selenium.webdriver.common.action_chains import ActionChains
-  submit_btn = WebDriverWait(driver, 15).until(
-      EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='submit'], button[type='submit']"))
+- For non-search forms (login, contact, filters): ALWAYS use this exact 3-line pattern to click the submit button — never use submit_btn.click() directly:
+  submit_btn = WebDriverWait(driver, 10).until(
+      EC.visibility_of_element_located((By.CSS_SELECTOR, "input[type='submit'], button[type='submit']"))
   )
   ActionChains(driver).scroll_to_element(submit_btn).perform()
   time.sleep(0.5)
   ActionChains(driver).move_to_element(submit_btn).click().perform()
+  FORBIDDEN: submit_btn.click() — sticky headers and overlays intercept direct clicks. Always scroll first with ActionChains.scroll_to_element, then click with ActionChains.move_to_element().click().
 - Clicking submit WITHOUT input does not navigate. Do NOT use any url_* condition. Wait for the form input to still be visible.
 
+
 ═══════════════════════════════════════
-LAZY-LOADED CONTENT — scroll before asserting
+SCROLLING AND VISIBILITY — STRICT RULES
 ═══════════════════════════════════════
-- Many sites lazy-load sections: they only render when they enter the browser viewport. EC.visibility_of_element_located will time out if the element is below the fold and hasn't been scrolled into view yet.
-- After navigating to a new page and verifying the URL, ALWAYS scroll down before asserting any element that is likely below the fold (content sections, cards, footers):
-    from selenium.webdriver.common.action_chains import ActionChains
-    ActionChains(driver).scroll_by_amount(0, 600).perform()
-    time.sleep(1)
-    WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".section-head")))
-- For footer elements, scroll further:
+DEFAULT RULE — no scroll needed:
+- EC.visibility_of_element_located finds elements anywhere on the page — it only requires the element is not display:none or visibility:hidden. It does NOT require the element to be in the viewport.
+- NEVER add a scroll step before a visibility check unless one of the specific exceptions below applies.
+- FORBIDDEN pattern (do not use by default):
+    el = WebDriverWait(driver, 10).until(EC.presence_of_element_located(...))
+    ActionChains(driver).scroll_to_element(el).perform()
+    time.sleep(2)
+    WebDriverWait(driver, 10).until(EC.visibility_of_element_located(...))
+  This 3-step pattern is ONLY valid for CSS-animated elements (see below). Do not use it otherwise.
+
+EXCEPTION 1 — CSS animation reveal (rare):
+- ONLY use the 3-step presence→scroll→visibility pattern when the HTML shows the target element is inside a container with animation class names like "animate-in", "fade-in", "slide-in", or "scroll-reveal". These elements are visibility:hidden until an IntersectionObserver fires.
+- If you are not certain the element uses a CSS scroll animation, use plain EC.visibility_of_element_located — do not add the scroll.
+
+EXCEPTION 2 — footer elements only:
+- Footer elements are far below the fold. Use scroll_by_amount(0, 3000) before asserting footer visibility:
     ActionChains(driver).scroll_by_amount(0, 3000).perform()
     time.sleep(1)
-    WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".footer-copyright")))
-- Rule: any element below the first screenful (hero/header area) needs a scroll_by_amount before its visibility wait.
+    WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".footer-copyright")))
+
+EXCEPTION 3 — CSS-animated interactive elements (dropdowns, filters, inputs below the fold):
+- Some elements (job filters, custom dropdowns, search inputs) are hidden by a parent IntersectionObserver animation. scroll_to_element on the child alone does NOT fire the parent's observer — the element stays hidden.
+- CORRECT 4-step pattern:
+    # 1. Scroll the viewport by amount to fire the parent's IntersectionObserver
+    ActionChains(driver).scroll_by_amount(0, 800).perform()
+    time.sleep(3)
+    # 2. Wait until the element is truly clickable (visible + enabled)
+    el = WebDriverWait(driver, 15).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, ".target-element"))
+    )
+    # 3. Scroll precisely to the element so it is centered in the viewport (prevents negative-y click errors)
+    ActionChains(driver).scroll_to_element(el).perform()
+    time.sleep(0.5)
+    # 4. Click
+    el.click()
+- Use this pattern when: an element is present in the DOM but never becomes visible/clickable via scroll_to_element alone, AND the error is ElementClickInterceptedException with a negative y-coordinate (element above viewport) or ElementNotInteractableException after scroll.
+- The scroll_by_amount fires the parent observer; scroll_to_element then precisely centers the now-revealed element before clicking.
 
 ═══════════════════════════════════════
 PACING — VIDEO CLARITY
@@ -509,42 +555,6 @@ def extract_full_html(url: str) -> str:
     _html_cache[url] = html
     return html
 
-# def generate_selenium_code(step_text, expected_text, website, page_html):
-#     """Generate Python Selenium code for a single step using AI."""
-#     llm = ChatAnthropic(model="claude-sonnet-4-6", temperature=0, api_key=ANTHROPIC_API_KEY)
-#     messages = prompt_template.format_messages(
-#         step=step_text, expected=expected_text, website=website, html=page_html
-#     )
-#     import sys as _sys, time as _t
-#     print(f"[anthropic] generate_selenium_code.invoke at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
-#     response = llm.invoke(messages)
-#     return response.content.strip()
-
-# -----------------------------
-# 2. Generate test files from plan (old per-step approach, replaced by generate_test_files)
-# -----------------------------
-# def generate_test_files(plan):
-#     os.makedirs(OUTPUT_DIR, exist_ok=True)
-#     test_files = []
-#
-#     for case in plan["cases"]:
-#         case_id = case["id"]
-#         steps = case.get("steps", [])
-#         expected = case.get("expected", "")
-#         all_code = []
-#
-#         for step in steps:
-#             code = generate_selenium_code(step, expected)
-#             all_code.append(code)
-#
-#         file_path = os.path.join(OUTPUT_DIR, f"{case_id}.py")
-#         with open(file_path, "w", encoding="utf-8") as f:
-#             f.write("\n\n".join(all_code))
-#
-#         test_files.append((case_id, file_path))
-#         print(f"✅ Generated test file: {file_path}")
-#
-#     return test_files
 
 def _strip_code_fences(text: str) -> str:
     if text.startswith("```"):
@@ -678,8 +688,9 @@ def run_test_file(case_id, file_path, website=""):
 
         import os as _os
         _using_lambdatest = bool({repr(os.environ.get("LT_USERNAME", ""))} and {repr(os.environ.get("LT_ACCESS_KEY", ""))})
+        _selenoid_url = _os.environ.get("SELENOID_URL", {repr(os.environ.get("SELENOID_URL", ""))})
         opts = Options()
-        if not _using_lambdatest and _os.environ.get("HEADLESS", "true").lower() != "false":
+        if not _using_lambdatest and not _selenoid_url and _os.environ.get("HEADLESS", "true").lower() != "false":
             opts.add_argument("--headless=new")
         _israeli = {_israeli}
         _base_args = [
@@ -724,8 +735,17 @@ def run_test_file(case_id, file_path, website=""):
             _lt_endpoint = "https://" + _lt_username + ":" + _lt_access_key + "@hub.lambdatest.com/wd/hub"
             driver = webdriver.Remote(command_executor=_lt_endpoint, options=opts)
             driver.set_script_timeout(30)
+        elif _selenoid_url:
+            print("[driver] Using Selenoid remote browser at " + _selenoid_url, flush=True)
+            opts.set_capability("selenoid:options", {{
+                "enableVideo": True,
+                "enableVNC": True,
+                "name": {repr(case_id)},
+            }})
+            driver = webdriver.Remote(command_executor=_selenoid_url, options=opts)
+            driver.set_script_timeout(30)
         else:
-            print("[driver] Using local Chrome (LambdaTest credentials not set)", flush=True)
+            print("[driver] Using local Chrome (no remote credentials set)", flush=True)
             driver = None
             for attempt in range(3):
                 try:

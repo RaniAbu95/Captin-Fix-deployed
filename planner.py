@@ -7,7 +7,7 @@ from typing import List
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 from config import ANTHROPIC_API_KEY
-
+from urllib.parse import urlparse, unquote
 
 
 # -----------------------------
@@ -90,8 +90,37 @@ def _strip_json(text: str) -> str:
     return m.group(0) if m else text
 
 
+_FORM_LINK_KEYWORDS = ("contact", "search", "subscribe", "newsletter", "apply", "register", "login", "careers", "signup", "enquir")
+
+def _fetch_linked_form_htmls(homepage_html: str, base_url: str) -> dict:
+    """Find nav links that likely lead to form pages and fetch their HTML."""
+    import re
+    from urllib.parse import urljoin, urlparse
+    hrefs = re.findall(r'href=["\']([^"\']+)["\']', homepage_html)
+    base = urlparse(base_url)
+    seen, results = set(), {}
+    for href in hrefs:
+        if not any(k in href.lower() for k in _FORM_LINK_KEYWORDS):
+            continue
+        full = urljoin(base_url, href)
+        parsed = urlparse(full)
+        if parsed.netloc != base.netloc:
+            continue
+        if full in seen or len(results) >= 3:
+            continue
+        seen.add(full)
+        try:
+            html = extract_full_html(full)
+            results[href] = html
+            print(f"[planner] fetched linked form page: {full} ({len(html)} chars)")
+        except Exception as e:
+            print(f"[planner] could not fetch {full}: {e}")
+    return results
+
+
 def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     page_html = extract_full_html(url)
+    linked_form_htmls = _fetch_linked_form_htmls(page_html, url)
 
     max_negative = round(num_tests / 3)
 
@@ -111,6 +140,7 @@ If the HTML contains any of: ShieldSquare, h-captcha, hcaptcha, recaptcha, "Are 
 HTML OF THE TARGET PAGE:
 {page_html}
 
+{linked_pages_section}
 ---
 
 OUTPUT FORMAT
@@ -215,6 +245,21 @@ LOCALE SAFETY — strictly enforced for ALL text assertions:
 
 ---
 
+NO GUESSING — CRITICAL, STRICTLY ENFORCED:
+This is the single most important rule. Every locator, attribute value, class name, id, href, input name, placeholder, or aria-label you write in a step MUST appear verbatim in the HTML provided below. If it is not in the HTML, do not write it.
+
+Specific things you must NEVER guess:
+- CSS class names for elements on pages you have not seen (e.g. never '.section-head', '.intro-main', '.job-results' unless they appear in the provided HTML)
+- Input field names, ids, or placeholders on linked pages (e.g. never "input[name='your-name']" for a contact form on /contact/ — you have not seen that page's HTML)
+- Nav element class attributes (e.g. NEVER "//nav[@class='nav-2025']" — you cannot know the nav's class; use "//nav//a[contains(@href,'...')]" instead)
+- href patterns for links on pages you have not seen (e.g. never "/job/123", "/position/", "/apply/" for a careers sub-page you have not seen)
+- aria-label values that are not literally in the HTML
+- Element IDs that are not literally in the HTML
+
+When writing steps, only describe what you can see in the provided HTML. If a step requires knowledge of a page you have not seen, stop at the boundary you CAN see — navigate there and verify a heading or URL, but do not interact with content you cannot verify from the HTML.
+
+---
+
 HTML RULES (strictly enforced):
 - Base EVERY test case ONLY on elements that actually appear in the provided HTML.
 - Before writing a step, confirm the element (button, link, input, heading) exists in the HTML.
@@ -225,6 +270,16 @@ HTML RULES (strictly enforced):
 - A valid clickable link has a visible text label and an href pointing to a page path (e.g. /about, /categories.aspx) or domain. hrefs pointing to .css, .js, fonts.googleapis.com, cdn URLs, or external resources are NOT clickable links.
 - IMPORTANT — DIRECT REACHABILITY: Before writing a "Click the link with href '...'" step, ask yourself: is this link directly visible and clickable on the page without any prior interaction? If the link is inside a dropdown, mega-menu, footer accordion, or any container that requires a prior click to expand/reveal it, you MUST include the intermediate step (e.g. "Click the menu button with id '...' to open the dropdown") BEFORE the click step. Never write a click step for a link that is not directly reachable in the initial page state.
 - IMPORTANT — ELEMENTS INSIDE THE NAV DRAWER: Elements such as country pickers, language selectors, or any input/link whose id or class contains 'country', 'language', 'locale', or 'picker' are typically rendered inside the navigation drawer and are NOT directly accessible. You MUST include a step to click the element with aria-label 'Open main navigation' BEFORE any step that interacts with these elements.
+
+---
+
+LINKED PAGE CONTENT — strictly enforced:
+- The planner has ONLY the homepage HTML. You do NOT have the HTML for any linked page (/careers/, /contact/, /blog/, /shop/, etc.).
+- NEVER write steps that interact with elements on a linked page whose HTML you have not seen. This includes: job listing links, apply buttons, blog post links, product cards, search result items, article titles, or any dynamically-populated list items on destination pages.
+- You do NOT know what href patterns, class names, or DOM structure those pages have. Job application links may go to external domains (e.g. personio.de, greenhouse.io, lever.co). Product links may use opaque IDs. Blog post hrefs may be slugs. Never guess these patterns.
+- SAFE steps on linked pages (you may write these): verify the URL contains a known path stem, verify h1/h2/nav/footer is visible, type into a search/contact form whose input is visible in the homepage HTML or whose linked page is clearly a form (contact, search, subscribe).
+- UNSAFE steps on linked pages (NEVER write these): "Click the first job listing", "Click the Apply button for an open position", "Click a product card", "Click a blog post link", "Click the link with href containing '/job'", "Click the link with class 'job-btn'" — you cannot know any of this from the homepage HTML alone.
+- If a test needs to go deeper than one level (e.g. homepage → careers → individual job), that is only valid if the intermediate page's HTML was provided. Since it was not, stop the test at the intermediate page level.
 
 ---
 
@@ -258,9 +313,9 @@ SUITE ASSIGNMENT:
     Step 1: Navigate to the homepage
     Step 2: Click the link with href '/contact/' (or whatever the href is)
     Step 3: Verify the page URL contains '/contact/'
-    Step 4: Type a value into the input/textarea on that page (use a realistic value)
-    Step 5: Click the submit button
-    Step 6: Verify the result (form submission confirmation message, or URL change, or validation error if fields left empty)
+    Step 4+: For EVERY visible input and textarea on that page (check the HTML OF LINKED FORM PAGES section above), generate one step that fills it with a realistic value. Use the exact name= or id= attribute from the HTML — do NOT skip any field and do NOT invent field names.
+    Last step before submit: Click the submit button
+    Final step: Verify the result (confirmation message, URL change, or validation error)
   SEARCH BOX PRIORITY: if the page has a search input (type="search", type="text" inside a form, or an input with id/name/class containing "search", "query", "q"), ALWAYS generate at least one Forms test that types a realistic search query and submits it.
   FORMS DETECTION — scan the HTML carefully for ALL of these: <input>, <textarea>, <form>, <button type="submit">, or any element with id/class/href containing "search", "contact", "subscribe", "newsletter", "query", "email", "apply", "register", "careers". If ANY of these exist in the homepage HTML OR as a navigation href, generate a Forms test.
   NEGATIVE FORMS: generate at least one Forms test where you submit the form with EMPTY required fields and verify a validation error appears — this is a highly valuable negative test.
@@ -281,9 +336,9 @@ Each Navigation test MUST use a DIFFERENT post-navigation pattern. Assign one pa
     Step 2: Click the nav link with href '<href>'
     Step 3: Verify the page URL contains '<path>'
     Step 4: Verify the page heading (h1) is visible on the destination page
-    Step 5: Scroll down 800px to trigger lazy-loaded content
-    Step 6: Verify a content section heading (h2) is visible
+    Step 5: Verify a content section heading (h2) is visible
     Use when: the destination page has content sections below the fold (blog, careers, services, products pages)
+    NOTE: Do NOT add a scroll step before verifying h2. EC.visibility_of_element_located works on elements below the fold — Selenium does not require the element to be in the viewport, only that it is not hidden (display:none / visibility:hidden). A scroll step is ONLY needed when the HTML shows the target element is inside a container with CSS animation classes (animate-in, fade-in, slide-in, scroll-reveal) — in that case the element is literally hidden until an IntersectionObserver fires.
 
   Pattern B — Secondary link click within page content:
     Step 1: Navigate to the homepage
@@ -311,9 +366,9 @@ Each Navigation test MUST use a DIFFERENT post-navigation pattern. Assign one pa
     Step 3: Click the sub-page link with href '<sub-href>' inside the dropdown
     Step 4: Verify the page URL contains '<sub-path>'
     Step 5: Verify the page heading (h1 or h2) is visible
-    Step 6: Scroll to the footer
-    Step 7: Verify the footer element is visible
+    Step 6: Verify the footer element is visible
     Use when: the nav has a multi-level dropdown with sub-pages (About Us > CSR, Products > Feature X)
+    NOTE: Do NOT add a scroll step before verifying the footer. EC.visibility_of_element_located finds footer elements without scrolling — Selenium only requires the element is not display:none, not that it is in the viewport. A scroll step adds dead time with no assertion value.
 
   FORBIDDEN pattern (never use): navigate → verify URL → stop. Every Navigation test must continue past the URL check.
 
@@ -337,8 +392,16 @@ NEGATIVE TESTS:
 Return only valid JSON. No markdown, no explanation, no code fences.
     """)
 
+    if linked_form_htmls:
+        linked_pages_section = "HTML OF LINKED FORM PAGES (use the exact field names and attributes you see here when generating Forms test steps — do NOT guess field names):\n"
+        for href, html in linked_form_htmls.items():
+            linked_pages_section += f"\nPage: {href}\n{html}\n"
+    else:
+        linked_pages_section = ""
+
     prompt = template.format_messages(page_html=page_html, num_tests=num_tests,
-                                      max_negative=max_negative)
+                                      max_negative=max_negative,
+                                      linked_pages_section=linked_pages_section)
     import sys as _sys, time as _t
     print(f"[anthropic] generate_testplan.invoke at {_t.time()} (planner.py:153)", flush=True, file=_sys.stderr)
     response = llm.invoke(prompt)
@@ -420,36 +483,8 @@ def save_testplan(plan: TestPlan, base_path: str = "./output"):
     df = pd.DataFrame(data)
     df.to_excel(f"{base_path}/Plan.xlsx", index=False)
 
-# -----------------------------
-# Runner using existing user parameters
-# -----------------------------
-# def run_planner(target: str, num_tests: int = 5, depth: int = 1, email: str = "", pm: str = "jira"):
-#
-#     process_target_data(target)
-#     # Validate URL
-#     try:
-#         headers = {
-#             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
-#         }
-#         resp = requests.get(target, headers=headers, timeout=10)
-#         resp.raise_for_status()
-#     except Exception as e:
-#         print(f"Site not accessible: {e}")
-#         return
-#
-#     links = sample_links(target, num_tests=num_tests, depth=depth)
-#     plan = generate_testplan(target, links)
-#     save_testplan(plan)
-#
-#     print(f"Test Plan generated successfully for {target}!")
-#     if email:
-#         print(f"Results will be sent to: {email}")
-#     print(f"Project Management tool selected: {pm}")
 
 
-import os
-import requests
-from urllib.parse import urlparse, unquote
 
 def run_planner(target: str, num_tests: int, depth: int, email: str = "", pm: str = ""):
     parsed = urlparse(target)
