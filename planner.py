@@ -294,7 +294,12 @@ def _ensure_two_forms(cases, homepage_html: str, base_url: str, min_forms: int =
 
 def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     page_html = extract_full_html(url)
-    linked_form_htmls = _fetch_linked_form_htmls(page_html, url)
+    # Footer links (contact/subscribe/newsletter) sit far down the page and are
+    # cut from the 30k prompt slice above. Fetch a larger copy purely for link
+    # discovery so the linked-form fetch AND the Forms guards can actually see
+    # /contact-us, /subscribe, etc. — without bloating the LLM prompt.
+    home_links_html = extract_full_html(url, max_chars=400000)
+    linked_form_htmls = _fetch_linked_form_htmls(home_links_html, url)
 
     max_negative = round(num_tests / 3)
 
@@ -705,7 +710,7 @@ Return only valid JSON. No markdown, no explanation, no code fences.
     # this when the search box is the only fillable form). Rewrite extras onto a
     # different form page or into a distinct search field-presence pattern.
     try:
-        cases = _dedupe_search_forms(cases, page_html, url)
+        cases = _dedupe_search_forms(cases, home_links_html, url)
     except Exception as e:
         print(f"[planner] search-dedup guard skipped: {e}")
 
@@ -713,7 +718,7 @@ Return only valid JSON. No markdown, no explanation, no code fences.
     # available, convert a surplus Navigation test into a field-presence Forms
     # test so the plan has two DISTINCT Forms tests (search + a different form).
     try:
-        cases = _ensure_two_forms(cases, page_html, url)
+        cases = _ensure_two_forms(cases, home_links_html, url)
     except Exception as e:
         print(f"[planner] forms-coverage guard skipped: {e}")
 
