@@ -20,6 +20,9 @@ class TestCase(BaseModel):
     expected: str
     priority: str
     negative: bool = False
+    # For Navigation tests: the distinct post-navigation pattern (A/B/C/D) used.
+    # Enforces that no two Navigation tests in a plan share the same pattern.
+    nav_pattern: str = ""
 
 class TestPlan(BaseModel):
     website: str
@@ -92,6 +95,23 @@ def _strip_json(text: str) -> str:
 
 _FORM_LINK_KEYWORDS = ("contact", "search", "subscribe", "newsletter", "apply", "register", "login", "careers", "signup", "enquir")
 
+def _form_excerpt(cleaned_html: str, head: int = 16000, tail: int = 24000, fallback: int = 30000) -> str:
+    """Return a form-focused excerpt of a (cleaned) page.
+
+    Long forms put their submit button and any required consent/anti-bot
+    checkbox at the very END. A flat top-of-page truncation drops them, so the
+    planner never sees those controls. Keep the largest <form>'s head (field
+    definitions) AND its tail (submit + checkbox) so both are always visible.
+    """
+    import re
+    forms = re.findall(r'<form\b.*?</form>', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
+    if not forms:
+        return cleaned_html[:fallback]
+    form = max(forms, key=len)  # the real content form, not a tiny header search form
+    if len(form) <= head + tail:
+        return form
+    return form[:head] + ' ... [form middle truncated] ... ' + form[-tail:]
+
 def _fetch_linked_form_htmls(homepage_html: str, base_url: str) -> dict:
     """Find nav links that likely lead to form pages and fetch their HTML."""
     import re
@@ -110,12 +130,166 @@ def _fetch_linked_form_htmls(homepage_html: str, base_url: str) -> dict:
             continue
         seen.add(full)
         try:
-            html = extract_full_html(full)
+            # Fetch the full cleaned page (large budget), then excerpt the form so
+            # the submit button and any required consent checkbox at the form's
+            # tail survive — a flat 30k truncation would cut them off.
+            full_html = extract_full_html(full, max_chars=150000)
+            html = _form_excerpt(full_html)
             results[href] = html
-            print(f"[planner] fetched linked form page: {full} ({len(html)} chars)")
+            print(f"[planner] fetched linked form page: {full} ({len(html)} chars, from {len(full_html)})")
         except Exception as e:
             print(f"[planner] could not fetch {full}: {e}")
     return results
+
+
+def _href_frag(href: str) -> str:
+    """Last non-empty path segment of an href, e.g. '/contact-us' -> 'contact-us'."""
+    from urllib.parse import urlparse
+    path = urlparse(href).path if "://" in href else href
+    return path.strip("/").split("/")[-1] or "page"
+
+
+def _is_search_box_test(case) -> bool:
+    """True if this Forms case operates on the site-wide header search box.
+
+    The header search input is identified by name 's' on WordPress sites; both a
+    'type a query' test and an 'empty search' test reference it, so this catches
+    the duplicate-search-pattern case the LLM keeps producing.
+    """
+    if (getattr(case, "suite", "") or "").lower() != "forms":
+        return False
+    blob = " ".join(list(case.steps) + [case.expected or ""]).lower()
+    return (
+        "name 's'" in blob
+        or "search form in the header" in blob
+        or "header search box" in blob
+        or "header search" in blob
+    )
+
+
+def _candidate_form_pages(homepage_html: str, base_url: str) -> list:
+    """Same-domain hrefs that lead to a DIFFERENT form page (contact/subscribe/etc.),
+    excluding the global search box. Used to replace a duplicate search test."""
+    import re
+    from urllib.parse import urljoin, urlparse
+    base = urlparse(base_url)
+    kws = ("contact", "subscribe", "newsletter", "register", "signup", "apply", "enquir")
+    out = []
+    for href in re.findall(r'href=["\']([^"\']+)["\']', homepage_html):
+        low = href.lower()
+        if not any(k in low for k in kws):
+            continue
+        full = urljoin(base_url, href)
+        if urlparse(full).netloc != base.netloc:
+            continue
+        if not urlparse(full).path.rstrip("/"):
+            continue
+        if href not in out:
+            out.append(href)
+    return out
+
+
+def _apply_form_presence(c, base_url: str, href: str):
+    """Mutate case `c` into a FIELD-PRESENCE Forms test on a different form page
+    (e.g. /contact-us, /subscribe) — navigate there and verify the form is
+    visible, with NO submit. Reliable even when the form is a cross-origin iframe
+    whose fields cannot be filled."""
+    frag = _href_frag(href)
+    c.suite = "Forms"
+    c.steps = [
+        f"Navigate to the homepage at '{base_url}'",
+        f"Click the link with href '{href}' to open the {frag} page",
+        f"Verify the page URL contains '/{frag}'",
+        "Verify the page heading (h1 or h2) is visible on the destination page",
+        f"Verify the sign-up/contact form (or its embedded form iframe) is visible on the {frag} page",
+    ]
+    c.expected = (
+        f"The {frag} page loads at a URL containing '/{frag}' with its heading "
+        f"visible and its form present on the page."
+    )
+    c.negative = False
+    c.priority = getattr(c, "priority", None) or "Medium"
+    c.nav_pattern = ""
+    return frag
+
+
+def _apply_search_presence(c, base_url: str):
+    """Last-resort: mutate `c` into a search FIELD-PRESENCE test (verify the
+    header search accepts text, NO submit) — a distinct pattern from the SEARCH
+    submit test when there is no other form page available."""
+    c.suite = "Forms"
+    c.steps = [
+        f"Navigate to the homepage at '{base_url}'",
+        "Verify the search form in the header containing the input element with name 's' is visible",
+        "Type 'manufacturing' into the input element with name 's'",
+        "Verify the input element with name 's' now contains the typed text (do not submit the form)",
+    ]
+    c.expected = "The header search input (name 's') is visible and accepts typed text without being submitted."
+    c.negative = False
+    c.nav_pattern = ""
+
+
+def _dedupe_search_forms(cases, homepage_html: str, base_url: str):
+    """Enforce AT MOST ONE header-search Forms test (hard requirement the LLM
+    keeps violating). Keep the test that types a real query; rewrite any extra
+    search-box test into a field-presence test on a DIFFERENT form page if one
+    exists, otherwise into a search field-presence test (no submit)."""
+    search_tests = [c for c in cases if _is_search_box_test(c)]
+    if len(search_tests) <= 1:
+        return cases
+
+    def _types_query(c):
+        return any("type" in s.lower() and "name 's'" in s.lower() for s in c.steps)
+
+    keep = next((c for c in search_tests if _types_query(c)), search_tests[0])
+
+    candidates = _candidate_form_pages(homepage_html, base_url)
+    used = {cand for c in cases for s in c.steps for cand in candidates if cand in s}
+    available = [h for h in candidates if h not in used]
+
+    ai = 0
+    for c in search_tests:
+        if c is keep:
+            continue
+        if ai < len(available):
+            frag = _apply_form_presence(c, base_url, available[ai])
+            ai += 1
+            print(f"[planner] dedup: rewrote duplicate search test {c.id} -> field-presence on /{frag}")
+        else:
+            _apply_search_presence(c, base_url)
+            print(f"[planner] dedup: rewrote duplicate search test {c.id} -> search field-presence (no alt form page)")
+    return cases
+
+
+def _ensure_two_forms(cases, homepage_html: str, base_url: str, min_forms: int = 2, min_nav_keep: int = 1):
+    """Guarantee a SECOND, distinct Forms test when the site supports it. If only
+    one Forms test exists (typically the search test) but a DIFFERENT form page
+    (/contact-us, /subscribe, ...) is available, convert a surplus Navigation
+    test into a field-presence Forms test on that page — keeping the total count
+    unchanged. Without this the LLM tends to fill the slot with a Navigation test
+    instead, leaving only one Forms test."""
+    forms = [c for c in cases if (getattr(c, "suite", "") or "").lower() == "forms"]
+    if len(forms) >= min_forms:
+        return cases
+
+    candidates = _candidate_form_pages(homepage_html, base_url)
+    used = {cand for c in cases for s in c.steps for cand in candidates if cand in s}
+    available = [h for h in candidates if h not in used]
+    if not available:
+        return cases
+
+    navs = [c for c in cases if (getattr(c, "suite", "") or "").lower() == "navigation"]
+    convertible = max(0, len(navs) - min_nav_keep)
+    need = min(min_forms - len(forms), len(available), convertible)
+    if need <= 0:
+        return cases
+
+    # convert the LAST nav tests (preserve earlier, usually higher-value ones)
+    to_convert = navs[len(navs) - need:]
+    for i, c in enumerate(to_convert):
+        frag = _apply_form_presence(c, base_url, available[i])
+        print(f"[planner] forms-coverage: converted nav test {c.id} -> field-presence Forms on /{frag}")
+    return cases
 
 
 def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
@@ -127,7 +301,7 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
     llm = ChatAnthropic(
         model="claude-sonnet-4-6",
         api_key=ANTHROPIC_API_KEY,
-        temperature=0.2,
+        temperature=0,
         max_tokens=8192,
     )
 
@@ -151,6 +325,7 @@ Return only valid JSON. Each test case must have:
   "expected" — a single, concrete, machine-checkable outcome (see EXPECTED FORMAT below)
   "priority" — High | Medium | Low
   "negative" — true only for intentional error/failure tests (see NEGATIVE TESTS)
+  "nav_pattern" — REQUIRED for every Navigation test: the single pattern letter (A, B, C, or D) from NAVIGATION PATTERN VARIETY that this test implements. Two Navigation tests MUST NOT share the same letter. Omit this field for Smoke and Forms tests.
 
 Generate EXACTLY {num_tests} test cases.
 
@@ -196,15 +371,18 @@ Bad step examples (NEVER write these):
 
 ---
 
-EXPECTED FORMAT — must be ONE of these concrete, checkable forms:
-  - "The page URL contains '<fragment from href>'"
-  - "The element with id '<id>' is visible on the page"
-  - "The element with aria-label '<label>' is visible on the page" — ONLY if that exact aria-label value appears verbatim in the HTML snippet provided. NEVER infer or guess an aria-label.
-  - "A validation error message is displayed"
-  - "The form field '<name>' shows an error state"
-  - "The dropdown/menu with items [...] is visible"
-  NEVER use page title as an expected result — titles are locale-dependent and unreliable.
-  DO NOT write vague expectations like "the page loads correctly" or "the user sees the result".
+EXPECTED FORMAT — the test's CULMINATING success condition (strictly enforced):
+The "expected" field MUST describe the FINAL outcome that proves the WHOLE test passed — the end-state verified by the LAST verification step(s). It is NOT a copy of an early/intermediate step, and it is NOT just one assertion when the test verifies several things. If the test verifies multiple key things, the "expected" MUST reflect ALL of them in one concrete sentence.
+  - SELF-CHECK: read the test's last 1–2 verification steps. The "expected" must restate THOSE outcomes. If your "expected" only echoes step 2 or 3 while the test's final steps verify something more, it is WRONG — rewrite it.
+  - Build it from the EXACT ids / hrefs / URL fragments used in the steps — keep it concrete and machine-checkable.
+  Per-suite shape:
+  - SMOKE (verifies N elements): name ALL of them. e.g. "The homepage loads with the header (id 'flex-header'), the navigation menu (id 'mega-menu-max_mega_menu_1'), and the logo all visible." — NOT just one of the three.
+  - NAVIGATION (verifies URL + heading + footer): reflect the full destination state. e.g. "The Industries page loads at a URL containing '/industries' with its page heading and footer visible." — NOT just "The page URL contains '/industries'".
+  - SEARCH form: "The search results page loads at a URL containing 's=<query>'."
+  - NEGATIVE VALIDATION form: "A validation error message is displayed and the form is not submitted."
+  - FIELD-PRESENCE form: "The <form name> and its key fields are visible on the page."
+  Allowed building blocks (combine as many as the test verifies): "the page URL contains '<fragment>'", "the element with id '<id>' is visible", "the element with aria-label '<label>' is visible" (only if that exact label is in the HTML), "the page heading and footer are visible", "a validation error message is displayed".
+  NEVER use the page title (locale-dependent and unreliable). NEVER write vague text like "the page loads correctly" or "the user sees the result". NEVER reduce a multi-assertion test's "expected" to a single early assertion.
 
 ELEMENT AVAILABILITY — strictly enforced:
   - Only test elements that are ALWAYS present regardless of: login state, geographic region, server IP, or A/B test.
@@ -288,7 +466,7 @@ NAVIGATION RULES:
 - The URL fragment MUST come from the href attribute in the HTML — never from the link's visible text.
   Example: HTML shows <a href="/about-us">About</a> → step says "Verify the URL contains '/about-us'"
 - If the href is an external domain, verify that domain: <a href="https://shop.example.com/"> → "Verify the URL contains 'shop.example.com'"
-- After verifying the URL, ALWAYS add: "Verify the page heading (h1 or h2) is visible on the destination page" — use the generic heading tag, NOT a CSS class you invented. You only have the homepage HTML; you do NOT know the destination page's class names. NEVER write a step like "Verify the element with class 'section-head' is visible" for a page you have not seen — that class may not exist. Safe post-navigation assertions: h1, h2, footer, nav — these exist on every page.
+- After verifying the URL, ALWAYS add: "Verify the page heading (h1 or h2) is visible on the destination page" — use the generic heading tag, NOT a CSS class you invented. You only have the homepage HTML; you do NOT know the destination page's class names. NEVER write a step like "Verify the element with class 'section-head' is visible" for a page you have not seen — that class may not exist. Safe post-navigation assertions: h1, h2, footer, nav — these exist on every page. Always write "(h1 or h2)", NEVER just "(h1)": many pages have NO <h1> (their hero is an <h2>), so an h1-only check times out; the executor verifies the first visible h1-or-h2.
 - If the destination page likely has a form or interactive element, add a step that interacts with it (type into a search box, click a secondary link, expand an accordion).
 
 ---
@@ -314,37 +492,59 @@ SUITE ASSIGNMENT:
     Step 2: Click the link with href '/contact/' (or whatever the href is)
     Step 3: Verify the page URL contains '/contact/'
     Step 4+: For EVERY visible input and textarea on that page (check the HTML OF LINKED FORM PAGES section above), generate one step that fills it with a realistic value. Use the exact name= or id= attribute from the HTML — do NOT skip any field and do NOT invent field names.
+    Second-to-last step (REQUIRED if a consent/anti-bot checkbox exists — see rule below): Check the required checkbox.
     Last step before submit: Click the submit button
     Final step: Verify the result (confirmation message, URL change, or validation error)
+  CONTACT/FORM PAGE — INTERACT WITH THAT PAGE'S OWN FORM, NEVER THE HEADER SEARCH BOX: when a Forms test navigates to a page like /contact-us/, /apply/, /register/, /subscribe/, the test MUST interact with THAT page's primary form (the contact/registration/signup form), NOT the global header search box. The input with name 's' and the header search toggle belong to the site-wide search that appears on EVERY page — it is NOT the contact form and is unrelated to the destination page. NEVER write a step like "Locate the search form on the /contact-us/ page by finding the input with name 's'" — that targets the wrong form (and the header search is usually hidden, so the step also times out). A contact/registration page's form has many fields (email, first/last name, message) and is frequently an embedded HubSpot form (a <form> whose class contains 'hs-form'). Since you have NOT seen the linked page's exact field names, identify the form generically ("the contact form on the page") and write a NEGATIVE test: leave required fields empty → click submit → verify a validation error message appears. Do NOT reference input name='s' or the word "Search" for a contact-page form.
+  SUBMIT MUST BE ITS OWN STEP — NEVER MERGED: the "Click the submit button" action MUST be a single standalone step. NEVER merge it with any other action in the same step. In particular, NEVER write "Leave the remaining fields empty and click the submit button" or "Check the box and click submit" — merging hides the required pre-submit checkbox steps and produces a test that clicks a still-disabled button (a silent no-op, so no validation error ever appears). "Leave fields empty" is not an action and needs no step at all — simply omit those fill steps. The order must always be: (fill any fields) → check consent checkbox (if any) → check ALTCHA/anti-bot checkbox (if any) → click submit (its own step) → verify outcome.
+  CONSENT / ANTI-BOT CHECKBOX — REQUIRED STEP BEFORE SUBMIT: forms often keep the submit button DISABLED until a required box is ticked, so clicking submit does nothing and no validation/confirmation ever appears. There are TWO distinct controls — scan for BOTH and insert the matching step IMMEDIATELY BEFORE the submit step, each as its OWN distinct step. This is mandatory for BOTH positive and negative Forms tests.
+    1. CONSENT checkbox — a real `<input type="checkbox">` with the `required` attribute and a stable id (privacy/terms consent). Step to insert: "Check the required checkbox with id '<id>' to consent to the Privacy Policy and enable the submit button". Use the exact id from the HTML.
+    2. ANTI-BOT widget (ALTCHA / hCaptcha / Turnstile) — this is NOT an `<input type="checkbox">` in the HTML. ALTCHA appears as an `<altcha-widget>` element; its checkbox and "I'm not a robot" label are injected by JavaScript and are NOT in the static HTML, so you will NOT find a matching `<input>`. If the HTML contains `<altcha-widget>` (or markup/scripts with 'altcha', 'hcaptcha', 'cf-turnstile'), you MUST still insert a concrete step before submit: "Check the anti-bot verification checkbox inside the ALTCHA widget to enable the submit button". Do NOT phrase it as "if present" and do NOT describe it as a checkbox with a specific id — the executor knows how to reach the ALTCHA widget's checkbox. Both controls may exist on the same form (consent checkbox AND ALTCHA widget); in that case insert BOTH steps, consent first then ALTCHA, both before submit.
+  ANTI-BOT / CAPTCHA-GATED FORMS — NEVER GENERATE A POSITIVE SUCCESS-SUBMISSION TEST: if the form is protected by ANY anti-bot or CAPTCHA widget (ALTCHA `<altcha-widget>`, hCaptcha, reCAPTCHA, Cloudflare Turnstile — detectable by markup/ids/classes/scripts containing 'altcha', 'hcaptcha', 'recaptcha', 'g-recaptcha', 'cf-turnstile', or a required anti-bot checkbox), DO NOT generate a test that fills the form, submits it, and expects a success/confirmation/"thank you" message. Even ALTCHA (which is technically a solvable proof-of-work) is off-limits for success tests: real forms also have many required fields and conditional logic, so a "verify success" assertion is fragile and false-passes easily. For such forms generate INSTEAD:
+    (a) a NEGATIVE test — leave required fields empty, check the consent + ALTCHA/anti-bot checkbox(es) so the submit button enables, click submit, and verify a validation error appears, OR
+    (b) a field-presence test — verify the form and its key inputs/submit button are visible (no submit), OR
+    (c) a SEARCH test on the site's search box instead — a clean, deterministic Forms test (type a query, press Enter, verify the results URL) that does not depend on a gated submission.
+  Reserve positive "fill → submit → verify success" Forms tests ONLY for forms that have NO anti-bot/CAPTCHA widget at all.
+  Do NOT generate two Forms tests that both end at "verify a validation/error message" — that is redundant. If the only submittable form is anti-bot-gated, pair ONE negative test with a SEARCH test (or a field-presence test) rather than a second error test.
   SEARCH BOX PRIORITY: if the page has a search input (type="search", type="text" inside a form, or an input with id/name/class containing "search", "query", "q"), ALWAYS generate at least one Forms test that types a realistic search query and submits it.
+  SEARCH FORM — NEVER REFERENCE THE FORM'S ABSOLUTE ACTION URL: the header search form is global (present on every page). Identify it ONLY by the input's name/id/class (e.g. "the input element with name 's'") — NEVER by its action attribute (e.g. FORBIDDEN: "the search form with action 'https://silk.ai/'"). The action is an absolute URL whose domain CHANGES after a redirect (e.g. silk.ai → silk.us), so a step that names the action becomes unmatchable on any page that redirects. Refer to "the search input/form in the header" generically.
+  SEARCH FORM — RUN IT ON THE HOMEPAGE, NOT A LINKED PAGE: the header search box is the same on every page, so a search test should operate on the homepage where the HTML was seen. Do NOT first navigate to /contact-us/ (or any linked page) and then use the header search — the navigation may redirect to a different domain and adds nothing, since it is the same global search form.
+  SEARCH FORM — REVEAL IF COLLAPSED: many headers hide the search form behind a toggle/icon (a button with class containing "search-toggle", "search-icon", "show-searchbox", or aria-label containing "search"). If the search input is not in a always-visible form, add a step BEFORE typing: "Click the search toggle button in the header to reveal the search form".
+  SEARCH RESULT VERIFICATION — DOMAIN-AGNOSTIC: when verifying the post-search URL, allow for a domain redirect. Phrase it as "Verify the page URL contains 's=<query>' (the domain may be the original or a redirect target)" rather than hardcoding one domain. NOTE: an EMPTY WordPress-style search ('s=' with no value) simply reloads the results page — it does NOT show a validation error, so never set expected to "a validation error message is displayed" for an empty search submit.
   FORMS DETECTION — scan the HTML carefully for ALL of these: <input>, <textarea>, <form>, <button type="submit">, or any element with id/class/href containing "search", "contact", "subscribe", "newsletter", "query", "email", "apply", "register", "careers". If ANY of these exist in the homepage HTML OR as a navigation href, generate a Forms test.
-  NEGATIVE FORMS: generate at least one Forms test where you submit the form with EMPTY required fields and verify a validation error appears — this is a highly valuable negative test.
+  NEGATIVE FORMS: generate at least one Forms test where you submit the form with EMPTY required fields and verify a validation error appears — this is a highly valuable negative test. If the form has a required consent checkbox AND/OR an ALTCHA/anti-bot widget, the negative test MUST still include the step(s) to check them — consent checkbox first, then ALTCHA anti-bot checkbox — each as its own distinct step IMMEDIATELY BEFORE a standalone submit step. Otherwise the submit button stays disabled and the click is a no-op, so no validation error ever appears. NEVER collapse "leave fields empty" and "click submit" into one step — that omits the mandatory checkbox steps.
   Only generate Forms tests if the HTML or navigation links suggest a form exists — never completely invent one.
 
 TEST DIVERSITY — strictly enforced:
+- No two tests in the SAME suite may share the same interaction pattern. For Navigation see NAVIGATION PATTERN VARIETY; for Forms see FORMS PATTERN VARIETY. This applies to Forms too: two contact-form-submit tests that both end at "verify an error" are the SAME pattern and are FORBIDDEN.
 - No two Navigation tests may click the same link or verify the same URL fragment.
 - No two tests may share the same expected result.
 - Navigation tests must target DIFFERENT pages/sections of the site.
 - NEVER generate more than 4 Navigation tests regardless of how many nav links exist — pick only the 3-4 most important ones.
 - At least 2 tests per run must go DEEPER than a single click: e.g. navigate to a page then verify a specific element on that page, interact with a form, select a dropdown, or verify a content section is populated.
 
-NAVIGATION PATTERN VARIETY — strictly enforced:
-Each Navigation test MUST use a DIFFERENT post-navigation pattern. Assign one pattern per test, never repeat the same pattern across two tests. If you have 4 Navigation tests, use 4 different patterns.
+NAVIGATION PATTERN VARIETY — strictly enforced (HARD REQUIREMENT):
+Each Navigation test MUST use a DIFFERENT post-navigation pattern. Assign exactly one pattern letter (A/B/C/D) per test via the "nav_pattern" field, and NEVER reuse a letter. If you have N Navigation tests, you MUST use N distinct patterns (so a plan cannot have more than 4 Navigation tests, since there are 4 patterns).
+WHAT "SAME PATTERN" MEANS — two Navigation tests are the SAME pattern (FORBIDDEN) if they share the same INTERACTION SHAPE, even when they target different pages or verify different elements. Specifically:
+  - "Click one nav link → verify URL → verify a heading → verify one more static element (h2 OR footer)" is ALL Pattern A. Swapping the final check from h2 to footer, or changing which nav link is clicked, does NOT make it a different pattern. This is the most common mistake — do NOT produce two tests of this shape.
+  - A genuinely different pattern changes the INTERACTION: a second click into a deeper sub-page (B), clicking an in-page anchor and checking the URL fragment (C), or hovering a dropdown to reach a sub-page (D).
+DENY LIST: do NOT generate two Navigation tests that both end at "verify h1/h2/footer is visible" with only a single nav-link click. At most ONE Navigation test may be Pattern A.
+SELF-CHECK BEFORE RETURNING: list the nav_pattern letter of every Navigation test. If any letter repeats, REVISE until all are distinct. A plan with two Navigation tests sharing a pattern (or two single-click "verify static element" tests) is INVALID and must be fixed before output.
 
   Pattern A — Scroll + lazy content reveal:
     Step 1: Navigate to the homepage
     Step 2: Click the nav link with href '<href>'
     Step 3: Verify the page URL contains '<path>'
-    Step 4: Verify the page heading (h1) is visible on the destination page
-    Step 5: Verify a content section heading (h2) is visible
-    Use when: the destination page has content sections below the fold (blog, careers, services, products pages)
-    NOTE: Do NOT add a scroll step before verifying h2. EC.visibility_of_element_located works on elements below the fold — Selenium does not require the element to be in the viewport, only that it is not hidden (display:none / visibility:hidden). A scroll step is ONLY needed when the HTML shows the target element is inside a container with CSS animation classes (animate-in, fade-in, slide-in, scroll-reveal) — in that case the element is literally hidden until an IntersectionObserver fires.
+    Step 4: Verify the page heading (h1 or h2) is visible on the destination page
+    Step 5: Verify the page footer is visible on the destination page
+    Use when: the destination page is a standard content page (blog, careers, services, products, news pages) — verifying h1 + footer confirms the page rendered top to bottom.
+    NOTE: phrase Step 5 exactly as "Verify the page footer is visible on the destination page". The executor uses the broad footer selector (footer, [class*='footer'], #footer, [id*='footer']) and picks the LAST visible, non-zero-size match, scrolling to it before asserting. Do NOT phrase Step 5 as "verify an h2 is visible" — many pages have no visible h2, or only a hidden/empty hero duplicate (0x0), which makes a bare h2 check time out. The footer is a far more reliable "page rendered" signal.
 
   Pattern B — Secondary link click within page content:
     Step 1: Navigate to the homepage
     Step 2: Click the nav link with href '<href>'
     Step 3: Verify the page URL contains '<path>'
-    Step 4: Verify the page heading (h1) is visible
+    Step 4: Verify the page heading (h1 or h2) is visible
     Step 5: Scroll down to reveal page content
     Step 6: Click a secondary link visible inside the main content area (NOT in the nav or footer) — pick a sub-page link whose href is a deeper path under the current page
     Step 7: Verify the page URL changed to the sub-page path
@@ -354,7 +554,7 @@ Each Navigation test MUST use a DIFFERENT post-navigation pattern. Assign one pa
     Step 1: Navigate to the homepage
     Step 2: Click the nav link with href '<href>'
     Step 3: Verify the page URL contains '<path>'
-    Step 4: Verify the page heading (h1) is visible
+    Step 4: Verify the page heading (h1 or h2) is visible
     Step 5: Scroll down to reveal anchor links on the page
     Step 6: Click an anchor link whose href starts with '#' (section jump link, table-of-contents entry, tab)
     Step 7: Verify the URL now contains '#' (anchor fragment appended)
@@ -372,10 +572,37 @@ Each Navigation test MUST use a DIFFERENT post-navigation pattern. Assign one pa
 
   FORBIDDEN pattern (never use): navigate → verify URL → stop. Every Navigation test must continue past the URL check.
 
+FORMS PATTERN VARIETY — strictly enforced (HARD REQUIREMENT):
+No two Forms tests may use the same interaction pattern. The available Forms patterns are:
+  - SEARCH: type a query into the site search box, submit with Enter, verify the results URL/page. Use whenever a search input exists.
+  - NEGATIVE VALIDATION: submit a form with EMPTY (or invalid) required fields — after ticking any consent + anti-bot checkbox so submit enables — and verify a validation error appears.
+  - FIELD-PRESENCE: fill the form's fields with valid data and verify they accept input / the submit button is visible. NO submit, NO success assertion.
+  - POSITIVE SUBMIT: fill valid data, submit, verify a success message. ALLOWED ONLY for a form with NO anti-bot/CAPTCHA widget (see ANTI-BOT rule above).
+WHAT "SAME PATTERN" MEANS — two Forms tests are the SAME (FORBIDDEN) if they exercise the SAME form with the same interaction shape, REGARDLESS of the input values used:
+  - Two tests on the SAME submittable form that both end at "verify a validation/error message" are the SAME pattern, whether one fills the fields and the other leaves them empty.
+  - Two tests on the SITE-WIDE HEADER SEARCH BOX (input name 's' / search toggle) are the SAME SEARCH pattern, whether one types a real query and the other types a different query OR leaves it empty. Changing the query value does NOT make a new pattern.
+THE SEARCH BOX SUPPORTS EXACTLY ONE FORMS TEST: a SEARCH test that types a REAL, non-empty query and verifies the results URL contains 's=<query>'. Never generate a second test on the same search box.
+AN EMPTY SEARCH SUBMIT IS NOT A NEGATIVE/VALIDATION TEST: a WordPress-style empty search ('s=' with no value) just reloads the results page with no error — it can never satisfy "a validation error is displayed". NEVER mark an empty-search test negative=true, and NEVER pair a filled search with an empty search as the two Forms tests.
+DENY LIST:
+  - NEVER generate two Forms tests that both operate on the header search box (one filled + one empty, or two different queries). One SEARCH test only.
+  - NEVER generate two Forms tests that both end at "verify a validation error / form result".
+  - NEVER write a Forms step like "Verify a validation error message is displayed OR the form submission result is shown" — that mixed success-or-error assertion false-passes on anything. Pick ONE concrete outcome.
+  - For an anti-bot/CAPTCHA-gated form (e.g. ALTCHA), the ONLY valid contact-form pattern is NEGATIVE VALIDATION (exactly one). The OTHER Forms test MUST be a SEARCH test (if a search box exists) or a FIELD-PRESENCE test — NOT a second submit-the-contact-form test.
+WHEN THE SEARCH BOX IS THE ONLY RELIABLY-TESTABLE FORM: if the homepage's only form is the header search and the other forms live on linked pages you have NOT seen, OR are embedded third-party / cross-origin iframe forms (e.g. HubSpot, Marketo, Pardot — a <form> or <iframe> pointing at a different host) whose fields are NOT in the provided HTML, then you CANNOT write a second reliable fill-and-submit Forms test. In that case generate ONE SEARCH test, and fill the remaining slot with EITHER (a) a FIELD-PRESENCE test on a DIFFERENT form — navigate to /subscribe, /contact-us, etc. and verify that page's subscription/contact form (or its embedded form iframe) is visible, with NO submit — OR (b) a Navigation test. NEVER pad the plan with a second search-box test.
+SELF-CHECK BEFORE RETURNING: list each Forms test's pattern (SEARCH / NEGATIVE VALIDATION / FIELD-PRESENCE / POSITIVE SUBMIT). If any two share a pattern, REVISE until distinct. A plan whose two Forms tests both submit the same form and both verify an error is INVALID.
+
 SUITE DISTRIBUTION — strictly enforced:
 - EXACTLY 1 Smoke test.
 - MAXIMUM 4 Navigation tests — even if the site has 20 nav links, pick only the 3-4 most important. Do not fill remaining slots with more navigation tests.
-- MINIMUM 2 Forms tests if the site has ANY form, input, or search box in the HTML. If the site has multiple forms (search + contact + newsletter), generate one test per form type.
+- Generate 2 Forms tests ONLY when there are 2 DISTINCT testable forms (e.g. a search box AND a separate contact/subscribe form whose fields you can see). Generate one test per DISTINCT form type — never two tests on the same form.
+- THE 2-FORMS TARGET NEVER JUSTIFIES A DUPLICATE: if the header search box is the ONLY fillable form (all other forms are on unseen linked pages or are embedded/cross-origin iframe forms whose fields are not in the HTML), generate ONE search test, and for the SECOND Forms slot PREFER a field-presence test that navigates to a DIFFERENT form page (a link whose href contains 'contact', 'subscribe', 'newsletter', 'register', etc.) and verifies that page's heading and its form (or embedded form iframe) are visible — NO submit. This keeps TWO distinct Forms tests (a SEARCH test + a different-form FIELD-PRESENCE test). Only fall back to a Navigation test for that slot if NO such form-page link exists. A second header-search test (filled, empty, or a different query) is FORBIDDEN — one Forms test is strictly better than two search-box tests.
+  FIELD-PRESENCE FORMS TEST SHAPE (use for the second Forms slot when the search box is the only fillable form):
+    Step 1: Navigate to the homepage
+    Step 2: Click the link with href '/contact-us' (or '/subscribe', etc.) to open that page
+    Step 3: Verify the page URL contains '/contact-us'
+    Step 4: Verify the page heading (h1 or h2) is visible on the destination page
+    Step 5: Verify the contact/sign-up form (or its embedded form iframe) is visible on the page
+    (Do NOT type into or submit this form — you have not seen its field names, and it may be a cross-origin iframe.)
 - If you cannot find 2 Forms-worthy elements, use Navigation tests for the remaining slots — but still cap Navigation at 4.
 - Target distribution for {num_tests} total tests: 1 Smoke, up to 4 Navigation, and the remaining slots as Forms tests. Example: for 10 tests → 1 Smoke + 4 Navigation + 5 Forms. For 5 tests → 1 Smoke + 2 Navigation + 2 Forms. Always total exactly {num_tests}.
 
@@ -388,6 +615,30 @@ NEGATIVE TESTS:
 - Maximum negative tests allowed: {max_negative}
 
 ---
+Before generating checkbox interactions, distinguish between:
+
+1. Consent/privacy/marketing checkboxes
+   Examples:
+   - "By providing..."
+   - "I agree..."
+   - "Privacy policy"
+   - "Terms and conditions"
+
+2. Anti-bot verification widgets
+   Examples:
+   - "I'm not a robot"
+   - CAPTCHA
+   - reCAPTCHA
+   - ALTCHA
+   - Cloudflare Turnstile
+
+Never confuse consent checkboxes with anti-bot verification widgets.
+
+If a form submission is blocked by CAPTCHA/ALTCHA/reCAPTCHA:
+- Do not claim the form can be successfully submitted automatically.
+- Do not generate fake positive-submission assertions.
+- Prefer negative validation tests instead.
+- Clearly state when anti-bot verification prevents reliable automation.
 
 Return only valid JSON. No markdown, no explanation, no code fences.
     """)
@@ -449,6 +700,22 @@ Return only valid JSON. No markdown, no explanation, no code fences.
                     cases.append(TestCase(**c))
         except Exception:
             pass
+
+    # Hard guard: never ship two header-search Forms tests (the LLM keeps doing
+    # this when the search box is the only fillable form). Rewrite extras onto a
+    # different form page or into a distinct search field-presence pattern.
+    try:
+        cases = _dedupe_search_forms(cases, page_html, url)
+    except Exception as e:
+        print(f"[planner] search-dedup guard skipped: {e}")
+
+    # Coverage guard: if only one Forms test exists but a different form page is
+    # available, convert a surplus Navigation test into a field-presence Forms
+    # test so the plan has two DISTINCT Forms tests (search + a different form).
+    try:
+        cases = _ensure_two_forms(cases, page_html, url)
+    except Exception as e:
+        print(f"[planner] forms-coverage guard skipped: {e}")
 
     # Enforce exact total count
     cases = cases[:num_tests]
@@ -530,4 +797,4 @@ def run_planner(target: str, num_tests: int, depth: int, email: str = "", pm: st
 
 
 if __name__ == "__main__":
-    run_planner('https://www.igaming.com/',10,1)
+    run_planner('https://flex.com/',5,1)

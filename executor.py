@@ -109,50 +109,49 @@ if __name__ == "__main__":
 %(geolocation)s
 
     def _dismiss_banner():
-        # Try Selenium click first
-        for sel in ["#CybotCookiebotDialogBodyButtonClose", ".cky-btn-accept",
-                    "[id*='accept-all']", "[id*='acceptAll']"]:
-            try:
-                els = driver.find_elements(By.CSS_SELECTOR, sel)
-                for el in els:
-                    if el.is_displayed() and el.is_enabled():
-                        el.click()
-                        return True
-            except Exception:
-                pass
-        for xpath in [
-            "//*[(self::button or self::a or self::span)][contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'accept all')]",
-            "//*[(self::button or self::a or self::span)][contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'accept cookies')]",
-            "//*[(self::button or self::a or self::span)][contains(.,'אישור')]",
-            "//*[(self::button or self::a or self::span)][contains(.,'קבל הכל')]",
-            "//*[(self::button or self::a or self::span)][normalize-space()='\xd7']",
-        ]:
-            try:
-                els = driver.find_elements(By.XPATH, xpath)
-                for el in els:
-                    if el.is_displayed() and el.is_enabled():
-                        el.click()
-                        return True
-            except Exception:
-                pass
-        # JS fallback — clicks the button by text even if Selenium can't reach it
+        # Native JS click fires the site's own accept handler reliably (a Selenium
+        # click can land before the handler is bound). Then strip any leftover
+        # Bootstrap modal/backdrop so it cannot intercept later clicks.
+        # Returns True only when something was actually handled, so the polling
+        # loop keeps watching for a banner/modal that is injected late.
         try:
-            clicked = driver.execute_script("""
-                var buttons = document.querySelectorAll('button, a, span');
-                for (var i = 0; i < buttons.length; i++) {
-                    var t = buttons[i].innerText.trim().toLowerCase();
-                    if (t === 'accept all' || t === 'accept cookies' || t === 'קבל הכל' || t === 'אישור') {
-                        buttons[i].click();
-                        return true;
+            return bool(driver.execute_script(r"""
+                var handled = false;
+                var accSel = ['#cookieConsentModal .btn-accept', '.btn-accept',
+                              '#CybotCookiebotDialogBodyButtonClose', '.cky-btn-accept',
+                              '[id*="accept-all"]', '[id*="acceptAll"]'];
+                var clicked = false;
+                for (var i = 0; i < accSel.length; i++) {
+                    var el = document.querySelector(accSel[i]);
+                    if (el && el.offsetParent !== null) { el.click(); clicked = true; break; }
+                }
+                if (!clicked) {
+                    var labels = ['allow all', 'accept all', 'accept cookies', 'קבל הכל', 'אישור'];
+                    var nodes = document.querySelectorAll('button, a, span');
+                    for (var j = 0; j < nodes.length; j++) {
+                        var t = (nodes[j].innerText || '').trim().toLowerCase();
+                        if (labels.indexOf(t) >= 0 && nodes[j].offsetParent !== null) {
+                            nodes[j].click(); clicked = true; break;
+                        }
                     }
                 }
-                return false;
-            """)
-            if clicked:
-                return True
+                if (clicked) handled = true;
+                // Safety: strip any leftover backdrop/modal so it cannot intercept
+                // a click. This does NOT count as "handled" — only an actual accept
+                // click grants consent (permanent). Force-removing without granting
+                // consent lets the site re-open the modal, so the loop must keep
+                // polling until the accept button is clicked.
+                document.querySelectorAll('.modal-backdrop').forEach(function(e) { e.remove(); });
+                document.querySelectorAll('.modal.show, .modal[style*="display: block"]').forEach(function(m) {
+                    m.classList.remove('show'); m.style.display = 'none';
+                    m.setAttribute('aria-hidden', 'true');
+                });
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = ''; document.body.style.paddingRight = '';
+                return handled;
+            """))
         except Exception:
-            pass
-        return False
+            return False
 
     _orig_get = driver.get
     def _patched_get(url):
@@ -177,9 +176,10 @@ if __name__ == "__main__":
         except Exception:
             pass
         if _has_banner:
-            _deadline = _t.time() + 8
+            _deadline = _t.time() + 12
             while _t.time() < _deadline:
                 if _dismiss_banner():
+                    _t.sleep(0.5)  # let the close/fade-out settle
                     break
                 _t.sleep(0.5)
     driver.get = _patched_get
@@ -273,18 +273,29 @@ XPATH — use only when ID, Name, and CSS Selector are not suitable (e.g. locati
 
 LINKS WITH VISIBLE TEXT:
 - Use By.PARTIAL_LINK_TEXT with the exact visible text from the HTML.
-- For nav links use XPath scoped to the nav container with @href: (By.XPATH, "//nav//a[contains(@href, 'path-stem')]")
+- For nav links match by @href directly: (By.XPATH, "//a[contains(@href, 'path-stem')]")
 
-NAV CLASS — NEVER scope nav links using the nav element's class attribute:
-- WRONG: (By.XPATH, "//nav[@class='nav-2025']//a[contains(@href, '/contact/')]") ← class matching breaks if the class changes
-- CORRECT: (By.XPATH, "//nav//a[contains(@href, '/contact/')]") ← scope to nav tag only, match by href
+NAV SCOPING — do NOT scope nav links to a `<nav>` ancestor by default:
+- Many sites do NOT wrap their nav links in a semantic `<nav>` tag — they use `<ul class="nav">`, a header `<div>`, or other containers. `//nav//a[...]` then matches NOTHING and times out, even though the link is plainly visible.
+- DEFAULT: match the link by its href anywhere on the page: (By.XPATH, "//a[contains(@href, '/contact/')]"). visibility_of_element_located returns the first DOM match, and the desktop nav link is normally first in source order (mobile-menu and footer duplicates come later), so this resolves to the visible desktop link.
+- WRONG: (By.XPATH, "//nav//a[contains(@href, '/contact/')]") ← times out on any site whose nav is not a `<nav>` tag
+- WRONG: (By.XPATH, "//nav[@class='nav-2025']//a[contains(@href, '/contact/')]") ← class matching is doubly fragile
+- ONLY add a container scope if an unscoped href match resolves to a HIDDEN duplicate earlier in the DOM (rare). In that case scope to a stable visible ancestor you can see in the HTML, e.g. (By.XPATH, "//header//a[contains(@href, '/contact/')]").
+
+HREF MATCHING — NEVER EXACT, ALWAYS SUBSTRING (applies to clicks AND verify-presence checks):
+- NEVER locate a link by an EXACT href value — neither CSS a[href='/path/'] nor XPath //a[@href='/path/']. The live DOM frequently rewrites a clean path into an ABSOLUTE URL (e.g. href '/platform-technology/' is rendered as 'https://silk.us/platform-technology/') and appends tracking query params (HubSpot __hstc / __hssc / __hsfp, utm_*, gclid, fbclid). An exact-match selector then matches 0 elements and TIMES OUT, even though the link is plainly visible.
+- ALWAYS match a substring of the path stem instead:
+    CSS:   (By.CSS_SELECTOR, "header a[href*='/platform-technology/']")
+    XPath: (By.XPATH, "//a[contains(@href, '/platform-technology/')]")
+- FORBIDDEN: (By.CSS_SELECTOR, "header a[href='/platform-technology/']")  ← exact match, fails on absolute/rewritten/param-appended hrefs
+- This is true even when the planner step quotes the href as a clean path like '/platform-technology/' — that is the AUTHORED href, not necessarily what the browser renders. Always treat the quoted href as a substring to match with *= or contains().
 
 NAVIGATION LINKS — <a href> elements MUST be located by href, never by id:
 - Many sites (React, Next.js, Angular) generate random ids on <a> elements at build time. These ids look like "r1w2KWYLVsyGg" — they are NOT stable and MUST NOT be used.
-- ALWAYS locate <a href> navigation links using EC.visibility_of_element_located, then call .click() directly. Scope the XPath to the nav container to avoid matching hidden duplicates in mobile nav or footer:
-    link = WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.XPATH, "//nav//a[contains(@href, '/economy')]")))
+- ALWAYS locate <a href> navigation links using EC.visibility_of_element_located, then call .click() directly:
+    link = WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.XPATH, "//a[contains(@href, '/economy')]")))
     link.click()
-- NEVER use lambda+next+find_elements patterns — they are hard to debug and unnecessary when the XPath is scoped correctly.
+- NEVER use lambda+next+find_elements patterns — they are hard to debug and unnecessary.
 
 NON-ASCII IN HREF (Hebrew, Arabic, etc.):
 - XPath @href reads the raw attribute value as-is. Use the original characters: contains(@href, '/about-us')
@@ -316,11 +327,36 @@ WAITS AND ASSERTIONS
         WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "submit-btn"))).click()
     INCORRECT (presence only):
         WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "submit-btn")))
+- MULTI-MATCH CLICK TARGET (icons, toggles, buttons matched by a CLASS): when you click an element located by a CLASS or attribute selector that can match MULTIPLE elements in the DOM (e.g. a search icon `.show-searchbox`, a menu toggle, a CTA button class), the FIRST DOM match is often a hidden responsive duplicate (mobile vs desktop). EC.visibility_of_element_located on the bare selector targets that first match and TIMES OUT waiting for it to become visible. Instead collect all matches and click the first VISIBLE, non-zero-size one:
+    WebDriverWait(driver, 10).until(
+        lambda d: d.find_elements(By.CSS_SELECTOR, ".show-searchbox")
+    )
+    target = None
+    for _el in driver.find_elements(By.CSS_SELECTOR, ".show-searchbox"):
+        if _el.is_displayed() and _el.size["width"] > 0 and _el.size["height"] > 0:
+            target = _el
+            break
+    if target is None:
+        raise Exception("No visible match for .show-searchbox found")
+    ActionChains(driver).move_to_element(target).click().perform()
+  This applies ONLY to class/attribute selectors that match multiple elements. For a unique, stable id (By.ID) use plain EC.visibility_of_element_located — ids are unique so there is no hidden-duplicate problem.
 - EC.presence_of_element_located — element is in the DOM (use ONLY for images and read-only checks, never before interaction)
 - EC.visibility_of_element_located — use for EVERY interaction (click, send_keys, clear) AND for all assertion steps
 - EC.element_to_be_clickable — DO NOT USE. Always use visibility_of_element_located instead.
 - NEVER use visibility_of on <img> — images have 0×0 size in headless mode. Use presence_of and check .get_attribute("src") or .get_attribute("alt").
 - NEVER use assert element.is_displayed() on images.
+- HEADING VERIFICATION (h1 / h2): when a step says "verify the page heading is visible" (or "h1", or "h1 or h2"), do NOT use EC.visibility_of_element_located((By.TAG_NAME, "h1")). Many pages have NO <h1> at all (the hero is an <h2>), or the first <h1> in the DOM is a hidden responsive duplicate — both make that wait TIME OUT. Instead match `h1, h2` and verify the FIRST VISIBLE, non-zero-size heading:
+    WebDriverWait(driver, 10).until(
+        lambda d: d.find_elements(By.CSS_SELECTOR, "h1, h2")
+    )
+    heading = None
+    for _el in driver.find_elements(By.CSS_SELECTOR, "h1, h2"):
+        if _el.is_displayed() and _el.size["height"] > 0 and _el.size["width"] > 0:
+            heading = _el
+            break
+    if heading is None:
+        raise Exception("No visible heading (h1/h2) found on the destination page")
+  FORBIDDEN: EC.visibility_of_element_located((By.TAG_NAME, "h1")) for a heading check — fails on any page with no h1 or a hidden first h1.
 - For title checks: assert "keyword" in driver.title — use ONLY a locale-stable fragment: the brand name in its original script, a TLD like "IL", or a non-translatable abbreviation. NEVER use an English transliteration of a non-English brand (e.g. NEVER "drushim" when the title is in Hebrew "דרושים"). The browser renders the title in the site's locale — English words that are translations will NOT appear.
 - WebDriverWait IS the assertion — do not add a redundant assert after an EC condition checks the same thing.
   FORBIDDEN:  el = WebDriverWait(...).until(EC.visibility_of_element_located(...)); assert el.is_displayed()  ← is_displayed() is already guaranteed by visibility_of
@@ -395,20 +431,30 @@ NEVER use a single exact aria-label like `button[aria-label='Open main navigatio
 ═══════════════════════════════════════
 SEARCH INPUT INSIDE A DRAWER / PANEL
 ═══════════════════════════════════════
-- Some sites (e.g. BBC) place the search input inside a hidden drawer or slide-out panel. The input exists in the DOM but has disabled="" or is not interactable until the drawer is opened.
+- Some sites (e.g. BBC, silk.ai) place the search form and input inside a hidden drawer or panel. The form/input exists in the DOM but is not visible until a toggle button is clicked.
 - NEVER use EC.presence_of_element_located for a search input you intend to type into — it only checks DOM presence, not interactability.
-- If a search input throws ElementNotInteractableException, it is hidden inside a panel. You MUST click the toggle button that opens the panel first, then wait for the input with EC.element_to_be_clickable.
+- TWO failure modes — BOTH require clicking the toggle first:
+  1. TimeoutException on visibility_of_element_located for the form or input — the whole container is hidden.
+  2. ElementNotInteractableException after finding the input — the input is in the DOM but display:none/visibility:hidden.
+- ALWAYS check for a search toggle button BEFORE trying to locate the form or input. Common toggle selectors (try in order):
+    button.search-toggle, button.show-searchbox, button[aria-label*="search" i], [class*="search-toggle"], [class*="search-icon"]
+- DOMAIN REDIRECT WARNING: A page navigation (e.g. silk.ai → silk.us) can change the form's action attribute. NEVER scope the search input selector to a specific domain (e.g. form[action='https://silk.ai/']). Always use a domain-agnostic selector scoped to the header:
+    FORBIDDEN: By.CSS_SELECTOR, "form[action='https://silk.ai/'] input[name='s']"
+    CORRECT:   By.CSS_SELECTOR, "header form input[name='s']"
 - Pattern:
-    # 1. Open the panel/drawer that contains the search input
-    menu_toggle = WebDriverWait(driver, 5).until(
-        EC.visibility_of_element_located((By.XPATH, "//button[@aria-label='Open menu']"))
+    # 1. Click the toggle that reveals the search panel
+    search_toggle = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR,
+            "header button.search-toggle, header button.show-searchbox, header button[aria-label*='search' i]"))
     )
-    menu_toggle.click()
-    time.sleep(1.5)
-    # 2. Now wait for the input to be visible
-    search_input = WebDriverWait(driver, 5).until(
-        EC.visibility_of_element_located((By.XPATH, "//*[@data-testid='search-input-field']"))
+    search_toggle.click()
+    time.sleep(1)
+    # 2. Now wait for the input — domain-agnostic, scoped to header
+    search_input = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "header form input[name='s']"))
     )
+    # 3. If verifying the result URL, always check for BOTH possible domains:
+    #    lambda d: "s=query" in d.current_url or "silk.ai" in d.current_url or "silk.us" in d.current_url
 
 ═══════════════════════════════════════
 HOVER DROPDOWNS
@@ -426,20 +472,73 @@ HOVER DROPDOWNS
 ═══════════════════════════════════════
 FORM / SEARCH SUBMIT
 ═══════════════════════════════════════
-- ALWAYS submit search forms using Keys.ENTER on the input field — never by clicking the search button. In headless Chrome, the autocomplete dropdown covers the search button after typing, making it unclickable. Keys.ENTER works in both headless and non-headless.
+- ALWAYS submit search forms using Keys.ENTER on the input field — never by clicking the search button or a search link. In headless Chrome, the autocomplete dropdown covers the search button after typing, making it unclickable. Keys.ENTER works in both headless and non-headless.
   from selenium.webdriver.common.keys import Keys
   search_input.send_keys("query text")
   time.sleep(1.5)
   search_input.send_keys(Keys.ENTER)
-- For non-search forms (login, contact, filters): ALWAYS use this exact 3-line pattern to click the submit button — never use submit_btn.click() directly:
-  submit_btn = WebDriverWait(driver, 10).until(
-      EC.visibility_of_element_located((By.CSS_SELECTOR, "input[type='submit'], button[type='submit']"))
+- CRITICAL — <a href> search links: if the search submit is an <a> tag (e.g. <a class="menu-search-bar-button-link" href="/en/search?search=">), NEVER click it. Clicking an <a> tag navigates directly to the href URL, bypassing the JavaScript validation and the typed query — the search text is lost and any expected error message will never appear. ALWAYS use Keys.ENTER on the input instead.
+  FORBIDDEN: search_link.click()  ← navigates away before JS validation fires; typed text is lost
+  CORRECT:   search_input.send_keys(Keys.ENTER)  ← fires the JS submit handler with the input value
+- For non-search forms (login, contact, filters): locate the submit button then ALWAYS click it with ActionChains — never use submit_btn.click() directly.
+- MULTIPLE SUBMIT BUTTONS — NEVER use bare visibility_of_element_located for a submit button: a page almost always has MORE THAN ONE submit button. The global header search form has its own `input[type='submit']` that comes FIRST in DOM order and is HIDDEN (0x0) behind a search toggle. EC.visibility_of_element_located((By.CSS_SELECTOR, "input[type='submit'], button[type='submit']")) returns/polls that first hidden match and TIMES OUT — it never reaches the real (visible) form submit later in the DOM. Embedded forms (e.g. HubSpot `form.hs-form`) also load ASYNC, so the visible submit may not exist on the first poll. ALWAYS wait for a VISIBLE submit to exist, then pick the first VISIBLE non-zero-size one:
+  SUBMIT_SEL = "input[type='submit'], button[type='submit']"
+  WebDriverWait(driver, 20).until(
+      lambda d: any(b.is_displayed() and b.size.get("height", 0) > 0
+                    for b in d.find_elements(By.CSS_SELECTOR, SUBMIT_SEL))
+  )
+  submit_btn = next(
+      b for b in driver.find_elements(By.CSS_SELECTOR, SUBMIT_SEL)
+      if b.is_displayed() and b.size.get("height", 0) > 0 and b.size.get("width", 0) > 0
   )
   ActionChains(driver).scroll_to_element(submit_btn).perform()
   time.sleep(0.5)
   ActionChains(driver).move_to_element(submit_btn).click().perform()
+  FORBIDDEN: EC.visibility_of_element_located((By.CSS_SELECTOR, "input[type='submit'], button[type='submit']")) — targets the first/hidden header-search submit and times out.
   FORBIDDEN: submit_btn.click() — sticky headers and overlays intercept direct clicks. Always scroll first with ActionChains.scroll_to_element, then click with ActionChains.move_to_element().click().
 - Clicking submit WITHOUT input does not navigate. Do NOT use any url_* condition. Wait for the form input to still be visible.
+- DISABLED SUBMIT — required consent / anti-bot checkbox: many forms (e.g. Sitecore Forms, forms using ALTCHA/hCaptcha-style widgets) keep the submit button DISABLED until a required consent or anti-bot checkbox is ticked. A click on a disabled submit silently does nothing — no validation fires and any expected error message never appears. If the HTML shows an `input[type='checkbox']` with the `required` attribute inside the form, you MUST check it BEFORE clicking submit:
+    checkbox = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "#form-id input[type='checkbox'][required]"))
+    )
+    ActionChains(driver).scroll_to_element(checkbox).perform()
+    time.sleep(0.5)
+    if not checkbox.is_selected():
+        ActionChains(driver).move_to_element(checkbox).click().perform()
+    time.sleep(1)
+  Then wait for the submit button to become enabled before clicking it (the widget may run a brief background check):
+    WebDriverWait(driver, 15).until(lambda d: not submit_btn.get_attribute("disabled"))
+  This applies to NEGATIVE form tests too: to surface "required field" validation errors you must first enable the submit button, otherwise the click is a no-op.
+- ALTCHA "I'M NOT A ROBOT" WIDGET — if a step mentions an anti-bot / "I'm not a robot" checkbox, FIRST check whether the HTML contains an `<altcha-widget>` element (ALTCHA). If it does, the anti-bot control is ALTCHA — NOT reCAPTCHA and NOT hCaptcha. Critical facts:
+    * ALTCHA renders NO iframe. Do NOT look for `iframe[src*='recaptcha']` / `iframe[title*='reCAPTCHA']` — those never exist on an ALTCHA page and the switch_to.frame branch will silently do nothing.
+    * The visible checkbox and the literal text "I'm not a robot" are injected by ALTCHA's JavaScript AFTER it fetches a challenge, so they are ABSENT from the static HTML you are given. Never try to match the "I'm not a robot" text or a `[required]` checkbox id — they are not in the HTML.
+    * The real checkbox lives INSIDE the `<altcha-widget>` element, possibly in its shadow DOM. Selenium locators cannot reliably reach into a web component's shadow root, so use a small JS snippet that handles both light and shadow DOM. This is the one sanctioned use of execute_script to click — it is required for shadow-DOM web components.
+  Exact pattern to emit for an ALTCHA anti-bot step:
+    try:
+        altcha = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "altcha-widget, #altcha-widget"))
+        )
+        ActionChains(driver).scroll_to_element(altcha).perform()
+        time.sleep(1)
+        driver.execute_script(\"\"\"
+            const w = document.querySelector('altcha-widget, #altcha-widget');
+            if (!w) return;
+            const root = w.shadowRoot || w;
+            const cb = root.querySelector("input[type='checkbox']");
+            if (cb && !cb.checked) cb.click();
+        \"\"\")
+        time.sleep(3)  # let ALTCHA's proof-of-work complete and set the solution
+    except Exception:
+        pass
+  If the step says the checkbox is optional ("if present"), wrap it in try/except as above so a missing widget never fails the test.
+- CHECKBOX / RADIO INTERACTION — always scroll the box to the viewport centre with ActionChains.scroll_to_element BEFORE clicking it, then click with ActionChains.move_to_element().click(). A bare checkbox.click() scrolls the box to the top edge under a sticky header, which intercepts the click so the box never toggles. Guard with `if not box.is_selected():` so a re-run does not un-tick it.
+  NOTE: this manual-click rule is for REAL `<input type='checkbox'>` form fields with a stable id (e.g. a consent checkbox). It does NOT apply to the ALTCHA anti-bot checkbox above — that one is reached via the JS snippet because it lives inside a web component.
+- VERIFYING A FORM SUBMISSION OUTCOME — avoid false passes: do NOT assert on bare `[class*='validation']`, `[class*='error']`, `[class*='success']`, or `[class*='invalid']` selectors. Forms (especially Sitecore/ASP.NET) pre-render EMPTY marker spans like `field-validation-valid` that are ALWAYS in the DOM, so find_elements on those returns matches before anything is submitted and the test passes without the form responding. Likewise NEVER use `//*[contains(., 'thank you')]` or `//*[contains(text(), 'success')]` against generic `*` — `.`/string-value aggregates ALL descendant text, so huge ancestor containers (`<body>`, `<main>`) match if the phrase appears anywhere in static page content. Instead require a DISPLAYED element whose OWN text is non-empty, scoped to the real outcome class:
+    WebDriverWait(driver, 15).until(
+        lambda d: any(e.is_displayed() and (e.text or "").strip()
+                      for e in d.find_elements(By.CSS_SELECTOR, ".field-validation-error, [class*='success'], [class*='thank'], [class*='confirmation']"))
+    )
+  Prefer the most specific outcome locator the HTML actually shows (a named success container, or `.field-validation-error` for validation), or assert a URL change to a confirmation/thank-you path. A real outcome must be VISIBLE with TEXT — presence in the DOM alone proves nothing.
 
 
 ═══════════════════════════════════════
@@ -454,16 +553,38 @@ DEFAULT RULE — no scroll needed:
     time.sleep(2)
     WebDriverWait(driver, 10).until(EC.visibility_of_element_located(...))
   This 3-step pattern is ONLY valid for CSS-animated elements (see below). Do not use it otherwise.
+ 
 
+If no visible matching element is initially found, the executor should progressively scroll down using ActionChains(driver).scroll_by_amount(...) and retry locating visible elements before failing the test.
 EXCEPTION 1 — CSS animation reveal (rare):
 - ONLY use the 3-step presence→scroll→visibility pattern when the HTML shows the target element is inside a container with animation class names like "animate-in", "fade-in", "slide-in", or "scroll-reveal". These elements are visibility:hidden until an IntersectionObserver fires.
 - If you are not certain the element uses a CSS scroll animation, use plain EC.visibility_of_element_located — do not add the scroll.
 
 EXCEPTION 2 — footer elements only:
-- Footer elements are far below the fold. Use scroll_by_amount(0, 3000) before asserting footer visibility:
-    ActionChains(driver).scroll_by_amount(0, 3000).perform()
+- Many sites do not use a semantic <footer> tag — they use a div/section with a footer class or id. ALWAYS use the broad CSS selector below so the locator works regardless of the site's HTML structure.
+- CORRECT footer pattern (use this every time a step verifies the footer):
+    # Wait until at least one match exists, then pick the LAST VISIBLE, non-zero-size
+    # match — the real bottom-of-page footer. Taking [-1] blindly can grab a hidden
+    # 0x0 placeholder, and scroll_to_element on a zero-size element raises
+    # ElementNotInteractableException. Iterate in reverse and check .size.
+    WebDriverWait(driver, 10).until(
+        lambda d: d.find_elements(By.CSS_SELECTOR, "footer, [class*='footer'], #footer, [id*='footer']")
+    )
+    footer = None
+    for _el in reversed(driver.find_elements(By.CSS_SELECTOR, "footer, [class*='footer'], #footer, [id*='footer']")):
+        if _el.size.get("height", 0) > 0 and _el.size.get("width", 0) > 0:
+            footer = _el
+            break
+    if footer is None:
+        raise Exception("No visible footer element with non-zero size found")
+    ActionChains(driver).scroll_to_element(footer).perform()
     time.sleep(1)
-    WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".footer-copyright")))
+    assert footer.is_displayed(), "Footer is not visible"
+- WHY reversed + size check: the broad selector matches hidden zero-size placeholders (pre-footer, mobile-footer). Taking `[-1]` alone is unsafe — that element may be 0x0 and scroll_to_element raises ElementNotInteractableException. Iterating in reverse and checking `.size` finds the last REAL footer.
+- FORBIDDEN: `find_elements(...)[-1]` without a size check — the last match may be a hidden 0x0 element.
+- FORBIDDEN: EC.presence_of_element_located with the broad footer selector — it returns the FIRST match, which may be a hidden element.
+- FORBIDDEN: EC.visibility_of_element_located((By.TAG_NAME, "footer")) — fails on sites that use div.footer instead of a <footer> tag.
+- FORBIDDEN: scroll_by_amount(0, 3000) for footer — a fixed scroll amount may not reach the footer on long pages. Always use scroll_to_element on the located element.
 
 EXCEPTION 3 — CSS-animated interactive elements (dropdowns, filters, inputs below the fold):
 - Some elements (job filters, custom dropdowns, search inputs) are hidden by a parent IntersectionObserver animation. scroll_to_element on the child alone does NOT fire the parent's observer — the element stays hidden.
@@ -497,6 +618,11 @@ COOKIE BANNERS
 - The test runner auto-dismisses cookie/consent banners after every driver.get(). Do NOT write code for this.
 
 ═══════════════════════════════════════
+IMAGES / LAZY-LOADING
+═══════════════════════════════════════
+- On recorded sessions the runner auto-scrolls the page after every driver.get() and waits for images to finish loading, so the recording/screenshot shows a fully-painted page. Do NOT write your own scroll-to-load or "wait for img.complete / naturalWidth" code — it is handled by the runner.
+
+═══════════════════════════════════════
 ERROR HANDLING
 ═══════════════════════════════════════
 - The test body is already inside the try block (see OUTPUT FORMAT).
@@ -510,6 +636,7 @@ HTML EXTRACTION RULES — CRITICAL
 - NEVER use `[aria-label='...']` unless that exact aria-label string appears in the HTML. Do not guess or infer aria-labels from brand names or common sense.
 - For Hebrew or non-Latin text: match the exact visible text from the HTML, preserving spaces, punctuation, and case exactly as they appear.
 - Do NOT navigate away from the provided Website URL unless a step explicitly instructs it.
+
 
 BROWSER MODE: {headless}
 
@@ -541,9 +668,10 @@ def _is_israeli_site(url: str) -> bool:
     host = urlparse(url).hostname or ""
     return host.endswith(".il")
 
-def extract_full_html(url: str) -> str:
-    if url in _html_cache:
-        return _html_cache[url]
+def extract_full_html(url: str, max_chars: int = 30000) -> str:
+    cache_key = (url, max_chars)
+    if cache_key in _html_cache:
+        return _html_cache[cache_key]
     import requests as _requests
     lang = "he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7" if _is_israeli_site(url) else "en-US,en;q=0.9"
     resp = _requests.get(url, timeout=15, headers={
@@ -551,8 +679,8 @@ def extract_full_html(url: str) -> str:
         "Accept-Language": lang,
     })
     resp.raise_for_status()
-    html = _clean_html(resp.text)
-    _html_cache[url] = html
+    html = _clean_html(resp.text, max_chars=max_chars)
+    _html_cache[cache_key] = html
     return html
 
 
@@ -703,7 +831,14 @@ def run_test_file(case_id, file_path, website=""):
             "--window-size=1440,900",
         ]
         if not _using_lambdatest:
-            _base_args += ["--blink-settings=imagesEnabled=false", "--disable-software-rasterizer", "--renderer-process-limit=1"]
+            # Selenoid records video for QA review / demo capture, so images MUST
+            # load there — blocking them produces recordings full of broken-image
+            # placeholders. Keep image-blocking ONLY for headless local/Render runs
+            # (memory + speed). The other two flags are memory optimisations and
+            # are safe to keep everywhere.
+            if not _selenoid_url:
+                _base_args.append("--blink-settings=imagesEnabled=false")
+            _base_args += ["--disable-software-rasterizer", "--renderer-process-limit=1"]
         if _israeli:
             _base_args.append("--lang=he-IL")
         for arg in _base_args:
@@ -828,18 +963,19 @@ def run_test_file(case_id, file_path, website=""):
         ]
         _cookie_xpaths = [
             # Accept text (English)
-            "//*[(self::button or self::a or self::div or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept all')]",
-            "//*[(self::button or self::a or self::div or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept cookies')]",
-            "//*[(self::button or self::a or self::div or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'i agree')]",
-            "//*[(self::button or self::a or self::div or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'got it')]",
+            "//*[(self::button or self::a or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'allow all')]",
+            "//*[(self::button or self::a or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept all')]",
+            "//*[(self::button or self::a or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept cookies')]",
+            "//*[(self::button or self::a or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'i agree')]",
+            "//*[(self::button or self::a or self::span)][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'got it')]",
             # Accept text (Hebrew)
-            "//*[(self::button or self::a or self::div or self::span)][contains(., 'אישור')]",
-            "//*[(self::button or self::a or self::div or self::span)][contains(., 'אשר')]",
-            "//*[(self::button or self::a or self::div or self::span)][contains(., 'מאשר')]",
-            "//*[(self::button or self::a or self::div or self::span)][contains(., 'אני מסכים')]",
-            "//*[(self::button or self::a or self::div or self::span)][contains(., 'אני מאשר')]",
-            "//*[(self::button or self::a or self::div or self::span)][contains(., 'קבל הכל')]",
-            "//*[(self::button or self::a or self::div or self::span)][contains(., 'קבל את כל')]",
+            "//*[(self::button or self::a or self::span)][contains(., 'אישור')]",
+            "//*[(self::button or self::a or self::span)][contains(., 'אשר')]",
+            "//*[(self::button or self::a or self::span)][contains(., 'מאשר')]",
+            "//*[(self::button or self::a or self::span)][contains(., 'אני מסכים')]",
+            "//*[(self::button or self::a or self::span)][contains(., 'אני מאשר')]",
+            "//*[(self::button or self::a or self::span)][contains(., 'קבל הכל')]",
+            "//*[(self::button or self::a or self::span)][contains(., 'קבל את כל')]",
             "//*[(self::button or self::a or self::div or self::span)][normalize-space()='קבל']",
             "//*[(self::button or self::a or self::div or self::span)][normalize-space()='המשך']",
             # Close (X) — unicode multiplication sign, heavy ballot X, and Hebrew close/cancel
@@ -850,22 +986,76 @@ def run_test_file(case_id, file_path, website=""):
             "//*[(self::button or self::a or self::div or self::span)][normalize-space()='ביטול']",
         ]
         def _dismiss_cookies(d):
-            end = time.time() + (8 if _using_lambdatest else 3)
+            # Single fast JS round-trip: click the accept control and strip any
+            # Bootstrap modal/backdrop. Cheap enough to poll on a slow remote
+            # browser, where the per-selector Selenium passes below are too slow
+            # to catch a modal that is injected several seconds after load.
+            def _js_kill_modal():
+                try:
+                    return bool(d.execute_script(r\"\"\"
+                        var handled = false;
+                        var accSel = ['#onetrust-accept-btn-handler', '#truste-consent-button',
+                                      '.iubenda-cs-accept-btn', '#cookieConsentModal .btn-accept',
+                                      '.btn-accept', '#CybotCookiebotDialogBodyButtonClose',
+                                      '.cky-btn-accept', '[id*="accept-all"]', '[id*="acceptAll"]'];
+                        var clicked = false;
+                        for (var i = 0; i < accSel.length; i++) {{
+                            var el = document.querySelector(accSel[i]);
+                            if (el && el.offsetParent !== null) {{ el.click(); clicked = true; break; }}
+                        }}
+                        if (!clicked) {{
+                            var labels = ['allow all', 'accept all', 'accept cookies', 'i agree', 'got it', 'קבל הכל', 'אישור'];
+                            var nodes = document.querySelectorAll('button, a, span');
+                            for (var j = 0; j < nodes.length; j++) {{
+                                var t = (nodes[j].innerText || '').trim().toLowerCase();
+                                if (labels.indexOf(t) >= 0 && nodes[j].offsetParent !== null) {{
+                                    nodes[j].click(); clicked = true; break;
+                                }}
+                            }}
+                        }}
+                        if (clicked) handled = true;
+                        // Safety: strip any leftover backdrop/modal so it cannot
+                        // intercept a click. This does NOT count as "handled" — only
+                        // an actual accept click grants consent (permanent). Force-
+                        // removing without consent lets the site re-open the modal,
+                        // so the loop must keep polling until accept is clicked.
+                        document.querySelectorAll('.modal-backdrop').forEach(function(e) {{ e.remove(); }});
+                        document.querySelectorAll('.modal.show, .modal[style*="display: block"]').forEach(function(m) {{
+                            m.classList.remove('show'); m.style.display = 'none';
+                            m.setAttribute('aria-hidden', 'true');
+                        }});
+                        document.body.classList.remove('modal-open');
+                        document.body.style.overflow = ''; document.body.style.paddingRight = '';
+                        return handled;
+                    \"\"\"))
+                except Exception:
+                    return False
+            # Phase 1 — poll the single fast JS dismiss frequently. One round-trip
+            # per poll stays responsive even on a slow remote browser, so a modal
+            # injected several seconds after load is caught right as it appears.
+            end = time.time() + (12 if _using_lambdatest else 9)
             while time.time() < end:
                 try:
-                    for sel in _cookie_css:
-                        for el in d.find_elements(By.CSS_SELECTOR, sel):
-                            if el.is_displayed() and el.is_enabled():
-                                el.click()
-                                return
-                    for xp in _cookie_xpaths:
-                        for el in d.find_elements(By.XPATH, xp):
-                            if el.is_displayed() and el.is_enabled():
-                                el.click()
-                                return
+                    if _js_kill_modal():
+                        return
                 except Exception:
                     pass
-                time.sleep(0.2)
+                time.sleep(0.4)
+            # Phase 2 — last-resort per-selector Selenium sweep for banners the JS
+            # pass cannot reach (e.g. close-only X buttons, exotic markup).
+            try:
+                for sel in _cookie_css:
+                    for el in d.find_elements(By.CSS_SELECTOR, sel):
+                        if el.is_displayed() and el.is_enabled():
+                            el.click()
+                            return
+                for xp in _cookie_xpaths:
+                    for el in d.find_elements(By.XPATH, xp):
+                        if el.is_displayed() and el.is_enabled():
+                            el.click()
+                            return
+            except Exception:
+                pass
             # Fallback: JS hide of any small fixed/sticky element whose text
             # mentions cookies — catches custom banners (e.g. castro.com's
             # Hebrew "גולש יקר, אנו משתמשים בקבצי Cookie") with no exposed X.
@@ -896,9 +1086,52 @@ def run_test_file(case_id, file_path, website=""):
                             el.style.display = 'none';
                         }}
                     }});
+                    // Bootstrap modal cleanup — the backdrop is a separate element
+                    // that intercepts clicks even after the dialog itself is hidden.
+                    document.querySelectorAll('.modal-backdrop').forEach(el => {{ el.remove(); }});
+                    document.querySelectorAll('.modal.show, .modal[style*="display: block"]').forEach(m => {{
+                        m.classList.remove('show'); m.style.display = 'none'; m.setAttribute('aria-hidden', 'true');
+                    }});
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = ''; document.body.style.paddingRight = '';
                 \"\"\")
             except Exception:
                 pass
+        def _wait_for_images(d, scroll_timeout=8, settle_timeout=8):
+            # Recorded sessions (Selenoid/LambdaTest) must be fully painted on camera.
+            # Many sites lazy-load <img> via IntersectionObserver, so scroll through
+            # the page to trigger them, return to the top, then wait until the count
+            # of decoded images stabilises. Counting stable (not "all complete")
+            # tolerates a few permanently-broken assets like tracking pixels.
+            import time as _t
+            try:
+                _end = _t.time() + scroll_timeout
+                _last_h = -1
+                while _t.time() < _end:
+                    _h = d.execute_script("return document.body.scrollHeight") or 0
+                    d.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    _t.sleep(0.4)
+                    if _h == _last_h:
+                        break
+                    _last_h = _h
+                d.execute_script("window.scrollTo(0, 0);")
+                _end2 = _t.time() + settle_timeout
+                _prev = -1
+                _stable = 0
+                while _t.time() < _end2:
+                    _loaded = d.execute_script(
+                        "return Array.from(document.images).filter(i => i.complete && i.naturalWidth > 0).length;")
+                    if _loaded == _prev:
+                        _stable += 1
+                        if _stable >= 2:
+                            break
+                    else:
+                        _stable = 0
+                    _prev = _loaded
+                    _t.sleep(0.5)
+            except Exception:
+                pass
+
         _orig_get = driver.get
         def _patched_get(url):
             _orig_get(url)
@@ -906,6 +1139,10 @@ def run_test_file(case_id, file_path, website=""):
             # LambdaTest remote sessions have extra latency — consent modals load later.
             time.sleep(6 if _using_lambdatest else 3)
             _dismiss_cookies(driver)
+            # Images are only enabled on recorded sessions; trigger lazy-load and wait
+            # so the video/screenshots show a fully-painted page (no broken images).
+            if _selenoid_url or _using_lambdatest:
+                _wait_for_images(driver)
             # Progress snapshot — run in a thread so a slow Chrome doesn't block navigation.
             import threading as _threading
             _t = _threading.Thread(target=lambda: driver.save_screenshot(screenshot_path), daemon=True)
