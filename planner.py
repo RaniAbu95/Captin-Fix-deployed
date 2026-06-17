@@ -93,7 +93,23 @@ def _strip_json(text: str) -> str:
     return m.group(0) if m else text
 
 
-_FORM_LINK_KEYWORDS = ("contact", "search", "subscribe", "newsletter", "apply", "register", "login", "careers", "signup", "enquir")
+# Pages likely to host a real, on-page, fillable form. NOTE: 'careers'/'jobs' are
+# deliberately excluded — those pages delegate applications to an external ATS
+# (Workday, Greenhouse, Lever, CareerArc) and have NO on-page form to submit.
+_FORM_LINK_KEYWORDS = ("contact", "search", "subscribe", "newsletter", "register", "login", "signup", "enquir")
+
+# Substrings that mark a page as NOT having an on-page form (external-ATS-backed).
+_NON_FORM_PAGE_HINTS = ("career", "/job", "jobs", "vacanc", "recruit")
+
+# Substrings that mark a link as a real, fillable form page. A linked-page Forms
+# test MUST target one of these — content pages (newsroom, blog, industries,
+# about, careers) are not form pages and a submit/verify step there cannot pass.
+_FORM_PAGE_KW = ("contact", "get-in-touch", "subscribe", "newsletter", "register", "signup", "enquir")
+
+
+def _is_form_page_href(href: str) -> bool:
+    low = (href or "").lower()
+    return any(k in low for k in _FORM_PAGE_KW) and not any(h in low for h in _NON_FORM_PAGE_HINTS)
 
 def _form_excerpt(cleaned_html: str, head: int = 16000, tail: int = 24000, fallback: int = 30000) -> str:
     """Return a form-focused excerpt of a (cleaned) page.
@@ -173,11 +189,9 @@ def _candidate_form_pages(homepage_html: str, base_url: str) -> list:
     import re
     from urllib.parse import urljoin, urlparse
     base = urlparse(base_url)
-    kws = ("contact", "subscribe", "newsletter", "register", "signup", "apply", "enquir")
     out = []
     for href in re.findall(r'href=["\']([^"\']+)["\']', homepage_html):
-        low = href.lower()
-        if not any(k in low for k in kws):
+        if not _is_form_page_href(href):  # recognized form page, not an ATS/content page
             continue
         full = urljoin(base_url, href)
         if urlparse(full).netloc != base.netloc:
@@ -189,25 +203,28 @@ def _candidate_form_pages(homepage_html: str, base_url: str) -> list:
     return out
 
 
-def _apply_form_presence(c, base_url: str, href: str):
-    """Mutate case `c` into a FIELD-PRESENCE Forms test on a different form page
-    (e.g. /contact-us, /subscribe) — navigate there and verify the form is
-    visible, with NO submit. Reliable even when the form is a cross-origin iframe
-    whose fields cannot be filled."""
+def _apply_form_negative(c, base_url: str, href: str):
+    """Mutate case `c` into a NEGATIVE VALIDATION Forms test on a different form
+    page (e.g. /contact-us, /subscribe): navigate there, submit the form with
+    empty required fields, and verify a validation error appears. The form is
+    often a cross-origin iframe (Pardot/HubSpot/Marketo) — the runner switches
+    into it; an empty submit fires client-side required-field validation BEFORE
+    any reCAPTCHA, so this works without solving a captcha."""
     frag = _href_frag(href)
     c.suite = "Forms"
     c.steps = [
         f"Navigate to the homepage at '{base_url}'",
         f"Click the link with href '{href}' to open the {frag} page",
         f"Verify the page URL contains '/{frag}'",
-        "Verify the page heading (h1 or h2) is visible on the destination page",
-        f"Verify the sign-up/contact form (or its embedded form iframe) is visible on the {frag} page",
+        f"Locate the {frag} form on the page; if it is embedded in a third-party iframe (a form host on a different domain), switch into that iframe first",
+        "Without filling any fields, click the form's Submit button to attempt an empty submission",
+        "Verify a validation error message (e.g. a required-field error) is displayed in the form",
     ]
     c.expected = (
-        f"The {frag} page loads at a URL containing '/{frag}' with its heading "
-        f"visible and its form present on the page."
+        f"Submitting the {frag} form with empty required fields displays a "
+        f"validation error message and the form is not submitted."
     )
-    c.negative = False
+    c.negative = True
     c.priority = getattr(c, "priority", None) or "Medium"
     c.nav_pattern = ""
     return frag
@@ -252,9 +269,9 @@ def _dedupe_search_forms(cases, homepage_html: str, base_url: str):
         if c is keep:
             continue
         if ai < len(available):
-            frag = _apply_form_presence(c, base_url, available[ai])
+            frag = _apply_form_negative(c, base_url, available[ai])
             ai += 1
-            print(f"[planner] dedup: rewrote duplicate search test {c.id} -> field-presence on /{frag}")
+            print(f"[planner] dedup: rewrote duplicate search test {c.id} -> negative-validation on /{frag}")
         else:
             _apply_search_presence(c, base_url)
             print(f"[planner] dedup: rewrote duplicate search test {c.id} -> search field-presence (no alt form page)")
@@ -287,8 +304,71 @@ def _ensure_two_forms(cases, homepage_html: str, base_url: str, min_forms: int =
     # convert the LAST nav tests (preserve earlier, usually higher-value ones)
     to_convert = navs[len(navs) - need:]
     for i, c in enumerate(to_convert):
-        frag = _apply_form_presence(c, base_url, available[i])
-        print(f"[planner] forms-coverage: converted nav test {c.id} -> field-presence Forms on /{frag}")
+        frag = _apply_form_negative(c, base_url, available[i])
+        print(f"[planner] forms-coverage: converted nav test {c.id} -> negative-validation Forms on /{frag}")
+    return cases
+
+
+def _clicked_href(case):
+    """Extract the href a test clicks, e.g. from 'Click the link with href '/x''."""
+    import re
+    for s in case.steps:
+        m = re.search(r"""href ['"]([^'"]+)['"]""", s)
+        if m:
+            return m.group(1)
+    return None
+
+
+def _repoint_bad_form_pages(cases, homepage_html: str, base_url: str):
+    """A linked-page Forms test must target a page with a REAL, fillable, on-page
+    form. The LLM sometimes builds a Forms test on a CONTENT page (newsroom, blog,
+    industries, about) or a CAREERS/JOBS page (external ATS) — none of which have a
+    submittable form, so the submit/verify step just times out. Any non-search
+    Forms test that navigates to a link NOT recognized as a form page is repointed
+    to a real form page (/contact-us, /subscribe); if none is free, it is rewritten
+    as a plain Navigation test on the page it was visiting."""
+    def _is_bad(c):
+        if (getattr(c, "suite", "") or "").lower() != "forms":
+            return False
+        if _is_search_box_test(c):
+            return False
+        href = _clicked_href(c)
+        if href is None:
+            return False  # no navigation -> homepage form, leave it alone
+        return not _is_form_page_href(href)  # navigates to a non-form page
+
+    bad = [c for c in cases if _is_bad(c)]
+    if not bad:
+        return cases
+
+    candidates = _candidate_form_pages(homepage_html, base_url)
+    used = {cand for c in cases for s in c.steps for cand in candidates if cand in s}
+    available = [h for h in candidates if h not in used]
+
+    ai = 0
+    for c in bad:
+        if ai < len(available):
+            frag = _apply_form_negative(c, base_url, available[ai])
+            ai += 1
+            print(f"[planner] repoint: {c.id} targeted a no-form page -> negative-validation on /{frag}")
+        else:
+            href = _clicked_href(c) or "/"
+            frag = _href_frag(href)
+            c.suite = "Navigation"
+            c.negative = False
+            c.nav_pattern = c.nav_pattern or "A"
+            c.steps = [
+                f"Navigate to the homepage at '{base_url}'",
+                f"Click the link with href '{href}' to open the {frag} page",
+                f"Verify the page URL contains '/{frag}'",
+                "Verify the page heading (h1 or h2) is visible on the destination page",
+                "Verify the page footer is visible on the destination page",
+            ]
+            c.expected = (
+                f"The {frag} page loads at a URL containing '/{frag}' with its "
+                f"page heading and footer visible."
+            )
+            print(f"[planner] repoint: {c.id} targeted a no-form page, none free -> Navigation on /{frag}")
     return cases
 
 
@@ -593,21 +673,26 @@ DENY LIST:
   - NEVER generate two Forms tests that both end at "verify a validation error / form result".
   - NEVER write a Forms step like "Verify a validation error message is displayed OR the form submission result is shown" — that mixed success-or-error assertion false-passes on anything. Pick ONE concrete outcome.
   - For an anti-bot/CAPTCHA-gated form (e.g. ALTCHA), the ONLY valid contact-form pattern is NEGATIVE VALIDATION (exactly one). The OTHER Forms test MUST be a SEARCH test (if a search box exists) or a FIELD-PRESENCE test — NOT a second submit-the-contact-form test.
-WHEN THE SEARCH BOX IS THE ONLY RELIABLY-TESTABLE FORM: if the homepage's only form is the header search and the other forms live on linked pages you have NOT seen, OR are embedded third-party / cross-origin iframe forms (e.g. HubSpot, Marketo, Pardot — a <form> or <iframe> pointing at a different host) whose fields are NOT in the provided HTML, then you CANNOT write a second reliable fill-and-submit Forms test. In that case generate ONE SEARCH test, and fill the remaining slot with EITHER (a) a FIELD-PRESENCE test on a DIFFERENT form — navigate to /subscribe, /contact-us, etc. and verify that page's subscription/contact form (or its embedded form iframe) is visible, with NO submit — OR (b) a Navigation test. NEVER pad the plan with a second search-box test.
+WHEN THE SEARCH BOX IS THE ONLY RELIABLY-TESTABLE FORM: if the homepage's only form is the header search and the other forms live on linked pages whose fields you have NOT seen, OR are embedded third-party / cross-origin iframe forms (e.g. HubSpot, Marketo, Pardot — a <form> or <iframe> pointing at a different host), generate ONE SEARCH test and make the remaining slot a NEGATIVE VALIDATION test on a DIFFERENT form (navigate to /contact-us, /subscribe, etc., submit the form with empty required fields, and verify a validation error appears). You do NOT need the field names for this: leaving everything empty and clicking Submit triggers the form's own required-field validation. This works even for iframe-embedded forms (the runner switches into the iframe) and even when the form has reCAPTCHA (client-side validation fires BEFORE the captcha). Only fall back to (b) a FIELD-PRESENCE test (verify the form is visible, no submit) if the form shows NO client-side validation, or (c) a Navigation test if there is no other form page at all. NEVER pad the plan with a second search-box test.
 SELF-CHECK BEFORE RETURNING: list each Forms test's pattern (SEARCH / NEGATIVE VALIDATION / FIELD-PRESENCE / POSITIVE SUBMIT). If any two share a pattern, REVISE until distinct. A plan whose two Forms tests both submit the same form and both verify an error is INVALID.
 
 SUITE DISTRIBUTION — strictly enforced:
 - EXACTLY 1 Smoke test.
 - MAXIMUM 4 Navigation tests — even if the site has 20 nav links, pick only the 3-4 most important. Do not fill remaining slots with more navigation tests.
 - Generate 2 Forms tests ONLY when there are 2 DISTINCT testable forms (e.g. a search box AND a separate contact/subscribe form whose fields you can see). Generate one test per DISTINCT form type — never two tests on the same form.
-- THE 2-FORMS TARGET NEVER JUSTIFIES A DUPLICATE: if the header search box is the ONLY fillable form (all other forms are on unseen linked pages or are embedded/cross-origin iframe forms whose fields are not in the HTML), generate ONE search test, and for the SECOND Forms slot PREFER a field-presence test that navigates to a DIFFERENT form page (a link whose href contains 'contact', 'subscribe', 'newsletter', 'register', etc.) and verifies that page's heading and its form (or embedded form iframe) are visible — NO submit. This keeps TWO distinct Forms tests (a SEARCH test + a different-form FIELD-PRESENCE test). Only fall back to a Navigation test for that slot if NO such form-page link exists. A second header-search test (filled, empty, or a different query) is FORBIDDEN — one Forms test is strictly better than two search-box tests.
-  FIELD-PRESENCE FORMS TEST SHAPE (use for the second Forms slot when the search box is the only fillable form):
+- THE 2-FORMS TARGET NEVER JUSTIFIES A DUPLICATE: if the header search box is the ONLY fillable form, generate ONE search test, and for the SECOND Forms slot PREFER a NEGATIVE VALIDATION test that navigates to a DIFFERENT form page (a link whose href contains 'contact', 'subscribe', 'newsletter', 'register', etc.) and actually INTERACTS with that form: submit it empty and verify a validation error. This keeps TWO distinct Forms tests (a SEARCH test + a different-form NEGATIVE VALIDATION test). A second header-search test (filled, empty, or a different query) is FORBIDDEN.
+  NEGATIVE VALIDATION FORMS TEST SHAPE (preferred for the second Forms slot when the search box is the only fillable form):
     Step 1: Navigate to the homepage
     Step 2: Click the link with href '/contact-us' (or '/subscribe', etc.) to open that page
     Step 3: Verify the page URL contains '/contact-us'
-    Step 4: Verify the page heading (h1 or h2) is visible on the destination page
-    Step 5: Verify the contact/sign-up form (or its embedded form iframe) is visible on the page
-    (Do NOT type into or submit this form — you have not seen its field names, and it may be a cross-origin iframe.)
+    Step 4: Locate the contact form on the page; if it is embedded in a third-party iframe (a form host on a different domain), switch into that iframe first
+    Step 5: Without filling any fields, click the form's Submit button to attempt an empty submission
+    Step 6: Verify a validation error message (e.g. a required-field error) is displayed in the form
+    (You do NOT need the field names — an empty submit triggers the form's own required-field validation, which fires BEFORE any reCAPTCHA. Only fall back to a presence check, or a Navigation test, if the form has no client-side validation or there is no other form page.)
+  A linked-page Forms test MUST target a page that genuinely HAS a fillable form. Only these qualify: a contact / get-in-touch / subscribe / newsletter / register / sign-up page (href literally contains 'contact', 'subscribe', 'newsletter', 'register', 'signup', etc.). NEVER build a Forms test on:
+    - a CONTENT page — newsroom, blog, news, press, industries, solutions, about, products, resources — these have no submittable form, only a header search box; a submit/verify step there will time out.
+    - a CAREERS / JOBS page (href contains 'careers', 'jobs', 'vacancies', 'recruit') — these delegate applications to an EXTERNAL applicant-tracking system (Workday, Greenhouse, Lever, iCIMS, CareerArc) and embed only a job-listing widget, with NO on-page form.
+  If the only non-search form link is a contact/subscribe page, use it; otherwise make the second slot a Navigation test rather than inventing a form on a content page.
 - If you cannot find 2 Forms-worthy elements, use Navigation tests for the remaining slots — but still cap Navigation at 4.
 - Target distribution for {num_tests} total tests: 1 Smoke, up to 4 Navigation, and the remaining slots as Forms tests. Example: for 10 tests → 1 Smoke + 4 Navigation + 5 Forms. For 5 tests → 1 Smoke + 2 Navigation + 2 Forms. Always total exactly {num_tests}.
 
@@ -713,6 +798,13 @@ Return only valid JSON. No markdown, no explanation, no code fences.
         cases = _dedupe_search_forms(cases, home_links_html, url)
     except Exception as e:
         print(f"[planner] search-dedup guard skipped: {e}")
+
+    # Repoint guard: a Forms test on a careers/jobs page (external ATS, no on-page
+    # form) can never pass — move it to a real form page, or make it Navigation.
+    try:
+        cases = _repoint_bad_form_pages(cases, home_links_html, url)
+    except Exception as e:
+        print(f"[planner] form-page repoint guard skipped: {e}")
 
     # Coverage guard: if only one Forms test exists but a different form page is
     # available, convert a surplus Navigation test into a field-presence Forms

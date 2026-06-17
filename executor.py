@@ -429,32 +429,41 @@ NEVER attempt to click a nav link directly without opening the drawer first on t
 NEVER use a single exact aria-label like `button[aria-label='Open main navigation']` for the toggle — different sites use different labels. Always use the multi-selector fallback chain shown above.
 
 ═══════════════════════════════════════
-SEARCH INPUT INSIDE A DRAWER / PANEL
+HEADER SEARCH INPUT (input[name='s'] AND SIMILAR)
 ═══════════════════════════════════════
-- Some sites (e.g. BBC, silk.ai) place the search form and input inside a hidden drawer or panel. The form/input exists in the DOM but is not visible until a toggle button is clicked.
-- NEVER use EC.presence_of_element_located for a search input you intend to type into — it only checks DOM presence, not interactability.
-- TWO failure modes — BOTH require clicking the toggle first:
-  1. TimeoutException on visibility_of_element_located for the form or input — the whole container is hidden.
-  2. ElementNotInteractableException after finding the input — the input is in the DOM but display:none/visibility:hidden.
-- ALWAYS check for a search toggle button BEFORE trying to locate the form or input. Common toggle selectors (try in order):
-    button.search-toggle, button.show-searchbox, button[aria-label*="search" i], [class*="search-toggle"], [class*="search-icon"]
-- DOMAIN REDIRECT WARNING: A page navigation (e.g. silk.ai → silk.us) can change the form's action attribute. NEVER scope the search input selector to a specific domain (e.g. form[action='https://silk.ai/']). Always use a domain-agnostic selector scoped to the header:
-    FORBIDDEN: By.CSS_SELECTOR, "form[action='https://silk.ai/'] input[name='s']"
-    CORRECT:   By.CSS_SELECTOR, "header form input[name='s']"
-- Pattern:
-    # 1. Click the toggle that reveals the search panel
-    search_toggle = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR,
-            "header button.search-toggle, header button.show-searchbox, header button[aria-label*='search' i]"))
+Header search fields are USUALLY COLLAPSED behind an icon and stay display:none until a toggle is clicked — and on many WordPress sites the "toggle" is a magnifying-glass <a href='?s'> that just NAVIGATES instead of revealing the field. So a header search input can be present-but-hidden with no reliable way to make it visible. Because of this you can NEVER assume the input is visible.
+
+MANDATORY DEFAULT PATTERN — use this for ANY header search input (input[name='s'], input[type='search'], etc.). Do NOT use visibility_of_element_located as the primary locator, and do NOT add a [placeholder='...'] qualifier to the selector:
+    search_input = WebDriverWait(driver, 15).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "header form input[name='s'], input[name='s']"))
     )
-    search_toggle.click()
-    time.sleep(1)
-    # 2. Now wait for the input — domain-agnostic, scoped to header
+    if search_input.is_displayed():
+        # visible (already expanded, or a site that shows it inline): real keystrokes
+        search_input.send_keys("query text")
+        time.sleep(1.5)
+        search_input.send_keys(Keys.ENTER)
+    else:
+        # collapsed/hidden: it is a GET form (results are a ?s=<query> URL), so set the
+        # value on the real input and submit its OWN form via JS — produces the correct results URL
+        driver.execute_script(
+            "const i=arguments[0]; i.value=arguments[1];"
+            "i.dispatchEvent(new Event('input',{{bubbles:true}}));"
+            "(i.form||i.closest('form')).submit();",
+            search_input, "query text")
+    WebDriverWait(driver, 15).until(EC.url_contains("s=query"))
+
+WHY presence + is_displayed() and NOT visibility_of_element_located: the input is commonly display:none with no working toggle, so visibility_of_element_located TIMES OUT. presence_of_element_located always finds it; the is_displayed() branch then chooses real keystrokes (visible) or a JS form-submit (hidden). This single pattern handles every case — inline-visible, drawer-revealed, and permanently-collapsed — so it is the default, not a fallback. The JS form-submit is a SANCTIONED exception to the "no JS interaction" rule; it applies ONLY to a present-but-hidden GET search input.
+
+FORBIDDEN (this is the exact regression to avoid — it times out on collapsed inputs):
     search_input = WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.CSS_SELECTOR, "header form input[name='s']"))
-    )
-    # 3. If verifying the result URL, always check for BOTH possible domains:
-    #    lambda d: "s=query" in d.current_url or "silk.ai" in d.current_url or "silk.us" in d.current_url
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "input[name='s'][placeholder='Search']")))
+
+DOMAIN REDIRECT WARNING: a page navigation (e.g. silk.ai → silk.us) can change the form's action attribute. NEVER scope the search input selector to a specific domain (e.g. form[action='https://silk.ai/']). Use a domain-agnostic selector scoped to the header (as shown above). When verifying the result URL after such a site, check for BOTH possible domains:
+    lambda d: "s=query" in d.current_url or "silk.ai" in d.current_url or "silk.us" in d.current_url
+
+OPTIONAL toggle click (only when a REAL toggle button exists, e.g. BBC): if the HTML shows a dedicated search toggle BUTTON (not an <a href='?s'>), you MAY click it first to expand the field, then still use the MANDATORY DEFAULT PATTERN above to interact — the is_displayed() branch handles whichever state results. Common toggle selectors:
+    header button.search-toggle, header button.show-searchbox, header button[aria-label*='search' i]
+  NEVER click an <a> tag as a search toggle — clicking it navigates and loses the query.
 
 ═══════════════════════════════════════
 HOVER DROPDOWNS
@@ -464,9 +473,26 @@ HOVER DROPDOWNS
     time.sleep(1.5)
     WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "[class*='dropdown']")))
 - FORBIDDEN: driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('mouseover', ...))") — do not use JS event dispatch for hover. Pure Selenium ActionChains is sufficient and more reliable.
-- FORBIDDEN: driver.execute_script("arguments[0].click();", el) — do not use JS to click elements. Use ActionChains instead:
+- FORBIDDEN: driver.execute_script("arguments[0].click();", el) — do not use JS click to OPEN a hover dropdown. Use ActionChains instead:
     ActionChains(driver).move_to_element(el).click().perform()
   If the element is not visible, use EC.presence_of_element_located to locate it first, then move_to_element to scroll it into view before clicking.
+- NAV LINKS WITH HIDDEN DUPLICATES: many sites render the same navigation link TWICE (or more) — once in the visible desktop header/page body and once in a hidden mobile drawer or mega-menu panel. EC.visibility_of_element_located will TIME OUT when Selenium finds a hidden copy first. Mega-menu hidden links can also have non-zero bounding boxes (positioned absolutely, hidden via opacity/visibility:hidden rather than display:none), so ActionChains.move_to_element may click the wrong element without throwing — the click lands but produces no navigation. This applies to both top-level nav links AND sub-page content links (e.g. a "Supply Chain" card that also appears hidden in a nav dropdown). ALWAYS find all matching elements and pick the first VISIBLE one with non-zero dimensions:
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/target-path')]"))
+    )
+    all_links = driver.find_elements(By.XPATH, "//a[contains(@href, '/target-path')]")
+    link = next(
+        (el for el in all_links if el.is_displayed() and el.size.get("height", 0) > 0),
+        all_links[0]
+    )
+    driver.execute_script("arguments[0].scrollIntoView({{block:'center'}});", link)
+    time.sleep(0.5)
+    try:
+        ActionChains(driver).move_to_element(link).click().perform()
+    except Exception:
+        driver.execute_script("arguments[0].click();", link)
+    time.sleep(2)
+  Use this ONLY for navigation links (links that change the URL), never for opening dropdowns or interacting with non-link UI elements.
 - Click a nav link only when the step explicitly navigates to a new page.
 
 ═══════════════════════════════════════
@@ -540,6 +566,45 @@ FORM / SEARCH SUBMIT
     )
   Prefer the most specific outcome locator the HTML actually shows (a named success container, or `.field-validation-error` for validation), or assert a URL change to a confirmation/thank-you path. A real outcome must be VISIBLE with TEXT — presence in the DOM alone proves nothing.
 
+
+═══════════════════════════════════════
+EMBEDDED FORM IN A THIRD-PARTY IFRAME
+═══════════════════════════════════════
+- Contact / subscribe / newsletter forms are frequently embedded in an <iframe> hosted on a DIFFERENT domain (Pardot 'connect.*' and '/l/' URLs, HubSpot 'hsforms', Marketo 'mktoweb', Jotform, Typeform, Wufoo, Formstack). The form's inputs and Submit button live INSIDE that iframe — find_elements on the main document will NOT see them, so a submit/verify step times out unless you switch into the iframe first.
+- When a step says to interact with such a form (e.g. submit empty to trigger validation, or "switch into the form iframe"), FIRST switch into the form iframe, do the interaction and verify the outcome INSIDE it, then switch back. Use this exact pattern — it tolerates inline (non-iframe) forms too, since it only switches when a form iframe is actually found:
+    SUBMIT_SEL = "input[type='submit'], button[type='submit']"
+    def _find_form_iframe(d):
+        for f in d.find_elements(By.CSS_SELECTOR, "iframe"):
+            src = (f.get_attribute("src") or "").lower()
+            if any(k in src for k in ("pardot", "connect.", "hsforms", "hubspot", "marketo", "mktoweb", "jotform", "typeform", "wufoo", "formstack", "/l/")):
+                return f
+        return None
+    iframe = None
+    try:
+        iframe = WebDriverWait(driver, 12).until(lambda d: _find_form_iframe(d))
+    except Exception:
+        iframe = None
+    if iframe is not None:
+        driver.switch_to.frame(iframe)
+    submit = WebDriverWait(driver, 15).until(
+        lambda d: next((b for b in d.find_elements(By.CSS_SELECTOR, SUBMIT_SEL)
+                        if b.is_displayed() and b.size.get("height", 0) > 0), None)
+    )
+    driver.execute_script("arguments[0].scrollIntoView({{block: 'center'}});", submit)
+    time.sleep(0.3)
+    try:
+        submit.click()
+    except Exception:
+        driver.execute_script("arguments[0].click();", submit)
+    WebDriverWait(driver, 15).until(
+        lambda d: any(e.is_displayed() and (e.text or "").strip()
+                      for e in d.find_elements(By.CSS_SELECTOR,
+                          ".error, .errors, [class*='error'], label.error, [aria-invalid='true']"))
+    )
+    driver.switch_to.default_content()
+- CRITICAL — inside an iframe, NEVER use ActionChains (.scroll_to_element / .move_to_element): the W3C Actions API uses the TOP-LEVEL viewport coordinate space, so an element inside a scrolled iframe is reported "move target out of bounds". Inside an iframe, scroll with JS `arguments[0].scrollIntoView({{block:'center'}})` and click with the element's own `.click()` (JS-click fallback). ActionChains is fine on the main document, not inside frames.
+- An empty submit triggers the form's CLIENT-SIDE required-field validation, which fires BEFORE any reCAPTCHA / anti-bot check — so a negative validation test on an iframe form that has reCAPTCHA still works and does NOT require solving the captcha. NEVER attempt to solve reCAPTCHA for a negative test.
+- ALWAYS call driver.switch_to.default_content() once finished inside an iframe, so any later step runs against the main page again.
 
 ═══════════════════════════════════════
 SCROLLING AND VISIBILITY — STRICT RULES
