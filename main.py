@@ -1,7 +1,9 @@
 import os
 import json
+import secrets
 import threading
 import uuid
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_required, current_user
 from models import db, User
@@ -9,8 +11,10 @@ from auth import auth
 from planner import run_planner
 from email_utils import send_results_email
 
+load_dotenv()
+
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-123")
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 db_url = os.environ.get('DATABASE_URL')
 if db_url and db_url.startswith('postgres://'):
