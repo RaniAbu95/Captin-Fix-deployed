@@ -5,9 +5,8 @@ import pandas as pd
 import requests
 from pydantic import BaseModel
 from typing import List
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
-from config import GOOGLE_API_KEY, GEMINI_MODEL
+from llm_client import complete
 from urllib.parse import urlparse, unquote
 
 
@@ -406,16 +405,6 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
 
     max_negative = round(num_tests / 3)
 
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        google_api_key=GOOGLE_API_KEY,
-        temperature=0,
-        max_output_tokens=16384,
-        # Fail fast on 429 quota errors instead of backing off for minutes
-        # while the HTTP request (and Render's proxy) waits.
-        max_retries=2,
-    )
-
     template = ChatPromptTemplate.from_template("""
 You are an expert QA automation engineer. Your job is to generate a structured, logical, and fully verifiable test plan based ONLY on the HTML provided below.
 
@@ -772,10 +761,9 @@ Return only valid JSON. No markdown, no explanation, no code fences.
                                       max_negative=max_negative,
                                       linked_pages_section=linked_pages_section)
     import sys as _sys, time as _t
-    print(f"[gemini] generate_testplan.invoke at {_t.time()} (planner.py:153)", flush=True, file=_sys.stderr)
-    response = llm.invoke(prompt)
-    plan_json = response.text.strip()
-    stop_reason = (response.response_metadata or {}).get("finish_reason", "unknown")
+    print(f"[claude] generate_testplan.invoke at {_t.time()} (planner.py:153)", flush=True, file=_sys.stderr)
+    plan_json, stop_reason = complete(prompt[0].content)
+    plan_json = plan_json.strip()
     print(f"LLM stop_reason: {stop_reason}")
     print(f"LLM Output ({len(plan_json)} chars):", plan_json[:2000])
 
@@ -807,11 +795,11 @@ Return only valid JSON. No markdown, no explanation, no code fences.
             Return only a valid JSON array of test case objects.
         """)
         import sys as _sys, time as _t
-        print(f"[gemini] generate_testplan.fill_invoke at {_t.time()} (planner.py:186)", flush=True, file=_sys.stderr)
-        fill_resp = llm.invoke(fill_template.format_messages(
-            page_html=page_html, existing_ids=existing_ids, missing=missing))
+        print(f"[claude] generate_testplan.fill_invoke at {_t.time()} (planner.py:186)", flush=True, file=_sys.stderr)
+        fill_text, _ = complete(fill_template.format_messages(
+            page_html=page_html, existing_ids=existing_ids, missing=missing)[0].content)
         try:
-            extra = json.loads(_strip_json(fill_resp.text.strip()))
+            extra = json.loads(_strip_json(fill_text.strip()))
             if isinstance(extra, list):
                 for c in extra:
                     c.setdefault("negative", False)

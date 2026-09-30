@@ -2,10 +2,8 @@ import os
 import json
 import threading
 from selenium.webdriver.chrome.options import Options
-from langchain_google_genai import ChatGoogleGenerativeAI
 import time
-from config import GOOGLE_API_KEY, GEMINI_MODEL
-from langchain_core.messages import SystemMessage, HumanMessage
+from llm_client import complete
 
 PLAN_FILE = "./output/plan.json"
 OUTPUT_DIR = "tests"
@@ -772,12 +770,11 @@ def _strip_code_fences(text: str) -> str:
     return text
 
 
-def _fix_syntax(code: str, llm, cached_system, case_id: str):
+def _fix_syntax(code: str, system_text: str, case_id: str):
     """Return code if valid, or ask Claude once to fix it.
     Checks both syntax (compile) and structure (def run present).
     Returns None if still broken after one retry."""
     import sys as _sys, time as _t
-    from langchain_core.messages import HumanMessage
 
     def _check(c):
         if not c:
@@ -797,15 +794,15 @@ def _fix_syntax(code: str, llm, cached_system, case_id: str):
         return code
 
     print(f"[syntax] {case_id} invalid ({error}) — asking Claude to fix.")
-    fix_prompt = HumanMessage(content=(
+    fix_prompt = (
         f"The following Python script is invalid ({error}):\n\n```python\n{code}\n```\n\n"
         f"Return ONLY the corrected Python script. Requirements: define a single def run(driver): function "
         f"containing a try/except/finally block; driver is provided by caller; no if __name__ block. "
         f"No markdown fences, no explanation."
-    ))
+    )
     try:
-        print(f"[gemini] _fix_syntax.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
-        fixed = _strip_code_fences(llm.invoke([cached_system, fix_prompt]).text.strip())
+        print(f"[claude] _fix_syntax.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
+        fixed = _strip_code_fences(complete(fix_prompt, system=system_text)[0].strip())
         error2 = _check(fixed)
         if error2 is None:
             return fixed
@@ -824,8 +821,6 @@ def generate_test_files(plan):
     page_html = extract_full_html(website)
     headless_label = "headless Chrome" if HEADLESS else "regular Chrome"
 
-    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0, google_api_key=GOOGLE_API_KEY, max_retries=2)
-
     # Build the system prompt ONCE per run and reuse it across all cases.
     system_text = SYSTEM_PROMPT_TEMPLATE.format(
         website=website,
@@ -833,7 +828,6 @@ def generate_test_files(plan):
         headless=headless_label,
         main_block=_make_main_block(website),
     )
-    cached_system = SystemMessage(content=system_text)
 
     def _generate_one(case):
         case_id = case["id"]
@@ -842,17 +836,16 @@ def generate_test_files(plan):
 
         steps_text = "\n".join(f"{i+1}. {s}" for i, s in enumerate(steps))
         user_text = USER_PROMPT_TEMPLATE.format(steps=steps_text, expected=expected)
-        messages = [cached_system, HumanMessage(content=user_text)]
-        print(f"[gemini] generate_test_files.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
-        response = llm.invoke(messages)
-        combined = _strip_code_fences(response.text.strip())
+        print(f"[claude] generate_test_files.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
+        text, _ = complete(user_text, system=system_text)
+        combined = _strip_code_fences(text.strip())
 
         # Strip any __main__ block Claude added despite instructions.
         if "if __name__" in combined:
             combined = combined[:combined.index("if __name__")].rstrip()
 
         # Validate structure + syntax; ask Claude to fix once if broken.
-        combined = _fix_syntax(combined, llm, cached_system, case_id)
+        combined = _fix_syntax(combined, system_text, case_id)
         if combined is None:
             print(f"[generate_test_files] Skipping {case_id}: could not produce valid Python after retry.")
             return None
@@ -865,7 +858,7 @@ def generate_test_files(plan):
         return (case_id, file_path)
 
     # The per-case LLM calls are independent — run them concurrently instead of
-    # one after another. Capped at 2 to stay under Gemini's per-minute limits.
+    # one after another. Capped at 2 to stay under the API's per-minute rate limits.
     from concurrent.futures import ThreadPoolExecutor
     cases = plan["cases"]
     with ThreadPoolExecutor(max_workers=max(1, min(2, len(cases)))) as pool:
