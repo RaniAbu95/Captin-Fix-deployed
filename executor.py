@@ -814,7 +814,6 @@ def generate_test_files(plan):
     import sys as _sys, time as _t
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    test_files = []
     website = plan.get("website", "")
     page_html = extract_full_html(website)
     headless_label = "headless Chrome" if HEADLESS else "regular Chrome"
@@ -830,7 +829,7 @@ def generate_test_files(plan):
     )
     cached_system = SystemMessage(content=system_text)
 
-    for case in plan["cases"]:
+    def _generate_one(case):
         case_id = case["id"]
         steps = case.get("steps", [])
         expected = case.get("expected", "")
@@ -850,14 +849,21 @@ def generate_test_files(plan):
         combined = _fix_syntax(combined, llm, cached_system, case_id)
         if combined is None:
             print(f"[generate_test_files] Skipping {case_id}: could not produce valid Python after retry.")
-            continue
+            return None
 
         file_path = os.path.join(OUTPUT_DIR, f"{case_id}.py")
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(combined + "\n" + _make_main_block(website))
 
-        test_files.append((case_id, file_path))
         print(f"✅ Generated test file: {file_path}")
+        return (case_id, file_path)
+
+    # The per-case LLM calls are independent — run them concurrently instead of
+    # one after another. Capped at 4 to stay under Gemini's per-minute limits.
+    from concurrent.futures import ThreadPoolExecutor
+    cases = plan["cases"]
+    with ThreadPoolExecutor(max_workers=max(1, min(4, len(cases)))) as pool:
+        test_files = [r for r in pool.map(_generate_one, cases) if r]
 
     return test_files
 
