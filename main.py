@@ -4,7 +4,7 @@ import secrets
 import threading
 import uuid
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, login_required, current_user
 from models import db, User
 from auth import auth
@@ -126,6 +126,11 @@ def submit():
     except Exception as e:
         flash(f"❌ Error: {str(e)}", 'danger')
         return redirect(url_for('index'))
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(app.static_folder, 'logo.svg', mimetype='image/svg+xml')
 
 
 @app.route('/health', methods=['GET', 'POST'])
