@@ -13,6 +13,7 @@ RESULTS_JSON = "Results.json"
 SCREENSHOT_DIR = "./screen/screenshots"
 
 _html_cache = {}
+_raw_html_cache = {}
 HEADLESS = os.environ.get("HEADLESS", "true").lower() != "false"
 
 # Only one Chrome subprocess at a time — prevents OOM on low-memory hosts
@@ -745,14 +746,19 @@ def extract_full_html(url: str, max_chars: int = 30000) -> str:
     cache_key = (url, max_chars)
     if cache_key in _html_cache:
         return _html_cache[cache_key]
-    import requests as _requests
-    lang = "he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7" if _is_israeli_site(url) else "en-US,en;q=0.9"
-    resp = _requests.get(url, timeout=15, headers={
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-        "Accept-Language": lang,
-    })
-    resp.raise_for_status()
-    html = _clean_html(resp.text, max_chars=max_chars)
+    # The planner asks for the same page at several max_chars budgets — fetch
+    # the raw HTML once per URL and only re-run the cleaning per budget.
+    raw = _raw_html_cache.get(url)
+    if raw is None:
+        import requests as _requests
+        lang = "he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7" if _is_israeli_site(url) else "en-US,en;q=0.9"
+        resp = _requests.get(url, timeout=15, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+            "Accept-Language": lang,
+        })
+        resp.raise_for_status()
+        raw = _raw_html_cache[url] = resp.text
+    html = _clean_html(raw, max_chars=max_chars)
     _html_cache[cache_key] = html
     return html
 

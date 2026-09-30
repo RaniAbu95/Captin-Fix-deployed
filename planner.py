@@ -142,7 +142,7 @@ def _fetch_linked_form_htmls(homepage_html: str, base_url: str) -> dict:
     from urllib.parse import urljoin, urlparse
     hrefs = _hrefs(homepage_html)
     base = urlparse(base_url)
-    seen, results = set(), {}
+    seen, candidates = set(), []
     for href in hrefs:
         if not any(k in href.lower() for k in _FORM_LINK_KEYWORDS):
             continue
@@ -150,19 +150,34 @@ def _fetch_linked_form_htmls(homepage_html: str, base_url: str) -> dict:
         parsed = urlparse(full)
         if parsed.netloc != base.netloc:
             continue
-        if full in seen or len(results) >= 3:
+        if full in seen:
             continue
         seen.add(full)
+        candidates.append((href, full))
+
+    def _fetch(item):
+        href, full = item
         try:
             # Fetch the full cleaned page (large budget), then excerpt the form so
             # the submit button and any required consent checkbox at the form's
             # tail survive — a flat 30k truncation would cut them off.
             full_html = extract_full_html(full, max_chars=150000)
             html = _form_excerpt(full_html)
-            results[href] = html
             print(f"[planner] fetched linked form page: {full} ({len(html)} chars, from {len(full_html)})")
+            return href, html
         except Exception as e:
             print(f"[planner] could not fetch {full}: {e}")
+            return href, None
+
+    # Fetch a few spare candidates concurrently so a failed page doesn't leave
+    # a slot empty, then keep the first 3 successes in link order.
+    from concurrent.futures import ThreadPoolExecutor
+    results = {}
+    if candidates:
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            for href, html in pool.map(_fetch, candidates[:5]):
+                if html is not None and len(results) < 3:
+                    results[href] = html
     return results
 
 
