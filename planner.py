@@ -411,6 +411,9 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
         google_api_key=GOOGLE_API_KEY,
         temperature=0,
         max_output_tokens=16384,
+        # Fail fast on 429 quota errors instead of backing off for minutes
+        # while the HTTP request (and Render's proxy) waits.
+        max_retries=2,
     )
 
     template = ChatPromptTemplate.from_template("""

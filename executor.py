@@ -824,7 +824,7 @@ def generate_test_files(plan):
     page_html = extract_full_html(website)
     headless_label = "headless Chrome" if HEADLESS else "regular Chrome"
 
-    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0, google_api_key=GOOGLE_API_KEY)
+    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0, google_api_key=GOOGLE_API_KEY, max_retries=2)
 
     # Build the system prompt ONCE per run and reuse it across all cases.
     system_text = SYSTEM_PROMPT_TEMPLATE.format(
@@ -865,10 +865,10 @@ def generate_test_files(plan):
         return (case_id, file_path)
 
     # The per-case LLM calls are independent — run them concurrently instead of
-    # one after another. Capped at 4 to stay under Gemini's per-minute limits.
+    # one after another. Capped at 2 to stay under Gemini's per-minute limits.
     from concurrent.futures import ThreadPoolExecutor
     cases = plan["cases"]
-    with ThreadPoolExecutor(max_workers=max(1, min(4, len(cases)))) as pool:
+    with ThreadPoolExecutor(max_workers=max(1, min(2, len(cases)))) as pool:
         test_files = [r for r in pool.map(_generate_one, cases) if r]
 
     return test_files
