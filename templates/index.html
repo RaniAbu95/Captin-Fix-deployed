@@ -10,7 +10,7 @@
   <body class="bg-light">
     <nav class="navbar navbar-light bg-white border-bottom mb-4">
       <div class="container">
-        <span class="navbar-brand fw-bold">Captain Fix</span>
+        <span class="navbar-brand fw-bold d-flex align-items-center gap-2"><img src="{{ url_for('static', filename='logo.svg') }}" alt="" width="28" height="28" />Captain Fix</span>
         <div class="d-flex align-items-center gap-3">
           <span class="text-muted small">{{ current_user.email }}</span>
           <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary btn-sm">Sign Out</a>
