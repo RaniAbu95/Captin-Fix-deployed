@@ -38,6 +38,16 @@ _jobs = {}
 _jobs_lock = threading.Lock()
 
 
+@login_manager.unauthorized_handler
+def unauthorized():
+    # AJAX/JSON calls must get JSON back — a redirect to the HTML login page
+    # breaks the frontend's JSON.parse and shows a misleading "empty response".
+    if request.is_json or request.path.startswith(('/run-test', '/test-status', '/generate-code')):
+        return jsonify({"error": "Session expired — please log in again."}), 401
+    flash(login_manager.login_message, login_manager.login_message_category)
+    return redirect(url_for('auth.login', next=request.path))
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))

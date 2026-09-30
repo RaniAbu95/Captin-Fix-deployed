@@ -315,7 +315,8 @@
           const startText = await startRes.text();
           let startJson;
           try { startJson = JSON.parse(startText); } catch (_) {
-            resultDiv.innerHTML = `<div class="result-output result-err">Server error starting test (empty response). Please try again.</div>`;
+            const snippet = startText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+            resultDiv.innerHTML = `<div class="result-output result-err">Server error starting test (HTTP ${startRes.status}${startRes.redirected ? ', redirected to ' + startRes.url : ''}). ${snippet || 'Empty response.'} Please try again.</div>`;
             btnText.classList.remove('d-none'); spinner.classList.add('d-none');
             return status;
           }
