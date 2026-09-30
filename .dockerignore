@@ -1,0 +1,12 @@
+.git
+.vscode
+__pycache__
+*.pyc
+error_*.png
+properties.env
+users.db
+output/
+screen/
+.env
+tests/
+Results.json

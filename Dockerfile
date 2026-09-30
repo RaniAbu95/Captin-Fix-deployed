@@ -1,15 +1,11 @@
 FROM python:3.11-slim
 
-# Install Chrome
-RUN apt-get update && apt-get install -y wget gnupg2 apt-transport-https ca-certificates \
-    && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub \
-       | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] \
-       http://dl.google.com/linux/chrome/deb/ stable main" \
-       > /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
+# Install Chromium + chromedriver from Debian (available for both amd64 and arm64)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends chromium chromium-driver fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
+ENV CHROME_BIN=/usr/bin/chromium \
+    CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
 WORKDIR /app
 

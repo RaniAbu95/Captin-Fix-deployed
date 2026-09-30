@@ -83,7 +83,9 @@ if __name__ == "__main__":
     opts.add_experimental_option("useAutomationExtension", False)
 %(lang_pref)s
 
-    driver = webdriver.Chrome(options=opts)
+    if os.environ.get("CHROME_BIN"):
+        opts.binary_location = os.environ["CHROME_BIN"]
+    driver = webdriver.Chrome(service=webdriver.ChromeService(os.environ.get("CHROMEDRIVER_PATH")), options=opts)
     driver.set_script_timeout(8)
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
         Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
@@ -956,9 +958,12 @@ def run_test_file(case_id, file_path, website=""):
         else:
             print("[driver] Using local Chrome (no remote credentials set)", flush=True)
             driver = None
+            # CHROME_BIN / CHROMEDRIVER_PATH are set in the Docker image (Debian Chromium, amd64 + arm64).
+            if _os.environ.get("CHROME_BIN"):
+                opts.binary_location = _os.environ["CHROME_BIN"]
             for attempt in range(3):
                 try:
-                    driver = webdriver.Chrome(options=opts)
+                    driver = webdriver.Chrome(service=webdriver.ChromeService(_os.environ.get("CHROMEDRIVER_PATH")), options=opts)
                     driver.set_script_timeout(8)
                     break
                 except Exception:
@@ -1255,7 +1260,7 @@ def run_test_file(case_id, file_path, website=""):
             _ns = {{'__name__': 'captainfix_runner', 'driver': driver}}
             exec(code, _ns)
             _ns['run'](_ns['driver'])
-            print("RESULT:Pass")
+            print("RESULT:Pass", flush=True)
         except Exception as e:
             try:
                 _err_t = _threading.Thread(target=lambda: driver.save_screenshot(screenshot_path), daemon=True)
@@ -1265,12 +1270,12 @@ def run_test_file(case_id, file_path, website=""):
                 if _os.path.exists(screenshot_path):
                     with open(screenshot_path, "rb") as _sf:
                         _b64data = _b64.b64encode(_sf.read()).decode("ascii")
-                    print(f"SCREENSHOT_B64:{{_b64data}}")
+                    print(f"SCREENSHOT_B64:{{_b64data}}", flush=True)
             except Exception:
                 pass
             err_msg = str(e).replace("\\n", " ").replace("\\r", "").strip()
             first_line = err_msg.splitlines()[0] if err_msg.splitlines() else err_msg
-            print(f"RESULT:Fail:{{first_line}}")
+            print(f"RESULT:Fail:{{first_line}}", flush=True)
         finally:
             _stop_snap.set()
             try:
@@ -1281,10 +1286,18 @@ def run_test_file(case_id, file_path, website=""):
                 driver.quit()
             except Exception:
                 pass
-            # Hard-kill any lingering Chrome processes so they don't accumulate
-            # across tests and exhaust the 512MB memory limit.
+            # Hard-kill any lingering Chrome/Chromium processes so they don't accumulate
+            # across tests and exhaust the 512MB memory limit. Skip this runner's own
+            # PID — its `python -c` command line contains "chrome" too, and killing it
+            # drops the RESULT line (a failed test would then be reported as Pass).
             import subprocess as _sp
-            _sp.run(["pkill", "-9", "-f", "chrome"], capture_output=True)
+            _pids = _sp.run(["pgrep", "-f", "chrom"], capture_output=True, text=True).stdout.split()
+            for _pid in _pids:
+                if int(_pid) != _os.getpid():
+                    try:
+                        _os.kill(int(_pid), 9)
+                    except Exception:
+                        pass
             time.sleep(1)
     """)
 

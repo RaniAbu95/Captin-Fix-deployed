@@ -189,7 +189,9 @@ def health():
         opts.add_argument("--no-sandbox")
         opts.add_argument("--disable-dev-shm-usage")
         opts.add_argument("--disable-gpu")
-        driver = webdriver.Chrome(options=opts)
+        if os.environ.get("CHROME_BIN"):
+            opts.binary_location = os.environ["CHROME_BIN"]
+        driver = webdriver.Chrome(service=webdriver.ChromeService(os.environ.get("CHROMEDRIVER_PATH")), options=opts)
         driver.get("https://www.google.com")
         results["chrome"] = f"OK — title: {driver.title}"
         driver.quit()
