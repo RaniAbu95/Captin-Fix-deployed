@@ -48,8 +48,10 @@ with app.app_context():
 
 
 @app.route('/', methods=['GET'])
-@login_required
 def index():
+    # visitors who aren't signed in see the public landing page
+    if not current_user.is_authenticated:
+        return render_template('landing.html')
     return render_template('index.html')
 
 
