@@ -81,51 +81,93 @@ def submit():
         flash("⚠️ Please provide an email address", 'danger')
         return redirect(url_for('index'))
 
-    try:
-        # Clear stale generated test code from prior plans so /run-test
-        # doesn't accidentally serve old code under reused case_ids.
-        import shutil
-        if os.path.exists('tests'):
-            shutil.rmtree('tests')
-        os.makedirs('tests', exist_ok=True)
+    # The full pipeline (crawl + LLM planning + per-case code generation)
+    # takes minutes, far past Cloudflare's 100s proxy timeout — run it in a
+    # background thread and let the browser poll /plan/<job_id>.
+    job_id = str(uuid.uuid4())
+    with _jobs_lock:
+        _jobs[job_id] = {"state": "running", "user_id": current_user.id,
+                        "target": target, "email": email, "pm_tool": pm_tool}
 
-        run_planner(target, depth=int(depth), num_tests=int(num_cases), email=email, pm=pm_tool)
-
-        # Pre-warm executor HTML cache so Run Test never needs to launch Chrome again
-        from executor import extract_full_html as _warm
-        _warm(target)
-
-        plan_path = os.path.join('output', 'plan.json')
-        with open(plan_path, 'r', encoding='utf-8') as f:
-            plan = json.load(f)
-
-        # Eagerly generate Selenium code for every case now, so clicking
-        # Run Test or Generate Code later reads the cached file instead
-        # of re-billing Anthropic on every click. Best-effort: if this
-        # fails, /run-test falls back to on-demand generation.
+    def _run():
         try:
-            from executor import generate_test_files
-            generate_test_files({"cases": plan.get("cases", []), "website": target})
-        except Exception as gen_err:
-            print(f"[submit] Pre-generation failed (will fall back on /run-test): {gen_err}")
-
-        xlsx_path = os.path.join('output', 'Plan.xlsx')
-        attachments = [p for p in (plan_path, xlsx_path) if os.path.exists(p)]
-        try:
-            send_results_email(
-                to_email=email,
-                attachments=attachments,
-                subject=f"Captain Fix — Test Plan for {target}",
-            )
-            flash(f"📧 Test plan sent to {email}", 'success')
+            plan, messages = _build_plan(target, depth, num_cases, email, pm_tool)
+            job = {"state": "done", "plan": plan, "messages": messages}
         except Exception as e:
-            flash(f"⚠️ Plan generated, but email failed: {e}", 'warning')
+            job = {"state": "done", "error": str(e)}
+        with _jobs_lock:
+            _jobs[job_id].update(job)
 
-        return render_template('results.html', plan=plan, target=target, email=email, pm_tool=pm_tool)
+    threading.Thread(target=_run, daemon=True).start()
+    return redirect(url_for('plan_status', job_id=job_id))
 
+
+def _build_plan(target, depth, num_cases, email, pm_tool):
+    """Run the planner end-to-end. Returns (plan, [(category, message), ...])."""
+    messages = []
+
+    # Clear stale generated test code from prior plans so /run-test
+    # doesn't accidentally serve old code under reused case_ids.
+    import shutil
+    if os.path.exists('tests'):
+        shutil.rmtree('tests')
+    os.makedirs('tests', exist_ok=True)
+
+    run_planner(target, depth=int(depth), num_tests=int(num_cases), email=email, pm=pm_tool)
+
+    # Pre-warm executor HTML cache so Run Test never needs to launch Chrome again
+    from executor import extract_full_html as _warm
+    _warm(target)
+
+    plan_path = os.path.join('output', 'plan.json')
+    with open(plan_path, 'r', encoding='utf-8') as f:
+        plan = json.load(f)
+
+    # Eagerly generate Selenium code for every case now, so clicking
+    # Run Test or Generate Code later reads the cached file instead
+    # of re-billing the LLM on every click. Best-effort: if this
+    # fails, /run-test falls back to on-demand generation.
+    try:
+        from executor import generate_test_files
+        generate_test_files({"cases": plan.get("cases", []), "website": target})
+    except Exception as gen_err:
+        print(f"[submit] Pre-generation failed (will fall back on /run-test): {gen_err}")
+
+    xlsx_path = os.path.join('output', 'Plan.xlsx')
+    attachments = [p for p in (plan_path, xlsx_path) if os.path.exists(p)]
+    try:
+        send_results_email(
+            to_email=email,
+            attachments=attachments,
+            subject=f"Captain Fix — Test Plan for {target}",
+        )
+        messages.append(('success', f"📧 Test plan sent to {email}"))
     except Exception as e:
-        flash(f"❌ Error: {str(e)}", 'danger')
+        messages.append(('warning', f"⚠️ Plan generated, but email failed: {e}"))
+
+    return plan, messages
+
+
+@app.route('/plan/<job_id>')
+@login_required
+def plan_status(job_id):
+    with _jobs_lock:
+        job = dict(_jobs.get(job_id) or {})
+    if not job or job.get("user_id") != current_user.id:
+        flash("⚠️ Test plan job not found — please generate it again.", 'warning')
         return redirect(url_for('index'))
+    if job["state"] == "running":
+        return render_template('generating.html', target=job["target"])
+    if job.get("error"):
+        flash(f"❌ Error: {job['error']}", 'danger')
+        return redirect(url_for('index'))
+    for category, message in job.get("messages", []):
+        flash(message, category)
+    # Messages are shown once; a refresh of the results page shouldn't repeat them.
+    with _jobs_lock:
+        _jobs[job_id]["messages"] = []
+    return render_template('results.html', plan=job["plan"], target=job["target"],
+                           email=job["email"], pm_tool=job["pm_tool"])
 
 
 @app.route('/favicon.ico')
