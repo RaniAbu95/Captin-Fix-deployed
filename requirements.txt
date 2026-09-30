@@ -12,6 +12,7 @@ python-dotenv
 langchain
 langchain-openai
 langchain-anthropic
+langchain-google-genai
 langchain-community
 langchain-core
 openpyxl

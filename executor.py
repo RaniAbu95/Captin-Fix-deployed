@@ -2,9 +2,9 @@ import os
 import json
 import threading
 from selenium.webdriver.chrome.options import Options
-from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 import time
-from config import ANTHROPIC_API_KEY
+from config import GOOGLE_API_KEY, GEMINI_MODEL
 from langchain_core.messages import SystemMessage, HumanMessage
 
 PLAN_FILE = "./output/plan.json"
@@ -39,7 +39,7 @@ def _chrome_options():
     return opts
 
 
-# Marked as a cache breakpoint so Anthropic reuses it on every call after the first.
+# Built once per run and reused for every case.
 def _make_main_block(website: str) -> str:
     """Return the if __name__ block tailored to the website's locale."""
     israeli = _is_israeli_site(website)
@@ -219,6 +219,7 @@ STEP FIDELITY — CRITICAL RULE
 - If a step says "element with id 'app'" you MUST use By.ID, "app". If it says "aria-label 'X'" you MUST use that exact aria-label. Never swap one locator type for another.
 - Do not skip, merge, reorder, or invent steps. Every step in the plan must appear as a distinct code block.
 - If you cannot find a locator in the HTML, use exactly what the step specifies anyway — do NOT silently replace it with a different attribute or selector.
+- ONE EXCEPTION: if the step names an AUTO-GENERATED id (a short random token with no readable words, e.g. 'ti6dpd', 'APjFqb'), do NOT use By.ID — the site regenerates it on every load. Locate the same element in the HTML by its name, aria-label, role, or type instead (e.g. textarea id 'ti6dpd' with name 'q' → (By.NAME, "q")).
 
 ═══════════════════════════════════════
 TIMEOUTS — DEPLOYED SITE (important)
@@ -231,9 +232,10 @@ TIMEOUTS — DEPLOYED SITE (important)
 PAGE LOAD CHECK
 ═══════════════════════════════════════
 - After driver.get(), ALWAYS verify the page is ready with this exact JS readyState check — it works on every site regardless of DOM structure:
-    WebDriverWait(driver, 5).until(
+    WebDriverWait(driver, 10, ignored_exceptions=(Exception,)).until(
         lambda d: d.execute_script("return document.readyState") in ("interactive", "complete")
     )
+- The ignored_exceptions=(Exception,) argument is MANDATORY: with page_load_strategy "none", execute_script can raise a "script timeout" TimeoutException while a heavy page is still loading. Without ignoring it, WebDriverWait aborts immediately instead of retrying.
 - This is the ONLY guaranteed page-load check. NEVER use EC.presence_of_element_located on "header", "nav", "main", or any structural element as the primary page-load signal — these elements may not exist or may be injected late by JavaScript.
 - After the readyState check passes, you may add ONE additional wait for a specific element that the test actually needs (e.g. a nav link before clicking it). Do not add redundant waits.
 
@@ -289,6 +291,7 @@ HREF MATCHING — NEVER EXACT, ALWAYS SUBSTRING (applies to clicks AND verify-pr
     XPath: (By.XPATH, "//a[contains(@href, '/platform-technology/')]")
 - FORBIDDEN: (By.CSS_SELECTOR, "header a[href='/platform-technology/']")  ← exact match, fails on absolute/rewritten/param-appended hrefs
 - This is true even when the planner step quotes the href as a clean path like '/platform-technology/' — that is the AUTHORED href, not necessarily what the browser renders. Always treat the quoted href as a substring to match with *= or contains().
+- HTML ENTITIES: the raw HTML below escapes '&' in hrefs as '&amp;', but the live DOM @href and driver.current_url contain a plain '&'. NEVER put '&amp;' in a locator or URL assertion. Prefer matching the path stem only (e.g. '/advanced_search' for href '/advanced_search?hl=iw&amp;fg=1').
 
 NAVIGATION LINKS — <a href> elements MUST be located by href, never by id:
 - Many sites (React, Next.js, Angular) generate random ids on <a> elements at build time. These ids look like "r1w2KWYLVsyGg" — they are NOT stable and MUST NOT be used.
@@ -340,6 +343,11 @@ WAITS AND ASSERTIONS
         raise Exception("No visible match for .show-searchbox found")
     ActionChains(driver).move_to_element(target).click().perform()
   This applies ONLY to class/attribute selectors that match multiple elements. For a unique, stable id (By.ID) use plain EC.visibility_of_element_located — ids are unique so there is no hidden-duplicate problem.
+  By.NAME IS NOT UNIQUE: the same name often appears twice (e.g. Google renders two inputs with name 'btnK' — a hidden one inside the suggestions dropdown, then the visible one). For By.NAME — in clicks AND in "verify ... is visible" steps — wait for ANY visible, non-zero-size match instead of the first DOM match:
+    target = WebDriverWait(driver, 10).until(
+        lambda d: next((e for e in d.find_elements(By.NAME, "btnK")
+                        if e.is_displayed() and e.size["width"] > 0 and e.size["height"] > 0), False)
+    )
 - EC.presence_of_element_located — element is in the DOM (use ONLY for images and read-only checks, never before interaction)
 - EC.visibility_of_element_located — use for EVERY interaction (click, send_keys, clear) AND for all assertion steps
 - EC.element_to_be_clickable — DO NOT USE. Always use visibility_of_element_located instead.
@@ -790,8 +798,8 @@ def _fix_syntax(code: str, llm, cached_system, case_id: str):
         f"No markdown fences, no explanation."
     ))
     try:
-        print(f"[anthropic] _fix_syntax.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
-        fixed = _strip_code_fences(llm.invoke([cached_system, fix_prompt]).content.strip())
+        print(f"[gemini] _fix_syntax.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
+        fixed = _strip_code_fences(llm.invoke([cached_system, fix_prompt]).text.strip())
         error2 = _check(fixed)
         if error2 is None:
             return fixed
@@ -811,20 +819,16 @@ def generate_test_files(plan):
     page_html = extract_full_html(website)
     headless_label = "headless Chrome" if HEADLESS else "regular Chrome"
 
-    llm = ChatAnthropic(model="claude-sonnet-4-6", temperature=0, api_key=ANTHROPIC_API_KEY)
+    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0, google_api_key=GOOGLE_API_KEY)
 
-    # Build the system prompt ONCE per run — cached across all cases and steps.
+    # Build the system prompt ONCE per run and reuse it across all cases.
     system_text = SYSTEM_PROMPT_TEMPLATE.format(
         website=website,
         html=page_html,
         headless=headless_label,
         main_block=_make_main_block(website),
     )
-    cached_system = SystemMessage(content=[{
-        "type": "text",
-        "text": system_text,
-        "cache_control": {"type": "ephemeral"},
-    }])
+    cached_system = SystemMessage(content=system_text)
 
     for case in plan["cases"]:
         case_id = case["id"]
@@ -834,9 +838,9 @@ def generate_test_files(plan):
         steps_text = "\n".join(f"{i+1}. {s}" for i, s in enumerate(steps))
         user_text = USER_PROMPT_TEMPLATE.format(steps=steps_text, expected=expected)
         messages = [cached_system, HumanMessage(content=user_text)]
-        print(f"[anthropic] generate_test_files.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
+        print(f"[gemini] generate_test_files.invoke case={case_id} at {_t.time()} (executor.py)", flush=True, file=_sys.stderr)
         response = llm.invoke(messages)
-        combined = _strip_code_fences(response.content.strip())
+        combined = _strip_code_fences(response.text.strip())
 
         # Strip any __main__ block Claude added despite instructions.
         if "if __name__" in combined:

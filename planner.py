@@ -1,12 +1,13 @@
+from html import unescape as _html_unescape
 import json
 import os
 import pandas as pd
 import requests
 from pydantic import BaseModel
 from typing import List
-from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
-from config import ANTHROPIC_API_KEY
+from config import GOOGLE_API_KEY, GEMINI_MODEL
 from urllib.parse import urlparse, unquote
 
 
@@ -128,11 +129,18 @@ def _form_excerpt(cleaned_html: str, head: int = 16000, tail: int = 24000, fallb
         return form
     return form[:head] + ' ... [form middle truncated] ... ' + form[-tail:]
 
+def _hrefs(page_html: str) -> list:
+    """All href values in the page, entity-decoded ('&amp;' -> '&') so they
+    match the URL the browser actually navigates to."""
+    import re
+    return [_html_unescape(h) for h in re.findall(r'href=["\']([^"\']+)["\']', page_html)]
+
+
 def _fetch_linked_form_htmls(homepage_html: str, base_url: str) -> dict:
     """Find nav links that likely lead to form pages and fetch their HTML."""
     import re
     from urllib.parse import urljoin, urlparse
-    hrefs = re.findall(r'href=["\']([^"\']+)["\']', homepage_html)
+    hrefs = _hrefs(homepage_html)
     base = urlparse(base_url)
     seen, results = set(), {}
     for href in hrefs:
@@ -159,9 +167,9 @@ def _fetch_linked_form_htmls(homepage_html: str, base_url: str) -> dict:
 
 
 def _href_frag(href: str) -> str:
-    """Last non-empty path segment of an href, e.g. '/contact-us' -> 'contact-us'."""
+    """Last non-empty path segment of an href, e.g. '/contact-us?x=1' -> 'contact-us'."""
     from urllib.parse import urlparse
-    path = urlparse(href).path if "://" in href else href
+    path = urlparse(_html_unescape(href)).path
     return path.strip("/").split("/")[-1] or "page"
 
 
@@ -190,7 +198,7 @@ def _candidate_form_pages(homepage_html: str, base_url: str) -> list:
     from urllib.parse import urljoin, urlparse
     base = urlparse(base_url)
     out = []
-    for href in re.findall(r'href=["\']([^"\']+)["\']', homepage_html):
+    for href in _hrefs(homepage_html):
         if not _is_form_page_href(href):  # recognized form page, not an ATS/content page
             continue
         full = urljoin(base_url, href)
@@ -383,11 +391,11 @@ def generate_testplan(url: str, links: List[str], num_tests: int) -> TestPlan:
 
     max_negative = round(num_tests / 3)
 
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-6",
-        api_key=ANTHROPIC_API_KEY,
+    llm = ChatGoogleGenerativeAI(
+        model=GEMINI_MODEL,
+        google_api_key=GOOGLE_API_KEY,
         temperature=0,
-        max_tokens=8192,
+        max_output_tokens=16384,
     )
 
     template = ChatPromptTemplate.from_template("""
@@ -492,6 +500,7 @@ LOCALE SAFETY — strictly enforced for ALL text assertions:
   - NEVER use an English transliteration of a Hebrew brand name in a title check (e.g. NEVER "drushim" — the title says "דרושים". NEVER "ynet" if the title says "ynet" only if it literally appears that way in the HTML title tag).
   - For page title assertions: look at the actual <title> tag value in the HTML. Use ONLY a fragment that appears exactly as-is in that tag — a TLD abbreviation like "IL", a Latin brand name that appears in the title as-is, or a number. If the title is entirely in Hebrew with no Latin fragment, DO NOT assert the title at all — verify a URL fragment instead.
   - ALWAYS verify element PRESENCE or VISIBILITY using locale-stable attributes: element ID, aria-label, data-testid, CSS class, or href.
+  - NEVER reference an AUTO-GENERATED id or class — short random-looking tokens with no readable words (e.g. id 'ti6dpd', 'APjFqb', 'r1w2KWYLVsyGg', class 'gNO89b'). Sites like Google regenerate them on every load, so the locator fails at run time. Identify such an element by its name, aria-label, role, type, href, or visible text instead (e.g. "the textarea with name 'q'" instead of "the textarea with id 'ti6dpd'"). Use an id only when it is a readable, semantic name (e.g. 'headerMenu', 'search-btn').
   - For URL assertions: URL paths are always in Latin characters regardless of locale — these are safe to assert.
 
   GOOD expected results (locale-safe):
@@ -518,6 +527,7 @@ Specific things you must NEVER guess:
 - href patterns for links on pages you have not seen (e.g. never "/job/123", "/position/", "/apply/" for a careers sub-page you have not seen)
 - aria-label values that are not literally in the HTML
 - Element IDs that are not literally in the HTML
+- HTML entities inside hrefs — the raw HTML escapes '&' as '&amp;'. Always write the decoded URL: HTML shows href="/advanced_search?hl=iw&amp;fg=1" → write '/advanced_search?hl=iw&fg=1'.
 
 When writing steps, only describe what you can see in the provided HTML. If a step requires knowledge of a page you have not seen, stop at the boundary you CAN see — navigate there and verify a heading or URL, but do not interact with content you cannot verify from the HTML.
 
@@ -744,10 +754,10 @@ Return only valid JSON. No markdown, no explanation, no code fences.
                                       max_negative=max_negative,
                                       linked_pages_section=linked_pages_section)
     import sys as _sys, time as _t
-    print(f"[anthropic] generate_testplan.invoke at {_t.time()} (planner.py:153)", flush=True, file=_sys.stderr)
+    print(f"[gemini] generate_testplan.invoke at {_t.time()} (planner.py:153)", flush=True, file=_sys.stderr)
     response = llm.invoke(prompt)
-    plan_json = response.content.strip()
-    stop_reason = (response.response_metadata or {}).get("stop_reason", "unknown")
+    plan_json = response.text.strip()
+    stop_reason = (response.response_metadata or {}).get("finish_reason", "unknown")
     print(f"LLM stop_reason: {stop_reason}")
     print(f"LLM Output ({len(plan_json)} chars):", plan_json[:2000])
 
@@ -779,17 +789,23 @@ Return only valid JSON. No markdown, no explanation, no code fences.
             Return only a valid JSON array of test case objects.
         """)
         import sys as _sys, time as _t
-        print(f"[anthropic] generate_testplan.fill_invoke at {_t.time()} (planner.py:186)", flush=True, file=_sys.stderr)
+        print(f"[gemini] generate_testplan.fill_invoke at {_t.time()} (planner.py:186)", flush=True, file=_sys.stderr)
         fill_resp = llm.invoke(fill_template.format_messages(
             page_html=page_html, existing_ids=existing_ids, missing=missing))
         try:
-            extra = json.loads(_strip_json(fill_resp.content.strip()))
+            extra = json.loads(_strip_json(fill_resp.text.strip()))
             if isinstance(extra, list):
                 for c in extra:
                     c.setdefault("negative", False)
                     cases.append(TestCase(**c))
         except Exception:
             pass
+
+    # The LLM copies hrefs verbatim from raw HTML ('?a=1&amp;b=2'); the browser
+    # URL has a plain '&', so a URL-contains check on the escaped form never passes.
+    for c in cases:
+        c.steps = [_html_unescape(s) for s in c.steps]
+        c.expected = _html_unescape(c.expected or "")
 
     # Hard guard: never ship two header-search Forms tests (the LLM keeps doing
     # this when the search box is the only fillable form). Rewrite extras onto a
