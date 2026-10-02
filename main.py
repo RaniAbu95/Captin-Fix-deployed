@@ -58,10 +58,14 @@ with app.app_context():
 
 
 @app.route('/', methods=['GET'])
-def index():
-    # visitors who aren't signed in see the public landing page
-    if not current_user.is_authenticated:
-        return render_template('landing.html')
+def landing():
+    # public landing page — the dashboard lives at /dashboard
+    return render_template('landing.html')
+
+
+@app.route('/dashboard', methods=['GET'])
+@login_required
+def dashboard():
     return render_template('index.html')
 
 
@@ -76,10 +80,10 @@ def submit():
 
     if not target:
         flash("⚠️ Please provide a target URL", 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     if not email:
         flash("⚠️ Please provide an email address", 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     # The full pipeline (crawl + LLM planning + per-case code generation)
     # takes minutes, far past Cloudflare's 100s proxy timeout — run it in a
@@ -155,12 +159,12 @@ def plan_status(job_id):
         job = dict(_jobs.get(job_id) or {})
     if not job or job.get("user_id") != current_user.id:
         flash("⚠️ Test plan job not found — please generate it again.", 'warning')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     if job["state"] == "running":
         return render_template('generating.html', target=job["target"])
     if job.get("error"):
         flash(f"❌ Error: {job['error']}", 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     for category, message in job.get("messages", []):
         flash(message, category)
     # Messages are shown once; a refresh of the results page shouldn't repeat them.

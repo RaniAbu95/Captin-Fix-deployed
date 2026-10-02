@@ -11,7 +11,11 @@
     <nav class="navbar navbar-light bg-white border-bottom">
       <div class="container">
         <span class="navbar-brand fw-bold d-flex align-items-center gap-2"><img src="{{ url_for('static', filename='logo.svg') }}" alt="" width="28" height="28" />Captain Fix</span>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-sm">Open Dashboard</a>
+        {% else %}
         <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-sm">Sign In</a>
+        {% endif %}
       </div>
     </nav>
 
@@ -22,8 +26,12 @@
         runs them in a real browser and sends the results to your team's board.
       </p>
       <div class="d-flex gap-2 justify-content-center flex-wrap">
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg">Open Dashboard</a>
+        {% else %}
         <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Create an account</a>
         <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-lg">Sign In</a>
+        {% endif %}
       </div>
     </header>
 

@@ -39,7 +39,7 @@ def register():
         db.session.commit()
         login_user(user, remember=True)
         flash('Account created! Welcome to Captain Fix.', 'success')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     return render_template('register.html')
 
@@ -58,7 +58,7 @@ def login():
         remember = bool(request.form.get('remember'))
         login_user(user, remember=remember)
         next_page = request.args.get('next')
-        return redirect(next_page or url_for('index'))
+        return redirect(next_page or url_for('dashboard'))
 
     return render_template('login.html')
 
