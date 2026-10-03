@@ -266,6 +266,9 @@ BY.CSS_SELECTOR — use when no stable id or name exists but a stable CSS select
 - ARIA-LABEL EXISTENCE RULE: ONLY use aria-label if the element has an aria-label attribute in the HTML. If the element has visible text but NO aria-label attribute (e.g. <span>Ask AI</span>), use XPath text matching instead:
     CORRECT:   (By.XPATH, "//span[normalize-space()='Ask AI']")
     INCORRECT: (By.CSS_SELECTOR, '[aria-label="Ask AI"]')  ← aria-label not in HTML, will always fail
+- LOCALIZED TEXT RULE: sites like Google localize UI labels by visitor IP, regardless of Accept-Language (e.g. 'Settings' is served as 'הגדרות'). When the element can be identified by structure/attributes (role, aria-haspopup, href, container scope), do NOT add a visible-text predicate on top:
+    CORRECT:   (By.XPATH, "//div[@role='contentinfo']//div[@role='button' and @aria-haspopup='true']")
+    INCORRECT: (By.XPATH, "//div[@role='contentinfo']//div[@role='button' and @aria-haspopup='true'][.//div[normalize-space()='Settings']]")  ← times out when the page is served in another language
 
 XPATH — use only when ID, Name, and CSS Selector are not suitable (e.g. locating by visible text, contains(@href), or complex DOM traversal). Always scope to a container when possible:
     (By.XPATH, "//div[@id='headerMenu']//a[contains(@href, '/categories.aspx')]")
