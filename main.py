@@ -231,6 +231,32 @@ def download(filename):
     return send_file(path, as_attachment=True)
 
 
+@app.route('/download/tests.zip')
+@login_required
+def download_tests_zip():
+    """Bundle the generated tests/<case_id>.py files of the current plan into a zip."""
+    from flask import send_file, abort
+    import io
+    import zipfile
+    plan_path = os.path.join('output', 'plan.json')
+    if not os.path.exists(plan_path):
+        abort(404)
+    with open(plan_path, 'r', encoding='utf-8') as f:
+        plan = json.load(f)
+    case_ids = [c.get('id') for c in plan.get('cases', []) if c.get('id')]
+    test_paths = [(cid, os.path.join('tests', f'{cid}.py')) for cid in case_ids]
+    test_paths = [(cid, p) for cid, p in test_paths if os.path.exists(p)]
+    if not test_paths:
+        abort(404)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for case_id, path in test_paths:
+            zf.write(path, arcname=f'{case_id}.py')
+    buf.seek(0)
+    return send_file(buf, mimetype='application/zip', as_attachment=True,
+                     download_name='captain_fix_tests.zip')
+
+
 @app.route('/download/screenshot/<case_id>')
 @login_required
 def download_screenshot(case_id):
