@@ -94,12 +94,6 @@
               <div class="fw-bold text-muted small">FAILED</div>
               <div class="fs-5 fw-bold text-danger" id="count-fail">0</div>
             </div>
-            <div class="col">
-              <div class="fw-bold text-muted small">MATCHES EXPECTED</div>
-              <div class="fs-5 fw-bold text-primary">
-                <span id="count-match">0</span> / {{ plan.cases | length }}
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -149,28 +143,6 @@
                         onclick="copyCode({{ loop.index }})" disabled>
                   Copy Code
                 </button>
-                <div class="d-flex gap-3 ms-2 align-items-center">
-                  <div class="form-check mb-0">
-                    <input class="form-check-input" type="radio"
-                           name="expectation-{{ loop.index }}"
-                           id="expect-pass-{{ loop.index }}"
-                           value="pass"
-                           onchange="updateSummary({{ loop.index }}, testResults[{{ loop.index }}])">
-                    <label class="form-check-label small text-success fw-semibold" for="expect-pass-{{ loop.index }}">
-                      Expected to pass
-                    </label>
-                  </div>
-                  <div class="form-check mb-0">
-                    <input class="form-check-input" type="radio"
-                           name="expectation-{{ loop.index }}"
-                           id="expect-fail-{{ loop.index }}"
-                           value="fail"
-                           onchange="updateSummary({{ loop.index }}, testResults[{{ loop.index }}])">
-                    <label class="form-check-label small text-danger fw-semibold" for="expect-fail-{{ loop.index }}">
-                      Expected to crash / error
-                    </label>
-                  </div>
-                </div>
               </div>
 
               <div id="result-{{ loop.index }}"></div>
@@ -212,16 +184,6 @@
         document.getElementById('count-pass').textContent  = passed;
         document.getElementById('count-fail').textContent  = failed;
         document.getElementById('count-total').textContent = `${values.length} / ${CASES.length}`;
-
-        // Matches expected: only count cases where the user has set an expectation
-        let matches = 0;
-        for (const [i, s] of Object.entries(testResults)) {
-          const expectPass = document.getElementById(`expect-pass-${i}`)?.checked;
-          const expectFail = document.getElementById(`expect-fail-${i}`)?.checked;
-          if (expectPass && s === 'Pass') matches++;
-          else if (expectFail && s !== 'Pass') matches++;
-        }
-        document.getElementById('count-match').textContent = matches;
       }
 
       function showCode(idx, code) {
