@@ -19,3 +19,4 @@ users.db
 *.sqlite3
 tests/
 Results.json
+.vscode/
