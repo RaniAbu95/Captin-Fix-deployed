@@ -85,8 +85,8 @@ def submit():
         flash("⚠️ Please provide an email address", 'danger')
         return redirect(url_for('dashboard'))
 
-    # The full pipeline (crawl + LLM planning + per-case code generation)
-    # takes minutes, far past Cloudflare's 100s proxy timeout — run it in a
+    # The pipeline (crawl + LLM planning) takes minutes, far past Cloudflare's
+    # 100s proxy timeout — run it in a
     # background thread and let the browser poll /plan/<job_id>.
     job_id = str(uuid.uuid4())
     with _jobs_lock:
@@ -119,23 +119,14 @@ def _build_plan(target, depth, num_cases, email, pm_tool):
 
     run_planner(target, depth=int(depth), num_tests=int(num_cases), email=email, pm=pm_tool)
 
-    # Pre-warm executor HTML cache so code generation never needs to launch Chrome again
+    # Selenium code is generated per case on demand (Generate Test Code button);
+    # pre-warm the executor HTML cache so those requests never launch Chrome.
     from executor import extract_full_html as _warm
     _warm(target)
 
     plan_path = os.path.join('output', 'plan.json')
     with open(plan_path, 'r', encoding='utf-8') as f:
         plan = json.load(f)
-
-    # Eagerly generate Selenium code for every case now, so clicking
-    # View / Copy / Download Code later reads the cached file instead
-    # of re-billing the LLM on every click. Best-effort: if this
-    # fails, /generate-code falls back to on-demand generation.
-    try:
-        from executor import generate_test_files
-        generate_test_files({"cases": plan.get("cases", []), "website": target})
-    except Exception as gen_err:
-        print(f"[submit] Pre-generation failed (will fall back on /generate-code): {gen_err}")
 
     xlsx_path = os.path.join('output', 'Plan.xlsx')
     attachments = [p for p in (plan_path, xlsx_path) if os.path.exists(p)]
@@ -247,7 +238,8 @@ def download_tests_zip():
     test_paths = [(cid, os.path.join('tests', f'{cid}.py')) for cid in case_ids]
     test_paths = [(cid, p) for cid, p in test_paths if os.path.exists(p)]
     if not test_paths:
-        abort(404)
+        flash("⚠️ No test code generated yet — click Generate Test Code on a test first.", 'warning')
+        return redirect(request.referrer or url_for('dashboard'))
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
         for case_id, path in test_paths:
@@ -274,7 +266,7 @@ def _load_or_generate_test_file(case, website):
     """Return (case_id, file_path) for a case. Reads cached file from
     tests/<case_id>.py if it exists; otherwise calls Anthropic to
     generate it. The cache is the entire point — it makes repeated
-    View / Copy / Download Code clicks free after the first generation."""
+    Copy / Download clicks free after Generate Test Code."""
     from executor import generate_test_files
     case_id = case.get('id')
     cached_path = os.path.join('tests', f'{case_id}.py')
