@@ -29,3 +29,11 @@ When locating elements that may have hidden duplicates (footer links, icons, tog
 ## 5. Each Navigation test must use a distinct `nav_pattern`
 
 No two Navigation test cases in the same plan may share the same `nav_pattern` value (A/B/C/D). "Same interaction shape" counts as a duplicate even if the final assertion differs.
+
+## 6. Every new piece of work gets its own new branch
+
+Before starting any new task (feature, fix, refactor, docs, config, migration), create a dedicated branch for it — never work directly on `master`, and never reuse another task's branch.
+
+- Check the current branch first (`git branch --show-current`).
+- If it is `master` or belongs to a different task, run `git checkout -b <type>/<short-name>` (e.g. `fix/landing-page`, `feature/simplify-form`) from `master` before editing anything.
+- Continue on the same branch only for follow-ups to the same task.
