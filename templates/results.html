@@ -109,21 +109,15 @@
               </ol>
 
               <div class="d-flex gap-2 mb-2 flex-wrap align-items-center">
-                <button class="btn btn-sm btn-primary" id="view-btn-{{ loop.index }}"
-                        onclick="viewCode({{ loop.index }})">
-                  <span id="view-btn-text-{{ loop.index }}">👁 View Code</span>
-                  <span id="view-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                <button class="btn btn-sm btn-primary" id="gen-btn-{{ loop.index }}"
+                        onclick="generateTestCode({{ loop.index }})">
+                  <span id="gen-btn-text-{{ loop.index }}">⚙ Generate Test Code</span>
+                  <span id="gen-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
                 </button>
-                <button class="btn btn-sm btn-secondary" id="copy-btn-{{ loop.index }}"
-                        onclick="copyCode({{ loop.index }})">
-                  <span id="copy-btn-text-{{ loop.index }}">Copy Code</span>
-                  <span id="copy-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
-                </button>
-                <button class="btn btn-sm btn-outline-dark" id="dl-btn-{{ loop.index }}"
-                        onclick="downloadCode({{ loop.index }})">
-                  <span id="dl-btn-text-{{ loop.index }}">⬇ Download .py</span>
-                  <span id="dl-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
-                </button>
+                <button class="btn btn-sm btn-secondary d-none" id="copy-btn-{{ loop.index }}"
+                        onclick="copyCode({{ loop.index }})">Copy Code</button>
+                <button class="btn btn-sm btn-outline-dark d-none" id="dl-btn-{{ loop.index }}"
+                        onclick="downloadCode({{ loop.index }})">⬇ Download .py</button>
               </div>
 
               <div id="result-{{ loop.index }}"></div>
@@ -147,7 +141,7 @@
           ⬇ Download Plan.xlsx
         </a>
         <a href="/download/tests.zip" class="btn btn-outline-dark btn-sm">
-          ⬇ Download tests (.zip)
+          ⬇ Download generated tests (.zip)
         </a>
       </div>
     </div>
@@ -158,92 +152,65 @@
       const CASES = {{ plan.cases | tojson }};
       const TARGET = {{ target | tojson }};
       const generatedCode = {};
-      function showCode(idx, code) {
-        generatedCode[idx] = code;
-        document.getElementById(`code-${idx}`).textContent = code;
-        document.getElementById(`code-wrapper-${idx}`).classList.remove('d-none');
-      }
 
-      async function viewCode(idx) {
+      // Code is generated only for the tests the user picks. Once generated,
+      // the code is shown and Copy / Download become available.
+      async function generateTestCode(idx) {
+        const btn       = document.getElementById(`gen-btn-${idx}`);
+        const btnText   = document.getElementById(`gen-btn-text-${idx}`);
+        const spinner   = document.getElementById(`gen-spinner-${idx}`);
         const resultDiv = document.getElementById(`result-${idx}`);
-        if (!generatedCode[idx]) {
-          resultDiv.innerHTML = '<div class="result-output result-err">Generating code… this may take ~15 seconds.</div>';
-        }
-        await _withButtonSpinner(idx, 'view', async () => {
-          const code = await fetchCode(idx);
+
+        btn.disabled = true;
+        btnText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+        resultDiv.innerHTML = '<div class="result-output result-err">Generating code… this may take ~15 seconds.</div>';
+
+        try {
+          const res = await fetch('/generate-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ case: CASES[idx - 1], website: TARGET })
+          });
+          let data;
+          try { data = JSON.parse(await res.text()); } catch (_) {
+            throw new Error('Server returned an empty response — please try again.');
+          }
+          if (data.error) throw new Error(data.error);
+
+          generatedCode[idx] = data.code;
           resultDiv.innerHTML = '';
-          showCode(idx, code);
-        });
+          document.getElementById(`code-${idx}`).textContent = data.code;
+          document.getElementById(`code-wrapper-${idx}`).classList.remove('d-none');
+          document.getElementById(`copy-btn-${idx}`).classList.remove('d-none');
+          document.getElementById(`dl-btn-${idx}`).classList.remove('d-none');
+          btn.classList.add('d-none');
+        } catch (e) {
+          resultDiv.innerHTML = `<div class="result-output result-err">Error: ${e.message}</div>`;
+          btn.disabled = false;
+        }
+        btnText.classList.remove('d-none');
+        spinner.classList.add('d-none');
       }
 
-      function _saveFile(filename, text) {
-        const blob = new Blob([text], { type: 'text/x-python' });
+      function downloadCode(idx) {
+        const caseData = CASES[idx - 1];
+        const blob = new Blob([generatedCode[idx]], { type: 'text/x-python' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename;
+        a.download = `${caseData.id || 'test_' + idx}.py`;
         document.body.appendChild(a);
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
       }
 
-      // Returns the generated code for a case, fetching it once (served from the
-      // cached tests/<id>.py when available). Does not reveal the code block.
-      async function fetchCode(idx) {
-        if (generatedCode[idx]) return generatedCode[idx];
-        const res = await fetch('/generate-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ case: CASES[idx - 1], website: TARGET })
-        });
-        let data;
-        try { data = JSON.parse(await res.text()); } catch (_) {
-          throw new Error('Server returned an empty response — please try again.');
-        }
-        if (data.error) throw new Error(data.error);
-        generatedCode[idx] = data.code;
-        return data.code;
-      }
-
-      async function _withButtonSpinner(idx, prefix, fn) {
-        const btnText   = document.getElementById(`${prefix}-btn-text-${idx}`);
-        const spinner   = document.getElementById(`${prefix}-spinner-${idx}`);
-        const resultDiv = document.getElementById(`result-${idx}`);
-        btnText.classList.add('d-none');
-        spinner.classList.remove('d-none');
-        try {
-          await fn();
-        } catch (e) {
-          resultDiv.innerHTML = `<div class="result-output result-err">Error: ${e.message}</div>`;
-        }
-        btnText.classList.remove('d-none');
-        spinner.classList.add('d-none');
-      }
-
-      async function downloadCode(idx) {
-        const caseData = CASES[idx - 1];
-        const filename = `${caseData.id || 'test_' + idx}.py`;
-        await _withButtonSpinner(idx, 'dl', async () => {
-          _saveFile(filename, await fetchCode(idx));
-        });
-      }
-
-      async function copyCode(idx) {
-        const btnText = document.getElementById(`copy-btn-text-${idx}`);
-        await _withButtonSpinner(idx, 'copy', async () => {
-          if (generatedCode[idx]) {
-            await navigator.clipboard.writeText(generatedCode[idx]);
-          } else if (window.ClipboardItem) {
-            // Hand the clipboard a pending promise so the write stays tied to the
-            // click gesture (Safari rejects writes made after a long await).
-            const blob = fetchCode(idx).then(code => new Blob([code], { type: 'text/plain' }));
-            await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
-          } else {
-            await navigator.clipboard.writeText(await fetchCode(idx));
-          }
-          btnText.textContent = 'Copied!';
-          setTimeout(() => btnText.textContent = 'Copy Code', 2000);
+      function copyCode(idx) {
+        navigator.clipboard.writeText(generatedCode[idx]).then(() => {
+          const btn = document.getElementById(`copy-btn-${idx}`);
+          btn.textContent = 'Copied!';
+          setTimeout(() => btn.textContent = 'Copy Code', 2000);
         });
       }
     </script>
