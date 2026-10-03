@@ -19,6 +19,11 @@
       .result-pass   { background: #d4edda; color: #155724; }
       .result-fail   { background: #f8d7da; color: #721c24; }
       .result-err    { background: #fff3cd; color: #856404; }
+      .btn-new-analysis { padding: 0.6rem 1.5rem; border-radius: 10px;
+                          box-shadow: 0 4px 14px rgba(13, 110, 253, 0.35);
+                          transition: transform 0.15s ease, box-shadow 0.15s ease; }
+      .btn-new-analysis:hover { transform: translateY(-2px);
+                                box-shadow: 0 6px 20px rgba(13, 110, 253, 0.5); }
     </style>
   </head>
   <body class="bg-light">
@@ -44,7 +49,7 @@
 
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>🧪 Test Plan Results</h1>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary">← New Analysis</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg fw-semibold btn-new-analysis">← New Analysis</a>
       </div>
 
       <!-- Summary Card -->
