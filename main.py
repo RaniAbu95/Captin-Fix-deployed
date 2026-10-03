@@ -73,10 +73,10 @@ def dashboard():
 @login_required
 def submit():
     target = request.form.get('target')
-    depth = request.form.get('depth')
+    depth = request.form.get('depth', '1')
     num_cases = request.form.get('num_cases')
     email = request.form.get('email')
-    pm_tool = request.form.get('pm_tool')
+    pm_tool = request.form.get('pm_tool', '')
 
     if not target:
         flash("⚠️ Please provide a target URL", 'danger')

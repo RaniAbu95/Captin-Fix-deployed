@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Captain Fix — Generate Test Plan</title>
+    <title>Captain Fix — Generate Tests</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   </head>
@@ -37,27 +37,10 @@
                  placeholder="https://example.com" required>
         </div>
 
-        <div class="row mb-3">
-          <div class="col">
-            <label for="depth" class="form-label fw-semibold">Crawl Depth</label>
-            <input type="number" class="form-control" id="depth" name="depth"
-                   value="1" min="1" max="5">
-          </div>
-          <div class="col">
-            <label for="num_cases" class="form-label fw-semibold">Number of Test Cases</label>
-            <input type="number" class="form-control" id="num_cases" name="num_cases"
-                   value="5" min="1" max="30">
-          </div>
-        </div>
-
         <div class="mb-3">
-          <label for="pm_tool" class="form-label fw-semibold">PM Tool <span class="text-muted fw-normal">(optional)</span></label>
-          <select class="form-select" id="pm_tool" name="pm_tool">
-            <option value="">None</option>
-            <option value="jira">Jira</option>
-            <option value="trello">Trello</option>
-            <option value="linear">Linear</option>
-          </select>
+          <label for="num_cases" class="form-label fw-semibold">Number of Test Cases</label>
+          <input type="number" class="form-control" id="num_cases" name="num_cases"
+                 value="5" min="1" max="30">
         </div>
 
         <div class="mb-4">
@@ -67,7 +50,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary w-100 py-2 fs-5">
-          🚀 Generate Test Plan
+          🚀 Generate Tests
         </button>
       </form>
     </div>
