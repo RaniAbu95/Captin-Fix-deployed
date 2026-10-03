@@ -78,26 +78,6 @@
         {% endfor %}
       </div>
 
-      <!-- Results summary -->
-      <div class="card mb-3 shadow-sm">
-        <div class="card-body py-2">
-          <div class="row text-center">
-            <div class="col">
-              <div class="fw-bold text-muted small">RUN</div>
-              <div class="fs-5 fw-bold" id="count-total">0 / {{ plan.cases | length }}</div>
-            </div>
-            <div class="col">
-              <div class="fw-bold text-muted small">PASSED</div>
-              <div class="fs-5 fw-bold text-success" id="count-pass">0</div>
-            </div>
-            <div class="col">
-              <div class="fw-bold text-muted small">FAILED</div>
-              <div class="fs-5 fw-bold text-danger" id="count-fail">0</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Test Cases accordion -->
       <div class="accordion" id="tcAccordion">
         {% for case in plan.cases %}
@@ -182,18 +162,6 @@
       const CASES = {{ plan.cases | tojson }};
       const TARGET = {{ target | tojson }};
       const generatedCode = {};
-      const testResults = {};  // tracks pass/fail per index
-
-      function updateSummary(idx, status) {
-        if (status !== undefined) testResults[idx] = status;
-        const values = Object.values(testResults);
-        const passed = values.filter(s => s === 'Pass').length;
-        const failed = values.filter(s => s !== 'Pass').length;
-        document.getElementById('count-pass').textContent  = passed;
-        document.getElementById('count-fail').textContent  = failed;
-        document.getElementById('count-total').textContent = `${values.length} / ${CASES.length}`;
-      }
-
       function showCode(idx, code) {
         generatedCode[idx] = code;
         document.getElementById(`code-${idx}`).textContent = code;
@@ -248,7 +216,6 @@
         }
         const r = data.result;
         status = r.status;
-        updateSummary(idx, status);
         const cls  = r.status === 'Pass' ? 'result-pass' : 'result-fail';
         const icon = r.status === 'Pass' ? '✅' : '❌';
         let screenshotLink = '';
