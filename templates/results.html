@@ -143,6 +143,11 @@
                         onclick="copyCode({{ loop.index }})" disabled>
                   Copy Code
                 </button>
+                <button class="btn btn-sm btn-outline-dark" id="dl-btn-{{ loop.index }}"
+                        onclick="downloadCode({{ loop.index }})">
+                  <span id="dl-btn-text-{{ loop.index }}">⬇ Download .py</span>
+                  <span id="dl-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
               </div>
 
               <div id="result-{{ loop.index }}"></div>
@@ -164,6 +169,9 @@
         </a>
         <a href="/download/Plan.xlsx" class="btn btn-outline-success btn-sm">
           ⬇ Download Plan.xlsx
+        </a>
+        <a href="/download/tests.zip" class="btn btn-outline-dark btn-sm">
+          ⬇ Download tests (.zip)
         </a>
       </div>
     </div>
@@ -373,6 +381,54 @@
         btn.disabled = false;
         progress.innerHTML =
           `Done &nbsp;|&nbsp; ✅ <strong>${passed}</strong> passed &nbsp; ❌ <strong>${failed}</strong> failed`;
+      }
+
+      function _saveFile(filename, text) {
+        const blob = new Blob([text], { type: 'text/x-python' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      async function downloadCode(idx) {
+        const caseData = CASES[idx - 1];
+        const filename = `${caseData.id || 'test_' + idx}.py`;
+        if (generatedCode[idx]) {
+          _saveFile(filename, generatedCode[idx]);
+          return;
+        }
+        // Code not loaded yet — fetch it (served from the cached tests/<id>.py when available)
+        const btnText   = document.getElementById(`dl-btn-text-${idx}`);
+        const spinner   = document.getElementById(`dl-spinner-${idx}`);
+        const resultDiv = document.getElementById(`result-${idx}`);
+        btnText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+        try {
+          const res = await fetch('/generate-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ case: caseData, website: TARGET })
+          });
+          let data;
+          try { data = JSON.parse(await res.text()); } catch (_) {
+            data = { error: 'Server returned an empty response — please try again.' };
+          }
+          if (data.error) {
+            resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
+          } else {
+            showCode(idx, data.code);
+            _saveFile(filename, data.code);
+          }
+        } catch (e) {
+          resultDiv.innerHTML = `<div class="result-output result-err">Network error: ${e.message}</div>`;
+        }
+        btnText.classList.remove('d-none');
+        spinner.classList.add('d-none');
       }
 
       function copyCode(idx) {
