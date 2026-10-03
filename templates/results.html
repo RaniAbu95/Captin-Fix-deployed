@@ -114,14 +114,10 @@
                   <span id="view-btn-text-{{ loop.index }}">👁 View Code</span>
                   <span id="view-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
                 </button>
-                <button class="btn btn-sm btn-warning" id="run-btn-{{ loop.index }}"
-                        onclick="runTest({{ loop.index }})">
-                  <span id="run-btn-text-{{ loop.index }}">▶ Run Test</span>
-                  <span id="run-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
-                </button>
                 <button class="btn btn-sm btn-secondary" id="copy-btn-{{ loop.index }}"
-                        onclick="copyCode({{ loop.index }})" disabled>
-                  Copy Code
+                        onclick="copyCode({{ loop.index }})">
+                  <span id="copy-btn-text-{{ loop.index }}">Copy Code</span>
+                  <span id="copy-spinner-{{ loop.index }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
                 </button>
                 <button class="btn btn-sm btn-outline-dark" id="dl-btn-{{ loop.index }}"
                         onclick="downloadCode({{ loop.index }})">
@@ -166,188 +162,18 @@
         generatedCode[idx] = code;
         document.getElementById(`code-${idx}`).textContent = code;
         document.getElementById(`code-wrapper-${idx}`).classList.remove('d-none');
-        document.getElementById(`copy-btn-${idx}`).disabled = false;
       }
 
       async function viewCode(idx) {
-        const caseData = CASES[idx - 1];
-        const btnText  = document.getElementById(`view-btn-text-${idx}`);
-        const spinner  = document.getElementById(`view-spinner-${idx}`);
         const resultDiv = document.getElementById(`result-${idx}`);
-
-        btnText.classList.add('d-none');
-        spinner.classList.remove('d-none');
-        resultDiv.innerHTML = '<div class="result-output result-err">Generating code… this may take ~15 seconds.</div>';
-
-        try {
-          const res = await fetch('/generate-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ case: caseData, website: TARGET })
-          });
-          const text = await res.text();
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch (_) {
-            resultDiv.innerHTML = '<div class="result-output result-err">Server returned an empty response — timeout or out of memory. Please try again.</div>';
-            btnText.classList.remove('d-none');
-            spinner.classList.add('d-none');
-            return;
-          }
-          if (data.error) {
-            resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
-          } else {
-            resultDiv.innerHTML = '';
-            showCode(idx, data.code);
-          }
-        } catch (e) {
-          resultDiv.innerHTML = `<div class="result-output result-err">Network error: ${e.message}</div>`;
+        if (!generatedCode[idx]) {
+          resultDiv.innerHTML = '<div class="result-output result-err">Generating code… this may take ~15 seconds.</div>';
         }
-
-        btnText.classList.remove('d-none');
-        spinner.classList.add('d-none');
-      }
-
-      function _applyTestResult(idx, data, resultDiv, status) {
-        if (data.error) {
-          resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
-          return status;
-        }
-        const r = data.result;
-        status = r.status;
-        const cls  = r.status === 'Pass' ? 'result-pass' : 'result-fail';
-        const icon = r.status === 'Pass' ? '✅' : '❌';
-        let screenshotLink = '';
-        if (r.status !== 'Pass' && r.screenshot_b64) {
-          const dataUrl = `data:image/png;base64,${r.screenshot_b64}`;
-          screenshotLink = `<a href="${dataUrl}" download="${r.id}_failure.png" class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.75rem">⬇ Screenshot</a>`;
-        }
-        const errorBlock = (r.status !== 'Pass' && r.error)
-          ? `<pre style="margin-top:0.5rem;margin-bottom:0;white-space:pre-wrap;word-break:break-word;font-size:0.78rem;background:transparent;border:none;padding:0;">${r.error}</pre>`
-          : '';
-        resultDiv.innerHTML =
-          `<div class="result-output ${cls}">${icon} ${r.status} ${screenshotLink}${errorBlock}</div>`;
-        if (data.code) showCode(idx, data.code);
-        return status;
-      }
-
-      async function runTest(idx) {
-        const caseData  = CASES[idx - 1];
-        const btnText   = document.getElementById(`run-btn-text-${idx}`);
-        const spinner   = document.getElementById(`run-spinner-${idx}`);
-        const resultDiv = document.getElementById(`result-${idx}`);
-
-        btnText.classList.add('d-none');
-        spinner.classList.remove('d-none');
-        resultDiv.innerHTML = '<div class="result-output result-err">Starting test…</div>';
-
-        let status = 'Fail';
-        try {
-          // Step 1: kick off the job — returns immediately with a job_id
-          const startRes = await fetch('/run-test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ case: caseData, website: TARGET }),
-          });
-          const startText = await startRes.text();
-          let startJson;
-          try { startJson = JSON.parse(startText); } catch (_) {
-            const snippet = startText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
-            resultDiv.innerHTML = `<div class="result-output result-err">Server error starting test (HTTP ${startRes.status}${startRes.redirected ? ', redirected to ' + startRes.url : ''}). ${snippet || 'Empty response.'} Please try again.</div>`;
-            btnText.classList.remove('d-none'); spinner.classList.add('d-none');
-            return status;
-          }
-          if (startJson.error) {
-            resultDiv.innerHTML = `<div class="result-output result-err">Error: ${startJson.error}</div>`;
-            btnText.classList.remove('d-none');
-            spinner.classList.add('d-none');
-            return status;
-          }
-          const jobId = startJson.job_id;
-
-          // Step 2: poll /test-status/<job_id> every 4 seconds (max 200s — backend kills at 120s + generation time)
-          const deadline = Date.now() + 200000;
-          let elapsed = 0;
-          let timedOut = false;
-          while (Date.now() < deadline) {
-            await new Promise(r => setTimeout(r, 4000));
-            elapsed += 4;
-            resultDiv.innerHTML = `<div class="result-output result-err">Running test… ${elapsed}s elapsed</div>`;
-            const pollRes = await fetch(`/test-status/${jobId}`);
-            const pollText = await pollRes.text();
-            let job;
-            try { job = JSON.parse(pollText); } catch (_) { continue; }
-            if (job.state === 'done') {
-              status = _applyTestResult(idx, job, resultDiv, status);
-              break;
-            }
-          }
-          if (Date.now() >= deadline) {
-            timedOut = true;
-            const caseId = caseData.id || '';
-            const screenshotLink = caseId
-              ? ` <a href="/download/screenshot/${caseId}" class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.75rem">⬇ Screenshot</a>`
-              : '';
-            resultDiv.innerHTML = `<div class="result-output result-fail">❌ Timed out waiting for test result after 200 seconds.${screenshotLink}</div>`;
-          }
-        } catch (e) {
-          resultDiv.innerHTML = `<div class="result-output result-err">Network error: ${e.message}</div>`;
-        }
-
-        btnText.classList.remove('d-none');
-        spinner.classList.add('d-none');
-        return status;
-      }
-
-      async function runAllTests() {
-        const total   = CASES.length;
-        const btn     = document.getElementById('run-all-btn');
-        const btnText = document.getElementById('run-all-text');
-        const spinner = document.getElementById('run-all-spinner');
-        const progress = document.getElementById('run-all-progress');
-
-        btn.disabled = true;
-        btnText.classList.add('d-none');
-        spinner.classList.remove('d-none');
-
-        let passed = 0, failed = 0, completed = 0;
-
-        function updateProgress() {
-          progress.innerHTML =
-            `${completed}/${total} complete &nbsp;|&nbsp; ✅ <strong>${passed}</strong> passed &nbsp; ❌ <strong>${failed}</strong> failed`;
-        }
-        updateProgress();
-
-        // Expand all accordion items and mark as queued
-        for (let i = 1; i <= total; i++) {
-          const collapse = document.getElementById(`tc-body-${i}`);
-          if (!collapse.classList.contains('show')) {
-            new bootstrap.Collapse(collapse, { toggle: true });
-          }
-          document.getElementById(`result-${i}`).innerHTML =
-            '<div class="result-output result-err">Queued…</div>';
-        }
-
-        // Run tests sequentially (CONCURRENCY=1) — parallel Chrome instances cause OOM
-        const CONCURRENCY = 1;
-        const queue = Array.from({ length: total }, (_, i) => i + 1);
-        async function worker() {
-          while (queue.length > 0) {
-            const idx = queue.shift();
-            const status = await runTest(idx);
-            completed++;
-            if (status === 'Pass') passed++; else failed++;
-            updateProgress();
-          }
-        }
-        await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-
-        spinner.classList.add('d-none');
-        btnText.classList.remove('d-none');
-        btn.disabled = false;
-        progress.innerHTML =
-          `Done &nbsp;|&nbsp; ✅ <strong>${passed}</strong> passed &nbsp; ❌ <strong>${failed}</strong> failed`;
+        await _withButtonSpinner(idx, 'view', async () => {
+          const code = await fetchCode(idx);
+          resultDiv.innerHTML = '';
+          showCode(idx, code);
+        });
       }
 
       function _saveFile(filename, text) {
@@ -362,49 +188,62 @@
         URL.revokeObjectURL(url);
       }
 
-      async function downloadCode(idx) {
-        const caseData = CASES[idx - 1];
-        const filename = `${caseData.id || 'test_' + idx}.py`;
-        if (generatedCode[idx]) {
-          _saveFile(filename, generatedCode[idx]);
-          return;
+      // Returns the generated code for a case, fetching it once (served from the
+      // cached tests/<id>.py when available). Does not reveal the code block.
+      async function fetchCode(idx) {
+        if (generatedCode[idx]) return generatedCode[idx];
+        const res = await fetch('/generate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ case: CASES[idx - 1], website: TARGET })
+        });
+        let data;
+        try { data = JSON.parse(await res.text()); } catch (_) {
+          throw new Error('Server returned an empty response — please try again.');
         }
-        // Code not loaded yet — fetch it (served from the cached tests/<id>.py when available)
-        const btnText   = document.getElementById(`dl-btn-text-${idx}`);
-        const spinner   = document.getElementById(`dl-spinner-${idx}`);
+        if (data.error) throw new Error(data.error);
+        generatedCode[idx] = data.code;
+        return data.code;
+      }
+
+      async function _withButtonSpinner(idx, prefix, fn) {
+        const btnText   = document.getElementById(`${prefix}-btn-text-${idx}`);
+        const spinner   = document.getElementById(`${prefix}-spinner-${idx}`);
         const resultDiv = document.getElementById(`result-${idx}`);
         btnText.classList.add('d-none');
         spinner.classList.remove('d-none');
         try {
-          const res = await fetch('/generate-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ case: caseData, website: TARGET })
-          });
-          let data;
-          try { data = JSON.parse(await res.text()); } catch (_) {
-            data = { error: 'Server returned an empty response — please try again.' };
-          }
-          if (data.error) {
-            resultDiv.innerHTML = `<div class="result-output result-err">Error: ${data.error}</div>`;
-          } else {
-            showCode(idx, data.code);
-            _saveFile(filename, data.code);
-          }
+          await fn();
         } catch (e) {
-          resultDiv.innerHTML = `<div class="result-output result-err">Network error: ${e.message}</div>`;
+          resultDiv.innerHTML = `<div class="result-output result-err">Error: ${e.message}</div>`;
         }
         btnText.classList.remove('d-none');
         spinner.classList.add('d-none');
       }
 
-      function copyCode(idx) {
-        const code = generatedCode[idx];
-        if (!code) return;
-        navigator.clipboard.writeText(code).then(() => {
-          const btn = document.getElementById(`copy-btn-${idx}`);
-          btn.textContent = 'Copied!';
-          setTimeout(() => btn.textContent = 'Copy Code', 2000);
+      async function downloadCode(idx) {
+        const caseData = CASES[idx - 1];
+        const filename = `${caseData.id || 'test_' + idx}.py`;
+        await _withButtonSpinner(idx, 'dl', async () => {
+          _saveFile(filename, await fetchCode(idx));
+        });
+      }
+
+      async function copyCode(idx) {
+        const btnText = document.getElementById(`copy-btn-text-${idx}`);
+        await _withButtonSpinner(idx, 'copy', async () => {
+          if (generatedCode[idx]) {
+            await navigator.clipboard.writeText(generatedCode[idx]);
+          } else if (window.ClipboardItem) {
+            // Hand the clipboard a pending promise so the write stays tied to the
+            // click gesture (Safari rejects writes made after a long await).
+            const blob = fetchCode(idx).then(code => new Blob([code], { type: 'text/plain' }));
+            await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+          } else {
+            await navigator.clipboard.writeText(await fetchCode(idx));
+          }
+          btnText.textContent = 'Copied!';
+          setTimeout(() => btnText.textContent = 'Copy Code', 2000);
         });
       }
     </script>

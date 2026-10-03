@@ -32,7 +32,7 @@ login_manager.login_message_category = 'warning'
 
 app.register_blueprint(auth)
 
-# In-memory job store for async test runs.
+# In-memory job store for async plan generation.
 # Single-worker deployment (--workers 1) so this is safe without Redis.
 _jobs = {}
 _jobs_lock = threading.Lock()
@@ -42,7 +42,7 @@ _jobs_lock = threading.Lock()
 def unauthorized():
     # AJAX/JSON calls must get JSON back — a redirect to the HTML login page
     # breaks the frontend's JSON.parse and shows a misleading "empty response".
-    if request.is_json or request.path.startswith(('/run-test', '/test-status', '/generate-code')):
+    if request.is_json or request.path.startswith('/generate-code'):
         return jsonify({"error": "Session expired — please log in again."}), 401
     flash(login_manager.login_message, login_manager.login_message_category)
     return redirect(url_for('auth.login', next=request.path))
@@ -110,7 +110,7 @@ def _build_plan(target, depth, num_cases, email, pm_tool):
     """Run the planner end-to-end. Returns (plan, [(category, message), ...])."""
     messages = []
 
-    # Clear stale generated test code from prior plans so /run-test
+    # Clear stale generated test code from prior plans so /generate-code
     # doesn't accidentally serve old code under reused case_ids.
     import shutil
     if os.path.exists('tests'):
@@ -119,7 +119,7 @@ def _build_plan(target, depth, num_cases, email, pm_tool):
 
     run_planner(target, depth=int(depth), num_tests=int(num_cases), email=email, pm=pm_tool)
 
-    # Pre-warm executor HTML cache so Run Test never needs to launch Chrome again
+    # Pre-warm executor HTML cache so code generation never needs to launch Chrome again
     from executor import extract_full_html as _warm
     _warm(target)
 
@@ -128,14 +128,14 @@ def _build_plan(target, depth, num_cases, email, pm_tool):
         plan = json.load(f)
 
     # Eagerly generate Selenium code for every case now, so clicking
-    # Run Test or Generate Code later reads the cached file instead
+    # View / Copy / Download Code later reads the cached file instead
     # of re-billing the LLM on every click. Best-effort: if this
-    # fails, /run-test falls back to on-demand generation.
+    # fails, /generate-code falls back to on-demand generation.
     try:
         from executor import generate_test_files
         generate_test_files({"cases": plan.get("cases", []), "website": target})
     except Exception as gen_err:
-        print(f"[submit] Pre-generation failed (will fall back on /run-test): {gen_err}")
+        print(f"[submit] Pre-generation failed (will fall back on /generate-code): {gen_err}")
 
     xlsx_path = os.path.join('output', 'Plan.xlsx')
     attachments = [p for p in (plan_path, xlsx_path) if os.path.exists(p)]
@@ -274,7 +274,7 @@ def _load_or_generate_test_file(case, website):
     """Return (case_id, file_path) for a case. Reads cached file from
     tests/<case_id>.py if it exists; otherwise calls Anthropic to
     generate it. The cache is the entire point — it makes repeated
-    Run Test / Generate Code clicks free after the first generation."""
+    View / Copy / Download Code clicks free after the first generation."""
     from executor import generate_test_files
     case_id = case.get('id')
     cached_path = os.path.join('tests', f'{case_id}.py')
@@ -303,50 +303,6 @@ def generate_code():
         return jsonify({"code": code})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-@app.route('/run-test', methods=['POST'])
-@login_required
-def run_test():
-    from executor import run_test_file
-    data = request.get_json(silent=True) or {}
-    case = data.get('case')
-    website = data.get('website', '')
-    if not case or not website:
-        return jsonify({"error": "case and website are required"}), 400
-
-    job_id = str(uuid.uuid4())
-    with _jobs_lock:
-        _jobs[job_id] = {"state": "running"}
-
-    def _run():
-        try:
-            case_id, file_path = _load_or_generate_test_file(case, website)
-            if not file_path:
-                with _jobs_lock:
-                    _jobs[job_id] = {"state": "done", "error": "Failed to generate test file"}
-                return
-            with open(file_path, 'r', encoding='utf-8') as f:
-                code = f.read()
-            result = run_test_file(case_id, file_path, website=website)
-            with _jobs_lock:
-                _jobs[job_id] = {"state": "done", "code": code, "result": result}
-        except Exception as e:
-            with _jobs_lock:
-                _jobs[job_id] = {"state": "done", "error": str(e)}
-
-    threading.Thread(target=_run, daemon=True).start()
-    return jsonify({"job_id": job_id})
-
-
-@app.route('/test-status/<job_id>')
-@login_required
-def test_status(job_id):
-    with _jobs_lock:
-        job = _jobs.get(job_id)
-    if not job:
-        return jsonify({"error": "Job not found"}), 404
-    return jsonify(job)
 
 
 if __name__ == '__main__':
